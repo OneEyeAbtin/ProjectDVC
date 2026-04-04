@@ -124,14 +124,39 @@ def synthesize(text: str, emotion: str = "neutral", out_path: str = None) -> str
             voice_settings = vs,
             output_format  = "mp3_44100_128",
         )
+        # Write inside the same try block — convert() is a lazy generator in
+        # newer SDK versions, so the HTTP error only fires during iteration, NOT
+        # during the convert() call above. Without this, a 403/429/etc. raises
+        # an SDK ApiError outside the except block and leaks raw HTML to the UI.
+        with open(out_path, "wb") as f:
+            for chunk in audio:
+                if chunk:
+                    f.write(chunk)
+
     except Exception as e:
         err = str(e)
-        # Strip verbose HTTP header dumps from the error string
-        if "headers:" in err and "status_code:" in err:
+        # Strip verbose HTTP header dumps (headers: {...}, status_code: NNN, body: ...)
+        if "headers:" in err or "status_code:" in err:
             import re as _re
-            m = _re.search(r"'message':\s*'([^']+)'", err)
-            short = m.group(1) if m else "ElevenLabs API error"
+            # Try JSON message field first
+            m = _re.search(r"['\"]message['\"]\s*:\s*['\"]([^'\"]+)['\"]", err)
+            # Fallback: extract bare status code
+            sc = _re.search(r"status_code[:\s=]+(\d+)", err)
+            if m:
+                short = m.group(1)
+            elif sc:
+                short = f"HTTP {sc.group(1)}"
+            else:
+                short = "ElevenLabs API error"
             err = short
+
+        if "403" in err or "forbidden" in err.lower():
+            raise RuntimeError(
+                "EL_QUOTA: ElevenLabs 403 Forbidden — voice or model not accessible.\n"
+                "Likely cause: Library/shared voices require a paid plan, OR your Voice ID is wrong.\n"
+                "Fix: elevenlabs.io → Voice Lab → Create Voice (Voice Design) → copy new Voice ID.\n"
+                "Voice Design voices work on the free tier."
+            )
         if "402" in err or "payment_required" in err or "paid_plan_required" in err:
             raise RuntimeError(
                 "EL_QUOTA: ElevenLabs: You're using a Library voice — those require a paid plan.\n"
@@ -144,12 +169,6 @@ def synthesize(text: str, emotion: str = "neutral", out_path: str = None) -> str
         if "429" in err or "rate_limit" in err.lower() or "quota" in err.lower() or "too many" in err.lower():
             raise RuntimeError(f"EL_QUOTA: ElevenLabs quota/rate-limit hit: {err}")
         raise RuntimeError(err)
-
-    # Write audio bytes to file
-    with open(out_path, "wb") as f:
-        for chunk in audio:
-            if chunk:
-                f.write(chunk)
 
     return out_path
 

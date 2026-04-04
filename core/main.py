@@ -2369,16 +2369,22 @@ class CompanionWindow(QWidget):
         outer.addWidget(tabs, 1)
 
         def _scr(w):
-            """Wrap widget in a scroll area with theme-matched scrollbar."""
+            """Wrap widget in a scroll area with theme-matched scrollbar.
+            ScrollBarAlwaysOn forces Qt to RESERVE the scrollbar lane in the
+            layout — on Windows/Fusion the default AsNeeded causes the bar to
+            FLOAT ON TOP of content, clipping the rightmost ~15 px of every row.
+            The bar is styled to 6 px so the reserved space is barely visible."""
             from PyQt6.QtWidgets import QScrollArea
             sc = QScrollArea(); sc.setWidgetResizable(True)
             sc.setFrameShape(QFrame.Shape.NoFrame)
             sc.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            sc.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
             sc.setStyleSheet(
                 f"QScrollArea{{background:transparent;border:none}}"
-                f"QScrollBar:vertical{{background:{t['BG1']};width:5px;border-radius:3px}}"
-                f"QScrollBar::handle:vertical{{background:{t['ACC2']};border-radius:3px;min-height:16px}}"
-                f"QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{{height:0}}"
+                f"QScrollBar:vertical{{background:{t['BG1']};width:6px;border-radius:3px;margin:0}}"
+                f"QScrollBar::handle:vertical{{background:{t['ACC2']};border-radius:3px;min-height:20px}}"
+                f"QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{{height:0;background:none}}"
+                f"QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical{{background:none}}"
             )
             w.setStyleSheet("background:transparent")
             sc.setWidget(w); return sc
@@ -2986,7 +2992,7 @@ class CompanionWindow(QWidget):
             "QPushButton:enabled:hover{background:#2ecc71}"
             "QPushButton:disabled{background:#2c3e50;color:#555}"
         )
-        rec_row.addWidget(rec_btn); rec_row.addWidget(stop_btn)
+        rec_row.addWidget(rec_btn, 1); rec_row.addWidget(stop_btn, 1)
         rec_row_w = QWidget(); rec_row_w.setLayout(rec_row)
         stt_lay.addWidget(rec_row_w)
 
