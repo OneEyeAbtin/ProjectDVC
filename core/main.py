@@ -2305,7 +2305,7 @@ class CompanionWindow(QWidget):
         """Unified settings: General / Memory / AI+API / TTS / STT.
         Theme selection lives ONLY in the right-click context menu."""
         t  = TH._active
-        dlg = self._dlg_base("⚙️  Settings", w=560)   # no h — adjustSize() handles it
+        dlg = self._dlg_base("⚙️  Settings", w=520)
         outer = QVBoxLayout(dlg._content)
         outer.setContentsMargins(0, 0, 0, 8); outer.setSpacing(0)
 
@@ -2727,6 +2727,8 @@ class CompanionWindow(QWidget):
             el_emo_box.addItem(e)
         el_test_btn = QPushButton("▶  Test"); el_test_btn.setStyleSheet(BTN_SS)
         _el_test_ref = []
+        # Guard: cleared when dialog closes so signals can't touch dead Qt objects
+        _el_result_ref = [el_voice_result]
         def _el_test():
             from audio.audio import TTSWorker, play_audio, stop_audio as _sa
             _sa()
@@ -2738,9 +2740,14 @@ class CompanionWindow(QWidget):
                           emotion=el_emo_box.currentText())
             w.done.connect(play_audio)
             w.done.connect(lambda _: w.wait(1000))
-            w.failed.connect(lambda e: el_voice_result.setText(f"Test failed: {e}"))
+            def _on_tts_fail(e):
+                if _el_result_ref:   # dialog still alive
+                    _el_result_ref[0].setText(f"Test failed: {e}")
+            w.failed.connect(_on_tts_fail)
             _el_test_ref.clear(); _el_test_ref.append(w); w.start()
         el_test_btn.clicked.connect(_el_test)
+        # On dialog close: disarm result ref so in-flight workers can't crash
+        dlg.finished.connect(lambda _: _el_result_ref.clear())
         el_btn_row.addWidget(el_fetch_btn); el_btn_row.addWidget(QLabel("Emo:"))
         el_btn_row.addWidget(el_emo_box); el_btn_row.addWidget(el_test_btn)
         el_btn_w = QWidget(); el_btn_w.setLayout(el_btn_row)
@@ -2809,9 +2816,6 @@ class CompanionWindow(QWidget):
         tts_eng_box.currentIndexChanged.connect(_tts_eng_changed)
         _tts_eng_changed(tts_eng_box.currentIndex())
 
-        tts_lay.addSpacing(8)
-        tts_save_btn = QPushButton("💾  Save TTS Settings")
-        tts_save_btn.setFixedHeight(34); tts_save_btn.setStyleSheet(BTN_PRI)
         def _save_tts():
             self.sd["tts_enabled"]  = chk_tts_on.isChecked()
             self.sd["lip_sync_tts"] = chk_ls_tts.isChecked()
@@ -2826,12 +2830,6 @@ class CompanionWindow(QWidget):
             sel_piper = piper_box.currentData()
             if sel_piper:
                 self.sd["selected_offline_voice"] = sel_piper
-            persist_save(self.sd); save_config()
-            eng_lbl = {"elevenlabs":"ElevenLabs 🎙️","online":"edge-tts 🌐","offline":"Piper 💾"
-                       }.get(self.sd["tts_engine"], self.sd["tts_engine"])
-            self._display(f"TTS {'ON' if self.sd['tts_enabled'] else 'OFF'} — {eng_lbl} [EMOTION: happy] 🔊")
-        tts_save_btn.clicked.connect(_save_tts)
-        tts_lay.addWidget(tts_save_btn)
         tts_lay.addStretch()
         tabs.addTab(_scr(tts_w), "🔊 TTS")
 
@@ -2924,9 +2922,9 @@ class CompanionWindow(QWidget):
 
         gain_lbl = QLabel(_gain_txt(gain_slider.value()))
         gain_lbl.setStyleSheet(
-            f"color:{t['ACC1']};font-size:12px;font-weight:bold;min-width:108px"
+            f"color:{t['ACC1']};font-size:12px;font-weight:bold;min-width:140px"
         )
-        gain_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        gain_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
 
         def _on_gain(v):
             gain_lbl.setText(_gain_txt(v))
@@ -3113,9 +3111,6 @@ class CompanionWindow(QWidget):
                 except Exception: pass
         dlg.finished.connect(_stt_cleanup)
 
-        stt_lay.addSpacing(8)
-        stt_save_btn = QPushButton("💾  Save STT Settings")
-        stt_save_btn.setFixedHeight(34); stt_save_btn.setStyleSheet(BTN_PRI)
         def _save_stt():
             CONFIG.setdefault("stt", {}).update({
                 "engine":       stt_eng_box.itemData(stt_eng_box.currentIndex()),
@@ -3124,10 +3119,6 @@ class CompanionWindow(QWidget):
                 "device_index": mic_box.currentData(),
                 "mic_gain":     gain_slider.value() / 10.0,
             })
-            save_config()
-            self._display("*nods* Mic settings saved! [EMOTION: happy] 🎤")
-        stt_save_btn.clicked.connect(_save_stt)
-        stt_lay.addWidget(stt_save_btn)
         stt_lay.addStretch()
         tabs.addTab(_scr(stt_w), "🎤 STT")
 
@@ -3136,13 +3127,22 @@ class CompanionWindow(QWidget):
         close_btn.setFixedHeight(36)
         close_btn.setStyleSheet(BTN_PRI)
         def _on_close():
-            _save_gen(); _save_mem()
+            _save_gen(); _save_mem(); _save_tts(); _save_stt()
             persist_save(self.sd); save_config()
+            eng_lbl = {"elevenlabs":"ElevenLabs 🎙️","online":"edge-tts 🌐","offline":"Piper 💾"
+                       }.get(self.sd.get("tts_engine","online"), self.sd.get("tts_engine","online"))
+            self._display(f"Settings saved! TTS {'ON' if self.sd.get('tts_enabled') else 'OFF'} — {eng_lbl} [EMOTION: happy] ✨")
             dlg.accept()
         close_btn.clicked.connect(_on_close)
         outer.addWidget(close_btn)
-        dlg.adjustSize()   # ← compact to actual content BEFORE show — kills the dead zone
         dlg.show()
+        # Only auto-fit HEIGHT (not width — adjustSize() would stretch to the
+        # widest content, e.g. the EL API key field, blowing the dialog to ~1090px).
+        # Lock width at the minimum we set, shrink height to actual content.
+        QTimer.singleShot(0, lambda: dlg.resize(
+            dlg.minimumWidth(),
+            min(dlg.sizeHint().height(), dlg.maximumHeight())
+        ))
 
     def _mem_dlg(self):
         th = TH._active
