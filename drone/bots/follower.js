@@ -133,7 +133,13 @@ function _follow(){
   if(!_bot||!_target) return;
   try{
     const p=_bot.players[_target]; if(!p?.entity) return;
-    const mc=new Movements(_bot); mc.allowSprinting=true;
+    const mc=new Movements(_bot);
+    mc.allowSprinting=true;
+    // Disable pathfinder's built-in scaffolding — its internal tick-loop races
+    // the physics engine causing the bot to jump without placing, or place on the
+    // wrong face. Manual pillar (%pillar) handles elevation reliably instead.
+    mc.allow1by1towers=false;
+    mc.scaffoldingBlocks=[];
     _bot.pathfinder.setMovements(mc);
     _bot.pathfinder.setGoal(new goals.GoalFollow(p.entity, FOLLOW_DIST), true);
   }catch(e){}

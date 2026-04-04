@@ -62,6 +62,7 @@ async function _followConcurrent({player}){
   if(!p?.entity) return;
   try{
     const mc=new Movements(_bot); mc.allowSprinting=true;
+    mc.allow1by1towers=false; mc.scaffoldingBlocks=[];
     _bot.pathfinder.setMovements(mc);
     _bot.pathfinder.setGoal(new goals.GoalFollow(p.entity,2),true);
   }catch(e){}
@@ -72,6 +73,7 @@ async function _followConcurrent({player}){
       const pp=_bot.players[player];
       if(pp?.entity){
         const mc2=new Movements(_bot); mc2.allowSprinting=true;
+        mc2.allow1by1towers=false; mc2.scaffoldingBlocks=[];
         _bot.pathfinder.setMovements(mc2);
         _bot.pathfinder.setGoal(new goals.GoalFollow(pp.entity,2),true);
       }
@@ -857,18 +859,47 @@ async function _pillar(task){
       const item=_bot.inventory.items().find(x=>x.name===block);
       if(!item){ _send({ type:'task_result',task:label,status:'error',message:`Ran out of ${block}` }); return; }
       await _bot.equip(item,'hand').catch(()=>{});
+
+      // Record floor Y so we know when we've actually left the ground
+      const yFloor=_bot.entity.position.y;
+
+      // Jump — hold for 1 tick then release
       _bot.setControlState('jump',true);
-      await _bot.waitForTicks(2);
+      await _bot.waitForTicks(1);
       _bot.setControlState('jump',false);
+
+      // Wait until genuinely airborne (risen ≥ 0.45 blocks above floor).
+      // 2-tick wait was not enough — bot was still at ground level, placing
+      // on the wrong face or failing silently. Cap at 600 ms safety.
+      let risen=0;
+      while(_bot.entity.position.y < yFloor+0.45 && risen < 600){
+        await _sleep(30); risen+=30;
+      }
+
+      // Reference block is directly under feet (offset 0,-1,0).
+      // The old code used offset(0,-2,0) which is the block the player STANDS
+      // on at normal height, but mid-jump the feet have risen so -1 is correct.
       try{
-        const base=_bot.blockAt(_bot.entity.position.offset(0,-2,0));
-        if(base&&base.name!=='air'&&!LAVA_BLOCKS.has(base.name)&&!FALLING_BLOCKS.has(base.name)){
-          await _bot.placeBlock(base,vec3(0,1,0));
+        const underFeet=_bot.blockAt(_bot.entity.position.offset(0,-1,0));
+        if(underFeet && underFeet.name!=='air' && !LAVA_BLOCKS.has(underFeet.name) && !FALLING_BLOCKS.has(underFeet.name)){
+          await _bot.placeBlock(underFeet, vec3(0,1,0));
           placed++;
+        } else {
+          // Fallback: try -2 in case the player is very close to the next block boundary
+          const two=_bot.blockAt(_bot.entity.position.offset(0,-2,0));
+          if(two && two.name!=='air' && !LAVA_BLOCKS.has(two.name)){
+            await _bot.placeBlock(two, vec3(0,1,0));
+            placed++;
+          }
         }
       }catch(placeErr){}
-      await _bot.waitForTicks(4);
-    }catch(e){ await _sleep(250); }
+
+      // Wait for landing before starting the next jump — prevents iterations
+      // overlapping mid-air and double-jumping without placing.
+      let landWait=0;
+      while(!_bot.entity.onGround && landWait<1000){ await _sleep(40); landWait+=40; }
+      await _sleep(80); // brief ground-settle before next iteration
+    }catch(e){ await _sleep(300); }
   }
   _send({ type:'task_result',task:label,status:'done',message:`Pillared ${placed} ✓` });
 }

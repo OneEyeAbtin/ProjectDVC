@@ -11,12 +11,29 @@ This code may not be copied, modified, or distributed without permission.
  */
 const mineflayer   = require('mineflayer');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
-const collectBlock = require('mineflayer-collectblock').plugin;
-const toolPlugin   = require('mineflayer-tool').plugin;
-const autoEat      = require('mineflayer-auto-eat').plugin;
-const armorManager = require('mineflayer-armor-manager');
-const pvp          = require('mineflayer-pvp').plugin;
 const WebSocket    = require('ws');
+
+// ── Version-agnostic plugin loader ────────────────────────────────────────────
+// Different npm versions export plugins as: module itself, module.plugin, or
+// module.default. This helper tries all three so a version bump never breaks
+// bot startup with "plugin needs to be a function".
+function resolvePlugin(pkg){
+  const m = require(pkg);
+  if (typeof m === 'function')        return m;
+  if (typeof m.plugin === 'function') return m.plugin;
+  if (typeof m.default === 'function')return m.default;
+  // Last resort: find the first function-valued export key
+  for(const k of Object.keys(m)){
+    if(typeof m[k] === 'function') return m[k];
+  }
+  throw new Error(`${pkg}: no callable plugin export found (check npm version)`);
+}
+
+const collectBlock = resolvePlugin('mineflayer-collectblock');
+const toolPlugin   = resolvePlugin('mineflayer-tool');
+const autoEat      = resolvePlugin('mineflayer-auto-eat');
+const armorManager = resolvePlugin('mineflayer-armor-manager');
+const pvp          = resolvePlugin('mineflayer-pvp');
 
 // ── CLI args ──────────────────────────────────────────────────────────────────
 const args = {};

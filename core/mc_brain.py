@@ -563,6 +563,6 @@ class MCBrain:
             print("[MC_BRAIN] Not connected to bot WS")
             return
         payload = json.dumps({"cmd": "text", "text": args.get("text", "")} if cmd == "text"
-                             else {"cmd": cmd, "args": args})
+                             else {"cmd": cmd, **args})  # flat — bot.js reads msg.block not msg.args.block
                              
         asyncio.run_coroutine_threadsafe(self.ws.send(payload), self._loop)
