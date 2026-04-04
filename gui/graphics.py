@@ -5,6 +5,9 @@
          coverage per outfit, and renders a procedural fallback character when no
          sprite is found on disk.
 [AUTHOR] Abtin
+
+Copyright (c) 2026 Abtin (github.com/OneEyeAbtin). All rights reserved.
+This code may not be copied, modified, or distributed without permission.
 """
 import time
 from PyQt6.QtCore import Qt, QPoint

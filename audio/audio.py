@@ -7,6 +7,9 @@ The drone's auditory nervous system. Owns the pygame mixer lifecycle, generates
 the procedural UI soundscape, and arbitrates between TTS engines
 (ElevenLabs → edge-tts → Piper) in strict priority order.
 Every syllable the companion speaks — and every click the UI makes — routes here.
+
+Copyright (c) 2026 Abtin (github.com/OneEyeAbtin). All rights reserved.
+This code may not be copied, modified, or distributed without permission.
 """
 import asyncio, math, os, re, struct, subprocess, time, wave
 from pathlib import Path

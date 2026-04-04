@@ -5,6 +5,9 @@
          summary paragraph asynchronously on next boot, and builds the full
          MEMORY block injected into the AI system prompt each turn.
 [AUTHOR] Abtin
+
+Copyright (c) 2026 Abtin (github.com/OneEyeAbtin). All rights reserved.
+This code may not be copied, modified, or distributed without permission.
 """
 
 import json, re, threading, difflib

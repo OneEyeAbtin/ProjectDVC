@@ -5,6 +5,9 @@
  *          aborts drone operations via a generation-counter dead-man switch.
  *          Stale async corpses self-terminate. Follow+1 law is strictly enforced.
  * [AUTHOR] Abtin
+ * 
+ * Copyright (c) 2026 Abtin (github.com/OneEyeAbtin). All rights reserved.
+This code may not be copied, modified, or distributed without permission.
  */
 function safeInt(val,def=1){ const n=parseInt(val); return Number.isFinite(n)&&n>0?n:def; }
 

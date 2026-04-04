@@ -5,6 +5,9 @@
          drives the sprite/emotion engine, and orchestrates every subsystem:
          memory, TTS, STT, MC bridge, save/load, and theme.
 [AUTHOR] Abtin
+
+Copyright (c) 2026 Abtin (github.com/OneEyeAbtin). All rights reserved.
+This code may not be copied, modified, or distributed without permission.
 """
 import sys, re, random, subprocess
 from pathlib import Path

@@ -8,6 +8,9 @@ VoiceSettings tuning (stability, similarity_boost, style, speaker_boost).
 Handles quota/auth failures gracefully — emits EL_QUOTA: prefixed errors
 so the upstream TTSWorker can fall back to edge-tts without user-visible noise.
 Configure api_key and voice_id in your config.json before use.
+
+Copyright (c) 2026 Abtin (github.com/OneEyeAbtin). All rights reserved.
+This code may not be copied, modified, or distributed without permission.
 """
 import ssl, certifi
 # Fix SSL errors on Windows with some antivirus setups

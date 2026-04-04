@@ -1,3 +1,6 @@
+Copyright (c) 2026 Abtin (github.com/OneEyeAbtin). All rights reserved.
+This code may not be copied, modified, or distributed without permission.
+
 # 🤖 ProjectDVC — Desktop Virtual Companion
 
 **ProjectDVC** is an advanced, always-on-top desktop companion built on a split-brain architecture. A sleek **Python/PyQt6 GUI Cortex** (The Brain) connects via WebSocket to a **Node.js Mineflayer Drone** (The Body) operating inside Minecraft.
@@ -291,7 +294,13 @@ ProjectDVC/
 │   ├── sounds/          # Procedurally generated UI SFX (.wav)
 │   └── tts/
 │       └── voices/      # Piper .onnx voice models
-└── data/
-    ├── permanent_facts.json  # Long-term permanent trait storage
-    └── session_cache.json    # Raw history for lazy compression on next boot
+│
+├── permanent_facts.json  # Long-term permanent trait storage
+└── session_cache.json    # Raw history for lazy compression on next boot
+
 ```
+## License
+
+Copyright (c) 2026 Abtin (github.com/OneEyeAbtin). All rights reserved.
+
+This project and its source code are proprietary and confidential. You may not copy, modify, distribute, or use this code for any purpose without explicit permission from the author.

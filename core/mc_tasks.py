@@ -5,6 +5,9 @@
          thread-safe queue so tasks never overlap, with per-task timeouts
          and a zombie-unblock mechanism for clean WS disconnect recovery.
 [AUTHOR] Abtin
+
+Copyright (c) 2026 Abtin (github.com/OneEyeAbtin). All rights reserved.
+This code may not be copied, modified, or distributed without permission.
 """
 import threading, queue, time
 from dataclasses import dataclass, field

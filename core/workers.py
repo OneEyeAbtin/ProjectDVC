@@ -4,6 +4,9 @@
          thread so the UI never freezes. Emits finished/error signals back
          to CompanionWindow on completion.
 [AUTHOR] Abtin
+
+Copyright (c) 2026 Abtin (github.com/OneEyeAbtin). All rights reserved.
+This code may not be copied, modified, or distributed without permission.
 """
 import requests
 from PyQt6.QtCore import QThread, pyqtSignal

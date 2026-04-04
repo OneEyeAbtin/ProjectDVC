@@ -6,6 +6,9 @@
          are per-category. All callbacks cross the thread boundary safely
          via the Qt signal bridge in main.py.
 [AUTHOR] Abtin
+
+Copyright (c) 2026 Abtin (github.com/OneEyeAbtin). All rights reserved.
+This code may not be copied, modified, or distributed without permission.
 """
 import asyncio, json, re, threading, random
 import websockets

@@ -7,6 +7,9 @@ Captures raw mic audio, resamples to 16kHz, and transcribes via Groq Whisper
 (online) or faster-whisper (offline, CPU-only). Runs on a dedicated QThread —
 the UI mic button arms/disarms the recording gate. Engine and gain are
 hot-reloaded from config.json with no restart required.
+
+Copyright (c) 2026 Abtin (github.com/OneEyeAbtin). All rights reserved.
+This code may not be copied, modified, or distributed without permission.
 """
 
 import io, os, tempfile, threading, wave

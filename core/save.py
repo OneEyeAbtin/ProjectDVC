@@ -4,6 +4,9 @@
          dvc_profile.json, writes mutations back atomically, and manages
          traits.txt for the memory cortex.
 [AUTHOR] Abtin
+
+Copyright (c) 2026 Abtin (github.com/OneEyeAbtin). All rights reserved.
+This code may not be copied, modified, or distributed without permission.
 """
 import json
 from core.config import PROFILE_PATH, TRAITS_PATH, _DEFAULTS

@@ -5,6 +5,9 @@
  *          routes Python upstream commands to drone sub-modules, and bleeds
  *          telemetry, radar, and lifecycle events back to the desktop application.
  * [AUTHOR] Abtin
+ * 
+ * Copyright (c) 2026 Abtin (github.com/OneEyeAbtin). All rights reserved.
+This code may not be copied, modified, or distributed without permission.
  */
 const mineflayer   = require('mineflayer');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');

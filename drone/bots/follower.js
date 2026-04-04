@@ -5,6 +5,9 @@
  *          fires environmental observations and emotion hints on world events,
  *          and retaliates with pvp plugin when the drone or player is threatened.
  * [AUTHOR] Abtin
+ * 
+ * Copyright (c) 2026 Abtin (github.com/OneEyeAbtin). All rights reserved.
+This code may not be copied, modified, or distributed without permission.
  */
 const { goals, Movements } = require('mineflayer-pathfinder');
 

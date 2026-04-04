@@ -5,6 +5,9 @@
          all consumers pull live color via get() or the typed accessors.
          Theme state persisted in dvc_profile.json under "theme".
 [AUTHOR] Abtin
+
+Copyright (c) 2026 Abtin (github.com/OneEyeAbtin). All rights reserved.
+This code may not be copied, modified, or distributed without permission.
 """
 from __future__ import annotations
 
