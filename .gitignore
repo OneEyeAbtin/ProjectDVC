@@ -11,6 +11,8 @@ assets/tts/voices/*.onnx
 assets/tts/voices/*.json
 
 # Sensitive Data & Profiles
+data/permanent_facts.json
+data/session_cache.json
 dvc_profile.json
 .env
 traits.txt
