@@ -1,0 +1,27 @@
+# Python caches
+__pycache__/
+*.pyc
+
+# Node.js body parts
+drone/node_modules/
+drone/package-lock.json
+
+# Large AI Models and Audio
+assets/tts/voices/*.onnx
+assets/tts/voices/*.json
+
+# Sensitive Data & Profiles
+dvc_profile.json
+.env
+traits.txt
+
+# VS Code settings
+.vscode/
+
+# Windows binaries & audio outputs
+*.exe
+*.dll
+*.mp3
+*.wav
+espeak-ng-data/
+/assets/tts
