@@ -1618,14 +1618,10 @@ class CompanionWindow(QWidget):
 
     def _mc_update_inv_panel(self, items: list):
         """Called by sig_inv — NEVER touches update_chat_log or trigger_tts.
-        Updates only the inventory QListWidget inside the MC Settings panel."""
-        if not hasattr(self, '_mc_inv_list'):
-            return
-        lw = self._mc_inv_list
-        lw.clear()
-        if not items:
-            lw.addItem(QListWidgetItem("(inventory is empty)"))
-            return
+        Updates BOTH the always-visible main-panel Inventory tab AND the
+        MC Settings dialog panel when it is open.
+        Each panel is guarded with try/except so a closed dialog's dead
+        C++ wrapper never causes a RuntimeError crash."""
         ICONS = {
             'diamond': '💎', 'netherite': '⚫', 'gold': '🟡', 'iron': '⚙️',
             'coal': '🪨',    'sword': '⚔️',    'pickaxe': '⛏',  'axe': '🪓',
@@ -1635,31 +1631,50 @@ class CompanionWindow(QWidget):
             'shield': '🛡',  'armor': '🛡',    'bread': '🍞',   'apple': '🍎',
             'cooked': '🍗',  'food': '🍖',     'bucket': '🪣',  'rod': '🎣',
         }
-        for entry in items:
-            name  = entry.get('name', '?')
-            count = entry.get('count', 1)
-            icon  = '▪️'
-            for kw, ic in ICONS.items():
-                if kw in name:
-                    icon = ic; break
-            display = name.replace('_', ' ')
-            lw.addItem(QListWidgetItem(f"{icon}  {display}  ×{count}"))
+        def _fill(lw):
+            lw.clear()
+            if not items:
+                lw.addItem(QListWidgetItem("(inventory is empty)")); return
+            for entry in items:
+                name  = entry.get('name', '?')
+                count = entry.get('count', 1)
+                icon  = '▪️'
+                for kw, ic in ICONS.items():
+                    if kw in name: icon = ic; break
+                lw.addItem(QListWidgetItem(f"{icon}  {name.replace('_', ' ')}  ×{count}"))
+
+        # ── Main panel (always alive — safe to call any time) ──────────────
+        if hasattr(self, '_main_inv_list'):
+            try: _fill(self._main_inv_list)
+            except RuntimeError: pass
+
+        # ── MC Settings dialog panel (only alive while the dialog is open) ─
+        if hasattr(self, '_mc_inv_list'):
+            try: _fill(self._mc_inv_list)
+            except RuntimeError: pass   # dialog closed — C++ object deleted
 
     def _mc_update_status_panel(self, data: dict):
         """Called by sig_status — NEVER touches update_chat_log or trigger_tts.
-        Updates only the stats label inside the MC Settings panel.
+        Updates BOTH the always-visible main-panel stats label AND the
+        MC Settings dialog stats label when it is open.
         XP is stripped (intentionally omitted per spec)."""
-        if not hasattr(self, '_mc_stats_lbl'):
-            return
         hp   = data.get('hp',   '?')
         food = data.get('food', '?')
         x    = data.get('x',    '?')
         y    = data.get('y',    '?')
         z    = data.get('z',    '?')
         held = data.get('held', 'empty')
-        self._mc_stats_lbl.setText(
-            f"❤️ HP: {hp}/20  |  🍖 Food: {food}/20  |  📍 {x} {y} {z}  |  🛡 {held}"
-        )
+        txt  = f"❤️ HP: {hp}/20  |  🍖 Food: {food}/20  |  📍 {x} {y} {z}  |  🛡 {held}"
+
+        # ── Main panel (always alive) ──────────────────────────────────────
+        if hasattr(self, '_main_stats_lbl'):
+            try: self._main_stats_lbl.setText(txt)
+            except RuntimeError: pass
+
+        # ── MC Settings dialog label (only alive while the dialog is open) ─
+        if hasattr(self, '_mc_stats_lbl'):
+            try: self._mc_stats_lbl.setText(txt)
+            except RuntimeError: pass   # dialog closed — C++ object deleted
 
     def _mc_update_task_bar(self, label: str = "", active: bool = False):
         """Update the active-task strip below the MC bar."""
@@ -2404,6 +2419,33 @@ class CompanionWindow(QWidget):
         pet_inp.setStyleSheet(INP_SS)
         gen_lay.addWidget(_row("Companion Name:", pet_inp))
 
+        _sec(gen_lay, "🧠  Brain Mode")
+        _gen_bm = [self.sd.get("brain_mode", "local")]   # mutable so closures can write it
+        bm_row_h = QHBoxLayout(); bm_row_h.setSpacing(6)
+        bm_btns_gen: dict = {}
+        for _bv, _bl in [("local","🖥 Local"),("online","🌐 Online"),("offline","💾 Offline")]:
+            _btn = QPushButton(_bl); _btn.setCheckable(True)
+            _btn.setChecked(_bv == _gen_bm[0]); _btn.setFixedHeight(28)
+            _btn.setStyleSheet(
+                f"QPushButton{{background:{t['BG3']};border:1px solid {t['BORDER']};"
+                f"border-radius:8px;padding:0 10px;font-size:11px;color:{t['TXT2']}}}"
+                f"QPushButton:checked{{background:{t['ACC2']};border-color:{t['ACC2']};"
+                f"color:white;font-weight:bold}}"
+                f"QPushButton:hover{{border-color:{t['ACC1']};color:{t['ACC1']}}}"
+            )
+            bm_btns_gen[_bv] = _btn; bm_row_h.addWidget(_btn)
+        bm_row_h.addStretch()
+        def _on_bm_gen(v):
+            _gen_bm[0] = v
+            for k, b in bm_btns_gen.items(): b.setChecked(k == v)
+        for _bv, _btn in bm_btns_gen.items():
+            _btn.clicked.connect(lambda _, v=_bv: _on_bm_gen(v))
+        bm_row_w = QWidget(); bm_row_w.setLayout(bm_row_h)
+        gen_lay.addWidget(bm_row_w)
+        bm_hint = QLabel("🖥 Local = LM Studio/Ollama   🌐 Online = cloud API   💾 Offline = rule-based")
+        bm_hint.setStyleSheet(f"color:{t['TXT2']};font-size:10px;padding-left:2px")
+        gen_lay.addWidget(bm_hint)
+
         _sec(gen_lay, "💬  Conversation")
         chk_hearts = QCheckBox("Show affection hearts in top bar")
         chk_hearts.setChecked(self.sd.get("hearts_visible", True))
@@ -2449,6 +2491,9 @@ class CompanionWindow(QWidget):
         def _save_gen():
             self.sd["user_name"] = user_inp.text().strip() or "User"
             self.sd["pet_name"]  = pet_inp.text().strip()  or "Companion"
+            # Brain mode — update topbar icon immediately
+            self.sd["brain_mode"] = _gen_bm[0]
+            self._upd_brain()
             self.hvis = chk_hearts.isChecked()
             self.sd["hearts_visible"] = self.hvis; self._upd_hearts()
             CONFIG["max_history"] = hist_spin.value()
