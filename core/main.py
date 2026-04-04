@@ -2305,7 +2305,7 @@ class CompanionWindow(QWidget):
         """Unified settings: General / Memory / AI+API / TTS / STT.
         Theme selection lives ONLY in the right-click context menu."""
         t  = TH._active
-        dlg = self._dlg_base("⚙️  Settings", w=520)
+        dlg = self._dlg_base("⚙️  Settings", w=560)
         outer = QVBoxLayout(dlg._content)
         outer.setContentsMargins(0, 0, 0, 8); outer.setSpacing(0)
 
@@ -2369,23 +2369,15 @@ class CompanionWindow(QWidget):
         outer.addWidget(tabs, 1)
 
         def _scr(w):
-            """Wrap widget in a scroll area with theme-matched scrollbar.
-            ScrollBarAlwaysOn forces Qt to RESERVE the scrollbar lane in the
-            layout — on Windows/Fusion the default AsNeeded causes the bar to
-            FLOAT ON TOP of content, clipping the rightmost ~15 px of every row.
-            The bar is styled to 6 px so the reserved space is barely visible."""
+            """Wrap in a scroll area. Scrollbar is hidden (AlwaysOff) so it
+            reserves ZERO pixels — nothing can clip right-edge content.
+            Mouse wheel / keyboard still scrolls normally."""
             from PyQt6.QtWidgets import QScrollArea
             sc = QScrollArea(); sc.setWidgetResizable(True)
             sc.setFrameShape(QFrame.Shape.NoFrame)
             sc.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-            sc.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
-            sc.setStyleSheet(
-                f"QScrollArea{{background:transparent;border:none}}"
-                f"QScrollBar:vertical{{background:{t['BG1']};width:6px;border-radius:3px;margin:0}}"
-                f"QScrollBar::handle:vertical{{background:{t['ACC2']};border-radius:3px;min-height:20px}}"
-                f"QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{{height:0;background:none}}"
-                f"QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical{{background:none}}"
-            )
+            sc.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            sc.setStyleSheet("QScrollArea{background:transparent;border:none}")
             w.setStyleSheet("background:transparent")
             sc.setWidget(w); return sc
 
@@ -2508,7 +2500,7 @@ class CompanionWindow(QWidget):
                 self.name_lbl.setText(self.sd["pet_name"].upper())
             persist_save(self.sd)
 
-        tabs.addTab(_scr(gen_w), "⚙️ General")
+        tabs.addTab(gen_w, "⚙️ General")
 
         # ═════════════════════════════════════════════════════════════════════
         # TAB 2 ── Memory
@@ -2569,7 +2561,7 @@ class CompanionWindow(QWidget):
         def _save_mem():
             CONFIG["max_history"] = msg_spin.value()
 
-        tabs.addTab(_scr(mem_w), "🧠 Memory")
+        tabs.addTab(mem_w, "🧠 Memory")
 
         # ═════════════════════════════════════════════════════════════════════
         # TAB 3 ── AI / API
@@ -2620,7 +2612,7 @@ class CompanionWindow(QWidget):
         ai_save_btn.clicked.connect(_save_ai)
         ai_lay.addWidget(ai_save_btn)
         ai_lay.addStretch()
-        tabs.addTab(_scr(ai_w), "🌐 AI/API")
+        tabs.addTab(ai_w, "🌐 AI/API")
 
         # ═════════════════════════════════════════════════════════════════════
         # TAB 4 ── TTS
@@ -2837,7 +2829,7 @@ class CompanionWindow(QWidget):
             if sel_piper:
                 self.sd["selected_offline_voice"] = sel_piper
         tts_lay.addStretch()
-        tabs.addTab(_scr(tts_w), "🔊 TTS")
+        tabs.addTab(tts_w, "🔊 TTS")
 
         # ═════════════════════════════════════════════════════════════════════
         # TAB 5 ── STT  (full mic tester suite)
@@ -3126,7 +3118,7 @@ class CompanionWindow(QWidget):
                 "mic_gain":     gain_slider.value() / 10.0,
             })
         stt_lay.addStretch()
-        tabs.addTab(_scr(stt_w), "🎤 STT")
+        tabs.addTab(stt_w, "🎤 STT")
 
         # ── Bottom: Save All + Close ──────────────────────────────────────────
         close_btn = QPushButton("💾  Save All & Close")
@@ -3141,12 +3133,10 @@ class CompanionWindow(QWidget):
             dlg.accept()
         close_btn.clicked.connect(_on_close)
         outer.addWidget(close_btn)
+        dlg.setFixedWidth(560)
         dlg.show()
-        # Only auto-fit HEIGHT (not width — adjustSize() would stretch to the
-        # widest content, e.g. the EL API key field, blowing the dialog to ~1090px).
-        # Lock width at the minimum we set, shrink height to actual content.
-        QTimer.singleShot(0, lambda: dlg.resize(
-            dlg.minimumWidth(),
+        QTimer.singleShot(80, lambda: dlg.resize(
+            560,
             min(dlg.sizeHint().height(), dlg.maximumHeight())
         ))
 
