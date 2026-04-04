@@ -295,8 +295,9 @@ ProjectDVC/
 │   └── tts/
 │       └── voices/      # Piper .onnx voice models
 │
-├── permanent_facts.json  # Long-term permanent trait storage
-└── session_cache.json    # Raw history for lazy compression on next boot
+└── data/
+    ├── permanent_facts.json  # Long-term permanent trait storage
+    └── session_cache.json    # Raw history for lazy compression on next boot
 
 ```
 ## License
