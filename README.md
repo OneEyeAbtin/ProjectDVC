@@ -93,6 +93,19 @@ Type directly into the chat input:
 Right-click → Interact to trigger 12 named interaction events that send special action prompts to the AI and update stats:
 Pat Head · Hug · Poke · Kiss · Tickle · Gift · Boop Nose · Head Pat · Hold Hands · Feed Snack · Whisper · Stare Contest · Compliment · Dance Together
 
+### ⚙️ Unified Settings Dialog
+All configuration lives in a single tabbed dialog (right-click → Settings or keyboard shortcut), no more hunting across multiple popup windows:
+
+| Tab | Contents |
+|---|---|
+| ⚙️ General | User & companion name, brain mode selector (Local / Online / Offline), hearts toggle, conversation history limit, redo setup wizard, factory reset |
+| 🧠 Memory | Long-term trait viewer, chat history viewer, wipe controls, message limit slider |
+| 🌐 AI/API | Online API (URL, key, model), Local API (LM Studio / Ollama), Minecraft Brain API — all in one place |
+| 🔊 TTS | Enable/disable toggle, lip-sync modes, engine selector (ElevenLabs / edge-tts / Piper), ElevenLabs API key + Voice ID + model, Piper voice file browser, edge-tts voice picker, test button with emotion selector |
+| 🎤 STT | Engine selector (Groq / Local Whisper), model picker, microphone device selector, mic gain slider (1×–20×), full mic test with VU meter and playback |
+
+One **💾 Save All & Close** button at the bottom saves every tab simultaneously — no more accidentally losing STT settings while saving TTS or vice versa.
+
 ---
 
 ## ⛏️ Minecraft Drone (Mineflayer)
@@ -205,12 +218,12 @@ To add your own character: place `[name][emotion].png` files in `assets/outfits/
 | **LLM / Brain** | Groq API, LM Studio, OpenAI-compatible endpoints |
 | **TTS** | ElevenLabs (`eleven_flash_v2_5`), edge-tts, Piper (`.onnx`) |
 | **STT** | faster-whisper (CTranslate2), Groq Whisper, `sounddevice`, `scipy` |
-| **Audio** | `pygame` mixer (16 channels, dedicated SFX channel) |
+| **Audio** | `pygame-ce` mixer (Community Edition, 16 channels, dedicated SFX channel) |
 | **Memory** | `traits.txt` + `data/permanent_facts.json` + `data/session_cache.json` |
 | **Drone Body** | Node.js, `mineflayer`, `mineflayer-pathfinder`, `mineflayer-pvp`, `mineflayer-collectblock`, `mineflayer-tool`, `armor-manager` |
 | **Bridge** | Local WebSocket (`ws://localhost:8765`) |
 
-> ⚠️ **Python version:** Use **Python 3.12.8**. Python 3.13/3.14 breaks `pygame` audio mixing due to C-extension ABI changes.
+> ⚠️ **Python version:** Use **Python 3.12.8** or later. Audio requires **pygame-ce** (Community Edition) — not the standard `pygame`. Install with `pip install pygame-ce`. pygame-ce 2.5.7+ supports Python 3.12 and 3.13; for 3.14 support check the latest release.
 
 ---
 
@@ -223,7 +236,7 @@ To add your own character: place `[name][emotion].png` files in `assets/outfits/
 
 ### 2. Python dependencies
 ```bash
-pip install PyQt6 websockets requests sounddevice pygame scipy numpy faster-whisper elevenlabs edge-tts
+pip install PyQt6 websockets requests sounddevice pygame-ce scipy numpy faster-whisper elevenlabs edge-tts
 ```
 
 ### 3. Node.js dependencies
