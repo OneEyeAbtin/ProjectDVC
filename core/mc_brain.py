@@ -278,10 +278,13 @@ class MCBrain:
             self.on_cmd("chat", {"message": chat})
 
     # ── LOCAL: display text+emotion instantly, no API ─────────────────────────
-    def _local(self, key: str, text: str = None, emo: str = "neutral"):
+    def _local(self, key: str, text: str = None, emo: str = "neutral", send_ingame: bool = True):
         msg = text or _pick(key)
         self.on_emotion(emo)
         self.on_chat(msg)
+        # Also say it IN-GAME via bot.chat() — _act_ai does this, _local was missing it
+        if send_ingame:
+            self.on_cmd("chat", {"message": msg})
 
     # ── Event router ──────────────────────────────────────────────────────────
     def handle_event(self, msg: dict):
@@ -304,10 +307,10 @@ class MCBrain:
         elif mtype == "observation":
             text    = msg.get("text", "")
             emotion = msg.get("emotion", "neutral")
-            obs_key = msg.get("obs_key", "")
             print(f"[MC_BRAIN] Observation ({emotion}): {text}")
             self.on_emotion(emotion)
             self.on_chat(text)
+            self.on_cmd("chat", {"message": text})
 
         # ── Tasks — LOCAL ────────────────────────────────────────────────────
         elif mtype == "task_start":
@@ -316,10 +319,11 @@ class MCBrain:
             print(f"[MC_BRAIN] Task started: {task}")
             label = " | ".join(task_list) if task_list else task
             self.on_task(label, True)
-            # Silence task_start chat for informational-only tasks
             _SILENT_TASKS = {"inv", "inventory", "status", "Status", "Inventory"}
             if task not in _SILENT_TASKS:
-                self.on_chat(f"*starts* {task}~")
+                txt = f"*starts* {task}~"
+                self.on_chat(txt)
+                self.on_cmd("chat", {"message": txt})
                 self.on_emotion("thinking")
 
         elif mtype == "task_queued":
@@ -327,10 +331,11 @@ class MCBrain:
             qlen = msg.get("queue_length", 1)
             task_list = msg.get("task_list", [])
             print(f"[MC_BRAIN] Task queued: {task} ({qlen} in queue)")
-            # Skip "On it!" entirely for silent informational tasks
             _SILENT_TASKS = {"inv", "inventory", "status", "Status", "Inventory"}
             if qlen == 1 and task not in _SILENT_TASKS:
-                self.on_chat(f"On it! → {task}")
+                txt = f"On it! → {task}"
+                self.on_chat(txt)
+                self.on_cmd("chat", {"message": txt})
             label = " | ".join(task_list) if task_list else task
             self.on_task(label, True)
 
@@ -361,9 +366,8 @@ class MCBrain:
                     self._act_ai(d)
                 else:
                     import random as _rand
-                    # inv and status: data already came via dedicated signals — stay silent
                     if task in ("inv", "status", "inventory"):
-                        pass   # no chat, no emotion — UI already updated via sig_inv/sig_status
+                        pass
                     elif note:
                         done_emos = ["happy", "excited", "neutral", "happy", "thinking"]
                         done_pool = [
@@ -373,21 +377,25 @@ class MCBrain:
                             f"*stretches* All done! {note}",
                             f"Done! {note}",
                         ]
+                        txt = _rand.choice(done_pool)
                         self.on_emotion(_rand.choice(done_emos))
-                        self.on_chat(_rand.choice(done_pool))
-                # Update task bar with remaining tasks
+                        self.on_chat(txt)
+                        self.on_cmd("chat", {"message": txt})
                 if task_list:
                     self.on_task(" | ".join(task_list), True)
                 else:
                     self.on_task("", False)
             elif status == "error":
                 print(f"[MC_BRAIN] Task error: {task} — {note}")
-                # Show the ACTUAL error message, not a pool response
+                txt = f"*frowns* {note}" if note else "*sighs* Something went wrong~"
                 self.on_emotion("confused")
-                self.on_chat(f"*frowns* {note}" if note else "*sighs* Something went wrong~")
+                self.on_chat(txt)
+                self.on_cmd("chat", {"message": txt})
                 self.on_task("", False)
             elif status == "cleared":
-                self.on_chat("*stops* Queue cleared~")
+                txt = "*stops* Queue cleared~"
+                self.on_chat(txt)
+                self.on_cmd("chat", {"message": txt})
                 self.on_emotion("neutral")
                 self.on_task("", False)
 
@@ -429,7 +437,6 @@ class MCBrain:
             print(f"[MC_BRAIN] [EVENT] {event}: {detail}")
             if event == "died":
                 self._local("death", emo="sad")
-                # Queue a message about going to get items
                 import random as _rand
                 lines = [
                     "*respawning* Going to grab my stuff!",
@@ -437,7 +444,9 @@ class MCBrain:
                     "*ghost noises* On my way back for my stuff~",
                     "Ugh, I died... going to retrieve my items!",
                 ]
-                self.on_chat(_rand.choice(lines))
+                txt = _rand.choice(lines)
+                self.on_chat(txt)
+                self.on_cmd("chat", {"message": txt})
             elif event == "player_joined":
                 self._local("player_joined", emo="happy")
             elif event == "friend_added":
@@ -563,6 +572,6 @@ class MCBrain:
             print("[MC_BRAIN] Not connected to bot WS")
             return
         payload = json.dumps({"cmd": "text", "text": args.get("text", "")} if cmd == "text"
-                             else {"cmd": cmd, **args})  # flat — bot.js reads msg.block not msg.args.block
+                             else {"cmd": cmd, "args": args})
                              
         asyncio.run_coroutine_threadsafe(self.ws.send(payload), self._loop)

@@ -5,9 +5,6 @@
          drives the sprite/emotion engine, and orchestrates every subsystem:
          memory, TTS, STT, MC bridge, save/load, and theme.
 [AUTHOR] Abtin
-
-Copyright (c) 2026 Abtin (github.com/OneEyeAbtin). All rights reserved.
-This code may not be copied, modified, or distributed without permission.
 """
 import sys, re, random, subprocess
 from pathlib import Path
@@ -1693,6 +1690,12 @@ class CompanionWindow(QWidget):
         if not hasattr(self, '_task_queue_list_widget'): return
         try:
             lw = self._task_queue_list_widget
+            # Guard: test if the C++ object is still alive (dialog may have closed)
+            try: lw.count()
+            except RuntimeError:
+                # Dialog was closed — C++ object deleted. Clear the reference.
+                del self._task_queue_list_widget
+                return
             lw.clear()
             if active and label:
                 lines = [l.strip() for l in label.split(" | ") if l.strip()]
@@ -1828,15 +1831,27 @@ class CompanionWindow(QWidget):
 
     def _send_mc_percent_text(self, text: str):
         if not text.startswith('%'): text = '%' + text
-        
-        # ── Route through the Motor Cortex ──
-        if hasattr(self, 'task_queue'):
-            task = parse_task(text[1:], default_username=self.sd.get("user_name", "User"))
-            if task:
-                self.task_queue.enqueue(task)
-                return
+        cmd_word = text[1:].split()[0].lower() if len(text) > 1 else ""
 
-        # Fallback for unparsed commands
+        # ── Stop/clear ALWAYS bypass the queue and go straight to bot.js ─────
+        # Enqueuing %stop behind the current task defeats its purpose entirely.
+        _BYPASS = {"stop", "cancel", "halt", "clear", "clearqueue"}
+        if cmd_word in _BYPASS:
+            # Also abort the Python-side queue immediately
+            if hasattr(self, 'task_queue'):
+                self.task_queue.abort_all("user_stop")
+            if hasattr(self, '_mc_brain') and self._mc_brain:
+                self._mc_brain.send_cmd("text", {"text": text})
+            else:
+                self._mc_console_log("⚠ Bot not connected", color="#ff9800")
+            return
+
+        # ── All other commands go directly to bot.js — no Python queue ───────
+        # The Python TaskQueue only handles tasks queued from the Python GUI
+        # (task_combo add button). % commands typed by the user go straight
+        # to bot.js which has its own task_runner queue. Routing them through
+        # the Python queue caused stop to wait behind the running task, and
+        # added an extra queue layer that doubled state divergence.
         if hasattr(self, '_mc_brain') and self._mc_brain:
             self._mc_brain.send_cmd("text", {"text": text})
         else:

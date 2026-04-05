@@ -170,15 +170,16 @@ function queueTask(task){
 }
 
 function clearQueue(){
-  _generation++;   // invalidate in-flight task (belt)
-  _abort=true;     // belt-and-suspenders: classic abort flag
+  _generation++;
+  _abort=true;
   _queue=[];
   _taskList=[];
   _running=false;
   _stopConcurrent();
   try{ _bot?.pvp?.stop(); }catch(e){}
   try{ _bot?.pathfinder?.stop(); }catch(e){}
-  _send({ type:'task_result', task:'all', status:'cleared', message:'Queue cleared ✓', task_list:[] });
+  // Guard: _send is null if start() was never called (bot not yet in task mode)
+  if(_send) _send({ type:'task_result', task:'all', status:'cleared', message:'Queue cleared ✓', task_list:[] });
 }
 
 // ── Task dispatcher ───────────────────────────────────────────────────────────

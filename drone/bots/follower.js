@@ -92,6 +92,7 @@ function start(bot, sendFn, playerName){
   _fighting=false;
   _cd.clear();
   _follow();
+  _startStuckRecovery();
   _timer=setInterval(_scan, SCAN_MS);
   _lookTimer=setInterval(_lookAtTarget, 400);
   bot.on('health',     _onHealth);
@@ -103,6 +104,7 @@ function start(bot, sendFn, playerName){
 }
 
 function stop(){
+  _stopStuckRecovery();
   if(_timer){ clearInterval(_timer); _timer=null; }
   if(_lookTimer){ clearInterval(_lookTimer); _lookTimer=null; }
   if(_bot){
@@ -129,17 +131,50 @@ function _lookAtTarget(){
   }catch(e){}
 }
 
+// Blocks pathfinder is allowed to break when they block the path.
+// Only zero/near-zero cost plants — never wood, stone, or anything valuable.
+const BREAKABLE_PLANTS = new Set([
+  'grass','tall_grass','fern','large_fern','dead_bush','vine',
+  'snow','hanging_roots','moss_carpet','azalea','glow_lichen',
+  'nether_sprouts','warped_roots','crimson_roots',
+]);
+
+// Stuck-recovery: if position hasn't changed in 3 s, force-reissue GoalFollow
+let _stuckTimer=null, _lastPos=null;
+function _startStuckRecovery(){
+  _stopStuckRecovery();
+  _stuckTimer=setInterval(()=>{
+    if(!_bot||!_target) return;
+    const cur=_bot.entity.position;
+    if(_lastPos && cur.distanceTo(_lastPos)<0.25){
+      // Hasn't moved — re-issue goal with a fresh Movements object to unstick
+      _follow();
+    }
+    _lastPos=cur.clone();
+  }, 3000);
+}
+function _stopStuckRecovery(){
+  if(_stuckTimer){ clearInterval(_stuckTimer); _stuckTimer=null; }
+  _lastPos=null;
+}
+
 function _follow(){
   if(!_bot||!_target) return;
   try{
     const p=_bot.players[_target]; if(!p?.entity) return;
     const mc=new Movements(_bot);
     mc.allowSprinting=true;
-    // Disable pathfinder's built-in scaffolding — its internal tick-loop races
-    // the physics engine causing the bot to jump without placing, or place on the
-    // wrong face. Manual pillar (%pillar) handles elevation reliably instead.
+    // No scaffolding — causes racing jump+place glitches (fixed separately)
     mc.allow1by1towers=false;
     mc.scaffoldingBlocks=[];
+    // Allow breaking cheap plants that block the path (tall grass, ferns, etc.)
+    // canDig=false would leave the bot frozen behind a single grass blade.
+    mc.canDig=true;
+    mc.blocksCantBreak=new Set(
+      Object.values(_bot.registry.blocksByName)
+        .filter(b=>!BREAKABLE_PLANTS.has(b.name))
+        .map(b=>b.id)
+    );
     _bot.pathfinder.setMovements(mc);
     _bot.pathfinder.setGoal(new goals.GoalFollow(p.entity, FOLLOW_DIST), true);
   }catch(e){}
