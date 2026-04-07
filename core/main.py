@@ -1677,7 +1677,10 @@ class CompanionWindow(QWidget):
             except RuntimeError: pass   # dialog closed — C++ object deleted
 
     def _mc_update_task_bar(self, label: str = "", active: bool = False):
-        """Update the active-task strip below the MC bar."""
+        """Update the active-task strip below the MC bar AND cache state."""
+        # Cache so the MC settings dialog can populate immediately on open
+        self._last_task_label  = label
+        self._last_task_active = active
         if not hasattr(self, '_mc_task_bar'): return
         if active and label:
             self._mc_task_lbl.setText(label[:80])
@@ -3719,6 +3722,11 @@ class CompanionWindow(QWidget):
             f"QListWidget::item:selected{{background:{_c('GLOW')}}}"
         )
         tlay.addWidget(self._task_queue_list_widget)
+        # Populate immediately with whatever is already running
+        self._mc_update_task_list_widget(
+            getattr(self, '_last_task_label', ''),
+            getattr(self, '_last_task_active', False)
+        )
 
         # Stop All + Follow buttons only
         stop_row = QHBoxLayout(); stop_row.setSpacing(6)

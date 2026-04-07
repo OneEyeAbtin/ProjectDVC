@@ -235,26 +235,26 @@ function attachEvents(){
     console.log(`[BOT] Spawned as ${USERNAME} ✓`);
     send({ type:'event', event:'spawned', username:USERNAME });
 
-    // ── mineflayer-pathfinder compatibility patch ─────────────────────────
-    // Older pathfinder versions call block.digTime(tool) as a function.
-    // Newer mineflayer versions changed it to a property block.digTime (number).
-    // Patch: if digTime is a number (new API), wrap it so old pathfinder
-    // code that calls it as digTime(tool) still gets the right value back.
-    try {
-      const Block = require('prismarine-block')(bot.version);
-      const proto = Block.prototype;
-      if(proto && typeof proto.digTime === 'number' || proto.digTime === undefined){
-        const _orig = Object.getOwnPropertyDescriptor(proto, 'digTime');
-        if(_orig && typeof _orig.get === 'function'){
-          // It's a getter (property) — wrap so calling it as a function also works
-          Object.defineProperty(proto, 'digTime', {
-            get(){ const v=_orig.get.call(this); return typeof v==='function'?v:()=>v; },
-            configurable:true,
-          });
-          console.log('[BOT] block.digTime compatibility patch applied');
-        }
+    // ── block.digTime compatibility shim ─────────────────────────────────
+    // mineflayer-pathfinder calls block.digTime(...) as a function to calculate
+    // movement costs. In some prismarine-block versions, digTime is cached as a
+    // NUMBER on the block INSTANCE (overriding the prototype method), so calling
+    // it as a function throws "is not a function" and crashes pathfinder mid-path.
+    // Fix: intercept bot.blockAt so every block returned has digTime guaranteed
+    // to be callable. This catches instance-level overrides that prototype
+    // patching misses.
+    const _origBlockAt = bot.blockAt.bind(bot);
+    bot.blockAt = function(...args){
+      const blk = _origBlockAt(...args);
+      if(blk && typeof blk.digTime !== 'function'){
+        const val = blk.digTime;
+        blk.digTime = typeof val === 'number'
+          ? ()=>val          // return the cached ms value, ignoring tool args
+          : ()=>0;           // unknown — use 0 so pathfinder doesn't stall
       }
-    } catch(e){ console.log('[BOT] digTime patch skipped:', e.message); }
+      return blk;
+    };
+    console.log('[BOT] block.digTime shim active');
 
     // Configure auto-eat
     bot.autoEat.options = {

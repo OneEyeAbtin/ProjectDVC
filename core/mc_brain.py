@@ -231,10 +231,9 @@ class MCBrain:
         if not key:
             self.on_chat("*sparks* No API key set for Minecraft brain! Add it in MC Settings → Brain tab.")
             return None
-        # Fallback: if brain_model is blank or looks wrong, use the main online model
         if not model:
             fallback = CONFIG.get("online_api_model", "")
-            print(f"[MC_BRAIN] brain_model '{model}' → falling back to '{fallback}'")
+            print(f"[MC_BRAIN] brain_model blank → falling back to '{fallback}'")
             model = fallback
         self._push("user", event_text)
         msgs = [{"role": "system", "content": self._sys()}] + list(self.history)
@@ -251,11 +250,18 @@ class MCBrain:
             raw = r.json()["choices"][0]["message"]["content"].strip()
             self._push("assistant", raw)
             raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.S).strip()
-            # Find first { ... } block in case model adds prose around the JSON
+            # Find first { ... } block — model may add prose around JSON
             m = re.search(r'\{.*\}', raw, re.S)
             if m:
-                raw = m.group(0)
-            return json.loads(raw)
+                try:
+                    return json.loads(m.group(0))
+                except json.JSONDecodeError:
+                    pass
+            # Model returned plain text (no JSON) — treat it as a direct chat line
+            if raw:
+                print(f"[MC_BRAIN] Model returned plain text (not JSON): {raw[:80]}")
+                return {"chat": raw, "emotion": "neutral"}
+            return None
         except req.exceptions.HTTPError as e:
             err_body = ""
             try: err_body = e.response.json().get("error", {}).get("message", str(e))
@@ -571,7 +577,11 @@ class MCBrain:
         if not self.ws or not self.running:
             print("[MC_BRAIN] Not connected to bot WS")
             return
-        payload = json.dumps({"cmd": "text", "text": args.get("text", "")} if cmd == "text"
-                             else {"cmd": cmd, "args": args})
-                             
+        # bot.js reads msg.message, msg.block, msg.x etc. DIRECTLY off the message object.
+        # Nesting under "args" ({cmd, args:{block:...}}) means bot.js gets undefined for
+        # everything. Flatten with **args so the payload is {cmd, message:..., block:...}.
+        if cmd == "text":
+            payload = json.dumps({"cmd": "text", "text": args.get("text", "")})
+        else:
+            payload = json.dumps({"cmd": cmd, **args})
         asyncio.run_coroutine_threadsafe(self.ws.send(payload), self._loop)
