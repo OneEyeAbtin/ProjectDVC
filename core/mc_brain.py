@@ -457,9 +457,14 @@ class MCBrain:
                 self._local("player_joined", emo="happy")
             elif event == "friend_added":
                 pass  # silent — bot.js already replied in-game
-            elif ai_feature("ai_events") and event in {"kicked","disconnected"}:
-                d = self._call_model(f"[EVENT] {event}: {detail}")
-                self._act_ai(d)
+            elif event in {"kicked", "disconnected"}:
+                # Always notify GUI of disconnects regardless of ai_events toggle
+                reason_msg = f": {detail}" if detail else ""
+                self.on_emotion("sad")
+                self.on_chat(f"*disconnected* {event}{reason_msg}")
+                if ai_feature("ai_events"):
+                    d = self._call_model(f"[EVENT] {event}: {detail}")
+                    self._act_ai(d)
 
         elif mtype == "emotion_hint":
             emotion = msg.get("emotion", "neutral")

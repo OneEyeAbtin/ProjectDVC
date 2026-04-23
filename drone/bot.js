@@ -323,14 +323,19 @@ function attachEvents(){
       try{
         bot.respawn();
         setTimeout(()=>{
-          if(MODE==='follower'&&follower){
-            try{ follower.stop(); }catch(e){}
-            taskRunner.start(bot, send);
-            taskRunner.queueTask({ cmd:'goto', x:deathPos.x, y:deathPos.y, z:deathPos.z, label:`Return to death (${Math.round(deathPos.x)} ${Math.round(deathPos.y)} ${Math.round(deathPos.z)})` });
-            taskRunner.queueTask({ cmd:'collect', label:'Collect dropped items' });
-          }
+          // After respawn: go back for items, then resume whatever mode we were in
+          try{ follower?.stop?.(); }catch(e){}
+          try{ taskRunner?.stop?.(); }catch(e){}
+          taskRunner.start(bot, send);
+          taskRunner.queueTask({ cmd:'goto',   x:deathPos.x, y:deathPos.y, z:deathPos.z, label:`Return to death (${Math.round(deathPos.x)},${Math.round(deathPos.y)},${Math.round(deathPos.z)})` });
+          taskRunner.queueTask({ cmd:'collect', label:'Collect dropped items' });
+          // After retrieval tasks, switch back to follower
+          taskRunner.queueTask({ cmd:'follow',  player:USERNAME, label:`Resume following ${USERNAME}` });
         }, 2500);
-      }catch(e){ console.log('[BOT] Respawn failed:', e.message); }
+      }catch(e){
+        console.log('[BOT] Respawn failed:', e.message);
+        send({ type:'error', level:'warning', message:`Respawn failed: ${e.message}` });
+      }
     }, 1500);
   });
   bot.on('playerJoined', p=>{ send({ type:'event', event:'player_joined', username:p.username }); send({ type:'emotion_hint', emotion:'happy', reason:`${p.username} joined` }); });

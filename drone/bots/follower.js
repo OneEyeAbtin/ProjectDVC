@@ -4,32 +4,23 @@
  * [SYSTEM] ProjectDVC — Reactive companion cortex.
  * [AUTHOR] Abtin
  *
- * FOLLOW ENGINE: Physics-tick based (no GoalFollow, no pathfinder A*).
- * Pathfinder's GoalFollow used expensive A* planning and called
- * block.digTime() internally — crashing on version mismatches and
- * producing green scaffolding blocks. This version drives the bot
- * directly via control states (forward, jump, sprint) on every
- * physicsTick, giving smooth, lag-free following with zero crash risk.
+ * Uses GoalFollow (pathfinder) with canDig=false + allow1by1towers=false.
+ * No scaffolding, no digTime crashes (bot.js blockAt shim handles that).
+ * Knockback pause: stops pathfinder for 700ms on damage so physics can apply.
+ * Stuck recovery: re-issues GoalFollow every 3s if position hasn't changed.
  */
-const { Movements, goals } = require('mineflayer-pathfinder');
+const { goals, Movements } = require('mineflayer-pathfinder');
 
-// ── Tuning constants ──────────────────────────────────────────────────────────
-const FOLLOW_DIST  = 2.5;   // stop when within this many blocks
-const NEAR_THRESH  = 18;    // use tick-walk below this distance
-const FAR_THRESH   = 22;    // use pathfinder GoalNear above this (one-shot catch-up)
-const SCAN_MS      = 4000;  // environment scan interval
-const STUCK_RESET  = 1500;  // ms before trying a jump to unblock
-const JUMP_HOLD_MS = 280;   // how long to hold jump control
-const LOOK_MS      = 100;   // head-tracking interval
+const FOLLOW_DIST  = 2;
+const SCAN_MS      = 4000;
+const LOOK_MS      = 300;
+const STUCK_MS     = 3000;   // re-issue goal if no movement in this window
+const KNOCKBACK_MS = 700;    // pause pathfinder after being hit (let physics apply)
 
 let _bot=null, _send=null, _target=null;
-let _timer=null, _lookTimer=null, _tickFn=null;
+let _timer=null, _lookTimer=null, _stuckTimer=null;
 let _prevHealth=20, _friends=new Set(), _fighting=false;
-
-// Stuck detection state
-let _stuckCheck=null, _lastCheckPos=null, _jumpActive=false, _jumpTimer=null;
-// Catch-up pathfinder state
-let _catchingUp=false;
+let _lastPos=null, _knockbackPaused=false, _knockbackTimeout=null;
 
 function setFriends(s){ _friends=s; }
 
@@ -83,7 +74,7 @@ const R={
   biome_frozen:    ['*shivers* SO COLD I can\'t feel my feet...'],
   biome_warped:    ['The warped forest is beautiful in a cursed way~'],
   hunger:          ['*stomach growls* STARVING... food??'],
-  advancement:     ['*claps* ACHIEVEMENT!! LET\'S GO!!','ADVANCEMENT!! Yes!!'],
+  advancement:     ['*claps* ACHIEVEMENT!! LET\'S GO!!'],
 };
 function pick(key,vars={}){
   const pool=R[key]||['...'];
@@ -97,18 +88,36 @@ const HOSTILE=new Set(['creeper','zombie','skeleton','spider','cave_spider','end
   'warden','blaze','ghast','magma_cube','slime','guardian','elder_guardian',
   'silverfish','endermite','hoglin','zoglin','piglin_brute','vex']);
 
+// ── Movement config ───────────────────────────────────────────────────────────
+function _mc(){
+  const mc=new Movements(_bot);
+  mc.allowSprinting=true;
+  mc.canDig=false;              // never break blocks while following
+  mc.allow1by1towers=false;    // no scaffolding
+  mc.scaffoldingBlocks=[];
+  return mc;
+}
+
+// ── Follow goal ───────────────────────────────────────────────────────────────
+function _follow(){
+  if(!_bot||!_target||_knockbackPaused) return;
+  try{
+    const p=_bot.players[_target]; if(!p?.entity) return;
+    _bot.pathfinder.setMovements(_mc());
+    _bot.pathfinder.setGoal(new goals.GoalFollow(p.entity, FOLLOW_DIST), true);
+  }catch(e){}
+}
+
 // ── Start / Stop ──────────────────────────────────────────────────────────────
 function start(bot, sendFn, playerName){
   _bot=bot; _send=sendFn; _target=playerName;
   _prevHealth=bot.health??20;
-  _fighting=false; _catchingUp=false;
+  _fighting=false; _knockbackPaused=false; _lastPos=null;
   _cd.clear();
-
-  _startTickFollow();
+  _follow();
   _lookTimer=setInterval(_lookAtTarget, LOOK_MS);
   _timer=setInterval(_scan, SCAN_MS);
   _startStuckDetector();
-
   bot.on('health',       _onHealth);
   bot.on('entityHurt',   _onEntityHurt);
   bot.on('entityDead',   _onEntityDead);
@@ -118,13 +127,11 @@ function start(bot, sendFn, playerName){
 }
 
 function stop(){
-  _stopTickFollow();
+  _clearKnockbackPause();
   _stopStuckDetector();
-  if(_jumpTimer){ clearTimeout(_jumpTimer); _jumpTimer=null; }
   if(_timer){ clearInterval(_timer); _timer=null; }
   if(_lookTimer){ clearInterval(_lookTimer); _lookTimer=null; }
   if(_bot){
-    _releaseAllControls();
     _bot.off('health',       _onHealth);
     _bot.off('entityHurt',   _onEntityHurt);
     _bot.off('entityDead',   _onEntityDead);
@@ -133,128 +140,11 @@ function stop(){
     try{ _bot.pvp?.stop(); }catch(e){}
     try{ _bot.pathfinder?.stop(); }catch(e){}
   }
-  _fighting=false; _catchingUp=false;
+  _fighting=false; _knockbackPaused=false;
   _cd.forEach(t=>clearTimeout(t)); _cd.clear();
 }
 
-function setTarget(name){ _target=name; }
-
-// ── Release all movement controls ─────────────────────────────────────────────
-function _releaseAllControls(){
-  try{
-    _bot.setControlState('forward', false);
-    _bot.setControlState('sprint',  false);
-    _bot.setControlState('jump',    false);
-    _bot.setControlState('back',    false);
-  }catch(e){}
-}
-
-// ── Physics-tick follow engine ────────────────────────────────────────────────
-// Runs on every physicsTick (~50 ms). Directly controls forward/sprint/jump.
-// No pathfinder A* — no block.digTime, no scaffolding, no stall risk.
-function _startTickFollow(){
-  _stopTickFollow();
-  _tickFn = ()=>_tickFollow();
-  _bot.on('physicsTick', _tickFn);
-}
-function _stopTickFollow(){
-  if(_tickFn){ try{ _bot?.off('physicsTick',_tickFn); }catch(e){} _tickFn=null; }
-}
-
-function _tickFollow(){
-  if(!_bot||!_target||_fighting) return;
-
-  const player=_bot.players[_target];
-  if(!player?.entity){ _releaseAllControls(); return; }
-
-  const myPos  = _bot.entity.position;
-  const plPos  = player.entity.position;
-  const dist   = myPos.distanceTo(plPos);
-  const dy     = plPos.y - myPos.y;   // positive = player is higher
-
-  // ── Within follow distance: stop ─────────────────────────────────────────
-  if(dist <= FOLLOW_DIST){
-    _releaseAllControls();
-    _catchingUp=false;
-    return;
-  }
-
-  // ── Very far: use pathfinder GoalNear once to teleport-catch-up ──────────
-  if(dist > FAR_THRESH && !_catchingUp){
-    _releaseAllControls();
-    _catchingUp=true;
-    try{
-      const mc=new Movements(_bot);
-      mc.allowSprinting=true; mc.canDig=false;
-      mc.allow1by1towers=false; mc.scaffoldingBlocks=[];
-      _bot.pathfinder.setMovements(mc);
-      _bot.pathfinder.goto(new goals.GoalNear(plPos.x, plPos.y, plPos.z, FOLLOW_DIST))
-        .then(()=>{ _catchingUp=false; })
-        .catch(()=>{ _catchingUp=false; }); // fallback to tick walk if pathfinder fails
-    }catch(e){ _catchingUp=false; }
-    return;
-  }
-
-  // ── Cancel pathfinder catch-up once close enough ─────────────────────────
-  if(_catchingUp && dist <= NEAR_THRESH){
-    _catchingUp=false;
-    try{ _bot.pathfinder?.stop(); }catch(e){}
-  }
-  if(_catchingUp) return; // still catching up via pathfinder
-
-  // ── Tick-walk toward player ───────────────────────────────────────────────
-  // Face the player horizontally
-  const dx=plPos.x-myPos.x, dz=plPos.z-myPos.z;
-  const yaw=Math.atan2(-dx, dz);
-  try{ _bot.entity.yaw=yaw; }catch(e){}
-
-  _bot.setControlState('forward', true);
-  _bot.setControlState('sprint',  dist > FOLLOW_DIST + 1); // sprint when more than 1 block away
-
-  // ── Obstacle jump ─────────────────────────────────────────────────────────
-  // If player is above us OR there's a block in front, jump.
-  if(dy > 0.5 && _bot.entity.onGround){
-    _triggerJump();
-  }
-}
-
-// ── Jump with auto-release ────────────────────────────────────────────────────
-function _triggerJump(){
-  if(_jumpActive) return;
-  _jumpActive=true;
-  try{ _bot.setControlState('jump', true); }catch(e){}
-  if(_jumpTimer) clearTimeout(_jumpTimer);
-  _jumpTimer=setTimeout(()=>{
-    try{ _bot.setControlState('jump', false); }catch(e){}
-    _jumpActive=false;
-  }, JUMP_HOLD_MS);
-}
-
-// ── Stuck detector ────────────────────────────────────────────────────────────
-// Every STUCK_RESET ms: if we're supposed to be walking (forward is held)
-// but haven't moved, try jumping to clear a single-block obstacle.
-function _startStuckDetector(){
-  _stopStuckDetector();
-  _lastCheckPos=null;
-  _stuckCheck=setInterval(()=>{
-    if(!_bot||!_target||_fighting||_catchingUp) return;
-    const player=_bot.players[_target];
-    if(!player?.entity) return;
-    const dist=_bot.entity.position.distanceTo(player.entity.position);
-    if(dist <= FOLLOW_DIST) return; // not trying to move
-
-    const cur=_bot.entity.position;
-    if(_lastCheckPos && cur.distanceTo(_lastCheckPos)<0.15 && _bot.entity.onGround){
-      // Stuck on ground — jump to clear obstacle
-      _triggerJump();
-    }
-    _lastCheckPos=cur.clone();
-  }, STUCK_RESET);
-}
-function _stopStuckDetector(){
-  if(_stuckCheck){ clearInterval(_stuckCheck); _stuckCheck=null; }
-  _lastCheckPos=null;
-}
+function setTarget(name){ _target=name; _follow(); }
 
 // ── Head tracking ─────────────────────────────────────────────────────────────
 function _lookAtTarget(){
@@ -263,6 +153,49 @@ function _lookAtTarget(){
     const p=_bot.players[_target];
     if(p?.entity) _bot.lookAt(p.entity.position.offset(0,1.62,0), true);
   }catch(e){}
+}
+
+// ── Knockback pause ───────────────────────────────────────────────────────────
+// Stop pathfinder briefly after taking damage so Minecraft physics can apply
+// the knockback velocity. Without this, GoalFollow immediately overrides it.
+function _pauseForKnockback(){
+  _knockbackPaused=true;
+  try{ _bot.pathfinder?.stop(); }catch(e){}
+  _clearKnockbackPause();
+  _knockbackTimeout=setTimeout(()=>{
+    _knockbackPaused=false;
+    _knockbackTimeout=null;
+    _follow(); // resume following after knockback settles
+  }, KNOCKBACK_MS);
+}
+function _clearKnockbackPause(){
+  if(_knockbackTimeout){ clearTimeout(_knockbackTimeout); _knockbackTimeout=null; }
+  _knockbackPaused=false;
+}
+
+// ── Stuck detector ────────────────────────────────────────────────────────────
+// Re-issues GoalFollow every STUCK_MS if position hasn't changed while we
+// should be moving. Handles pathfinder getting stuck on its own state machine.
+function _startStuckDetector(){
+  _stopStuckDetector();
+  _lastPos=null;
+  _stuckTimer=setInterval(()=>{
+    if(!_bot||!_target||_knockbackPaused||_fighting) return;
+    const p=_bot.players[_target];
+    if(!p?.entity) return;
+    const dist=_bot.entity.position.distanceTo(p.entity.position);
+    if(dist<=FOLLOW_DIST) return; // close enough, not supposed to be moving
+    const cur=_bot.entity.position;
+    if(_lastPos && cur.distanceTo(_lastPos)<0.3){
+      // Hasn't moved — re-issue goal to unstick pathfinder
+      _follow();
+    }
+    _lastPos=cur.clone();
+  }, STUCK_MS);
+}
+function _stopStuckDetector(){
+  if(_stuckTimer){ clearInterval(_stuckTimer); _stuckTimer=null; }
+  _lastPos=null;
 }
 
 // ── Environment scan ─────────────────────────────────────────────────────────
@@ -289,7 +222,6 @@ const BIOME_KEYS={
 function _scan(){
   if(!_bot) return;
   try{
-    // Hostile mobs
     const hostiles=Object.values(_bot.entities)
       .filter(e=>e.position&&e.type==='mob'&&HOSTILE.has(e.name)
                &&_bot.entity.position.distanceTo(e.position)<20)
@@ -299,36 +231,33 @@ function _scan(){
       const h=hostiles[0];
       if(cd(`hostile:${h.name}`,12000)){
         let txt,emo;
-        if(h.name==='creeper')    { txt=pick('hostile_creeper'); emo='shocked'; }
-        else if(h.name==='warden'){ txt=pick('hostile_warden');  emo='shocked'; }
-        else if(h.name==='phantom'){txt=pick('hostile_phantom'); emo='annoyed'; }
+        if(h.name==='creeper')    {txt=pick('hostile_creeper');emo='shocked';}
+        else if(h.name==='warden'){txt=pick('hostile_warden'); emo='shocked';}
+        else if(h.name==='phantom'){txt=pick('hostile_phantom');emo='annoyed';}
         else if(h.name==='enderman'){txt=pick('hostile_enderman');emo='confused';}
         else if(hostiles.length>=3){txt=pick('hostile_many',{n:hostiles.length});emo='shocked';}
-        else{txt=pick('hostile_generic',{name:h.name}); emo='confused';}
+        else{txt=pick('hostile_generic',{name:h.name});emo='confused';}
         return _send({type:'observation',text:txt,emotion:emo});
       }
     }
-    // Rare blocks
     for(const[id,rKey,emo] of RARE_BLOCKS){
       const def=_bot.registry.blocksByName[id]; if(!def) continue;
-      try{ if(_bot.findBlock({matching:def.id,maxDistance:10})&&cd(`rare:${id}`,25000))
-        return _send({type:'observation',text:pick(rKey),emotion:emo}); }catch(e){}
+      try{
+        if(_bot.findBlock({matching:def.id,maxDistance:10})&&cd(`rare:${id}`,25000))
+          return _send({type:'observation',text:pick(rKey),emotion:emo});
+      }catch(e){}
     }
-    // Day/night cycle
     const tod=_bot.time?.timeOfDay??0;
-    if(tod>12800&&tod<23000&&cd('night',80000))  return _send({type:'observation',text:pick('night'), emotion:'sad'});
-    if(tod>23200&&tod<24000&&cd('dawn',120000))  return _send({type:'observation',text:pick('dawn'),  emotion:'happy'});
-    // Biome
+    if(tod>12800&&tod<23000&&cd('night',80000))  return _send({type:'observation',text:pick('night'),emotion:'sad'});
+    if(tod>23200&&tod<24000&&cd('dawn',120000))  return _send({type:'observation',text:pick('dawn'),emotion:'happy'});
     try{
       const b=_bot.world.getBiome(_bot.entity.position);
       const bk=b&&BIOME_KEYS[b.name];
       if(bk&&cd(`biome:${b.name}`,120000))
         return _send({type:'observation',text:pick(bk),emotion:'thinking'});
     }catch(e){}
-    // Hunger
     if(_bot.food<=6&&cd('hunger',30000))
       return _send({type:'observation',text:pick('hunger'),emotion:'sad'});
-    // Unknown players
     for(const p of Object.values(_bot.players)){
       if(!p.entity||p.username===_bot.username||p.username===_target) continue;
       const d=_bot.entity.position.distanceTo(p.entity.position);
@@ -338,7 +267,7 @@ function _scan(){
   }catch(e){ console.log('[Follower] scan error:',e.message); }
 }
 
-// ── Health / combat events ────────────────────────────────────────────────────
+// ── Health / combat ───────────────────────────────────────────────────────────
 function _onHealth(){
   const hp=_bot.health, prev=_prevHealth; _prevHealth=hp;
   const dmg=prev-hp;
@@ -348,6 +277,8 @@ function _onHealth(){
     else if(dmg>=4) {key='hurt_med';  emo='angry';}
     else            {key='hurt_small';emo='sad';}
     _send({type:'observation',text:pick(key,{dmg:Math.round(dmg)}),emotion:emo});
+    // Pause pathfinder so knockback physics can apply
+    _pauseForKnockback();
     if(!_fighting){
       let closest=null, minD=Infinity;
       for(const e of Object.values(_bot.entities)){
@@ -357,7 +288,6 @@ function _onHealth(){
       }
       if(closest){
         _fighting=true;
-        _releaseAllControls();
         _send({type:'observation',text:'*draws weapon* Not today!!',emotion:'angry'});
         try{ _bot.pvp.attack(closest); }catch(e){ _fighting=false; }
       }
@@ -386,6 +316,7 @@ function _onEntityDead(entity){
   if(!entity?.name||!HOSTILE.has(entity.name)) return;
   _fighting=false;
   try{ _bot.pvp?.stop(); }catch(e){}
+  setTimeout(()=>_follow(), 400); // resume following after kill
   if(cd(`kill:${entity.name}`,6000))
     _send({type:'observation',text:pick('kill'),emotion:'excited'});
 }
