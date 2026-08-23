@@ -8,10 +8,10 @@ afterEach(() => fs.rmSync(dir, { recursive: true, force: true }))
 const svc = () => createMemoryService({ rootDir: dir })
 
 describe('memory', () => {
-  it('dedups near-duplicates keeping longer', () => {
+  it('replaces near-duplicates with the longer string', () => {
     const s = svc()
     s.setSessionTraits(['user likes coffee', 'user enjoys coffee', 'user hates rain'])
-    expect(s.getSessionTraits()).toEqual(['user likes coffee', 'user hates rain'])
+    expect(s.getSessionTraits()).toEqual(['user enjoys coffee', 'user hates rain'])
   })
   it('classifies identity facts permanent vs session', () => {
     const s = svc()
