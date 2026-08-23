@@ -174,7 +174,7 @@ export const useStore = create((set, get) => ({
     const prev = get().theme
     set({ theme: next })
     window.dvc.invoke('profile:save', { theme_id: next }).catch((err) => {
-      set({ theme: prev })
+      if (get().theme === next) set({ theme: prev })
       get().setError({ scope: 'profile', message: String(err?.message ?? err) })
     })
   },
@@ -185,7 +185,7 @@ export const useStore = create((set, get) => ({
     const prev = get().persona
     set({ persona: next })
     window.dvc.invoke('profile:save', { persona: next }).catch((err) => {
-      set({ persona: prev })
+      if (get().persona === next) set({ persona: prev })
       get().setError({ scope: 'profile', message: String(err?.message ?? err) })
     })
   },
@@ -196,7 +196,7 @@ export const useStore = create((set, get) => ({
     const prev = get().outfit
     set({ outfit: next })
     window.dvc.invoke('outfit:switch', { name: next }).catch((err) => {
-      set({ outfit: prev })
+      if (get().outfit === next) set({ outfit: prev })
       get().setError({ scope: 'profile', message: String(err?.message ?? err) })
     })
   },
