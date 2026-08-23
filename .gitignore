@@ -28,3 +28,4 @@ traits.txt
 *.wav
 espeak-ng-data/
 /assets/tts
+.aider*

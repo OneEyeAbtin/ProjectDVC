@@ -1,0 +1,5 @@
+1: from core.memory import dedup_traits
+2: def show_all_settings(win):
+3:     """Unified settings: General / Memory / AI+API / TTS / STT.
+4:     Theme selection lives ONLY in the right-click context menu."""
+5:     t  = TH._active

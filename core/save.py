@@ -28,7 +28,7 @@ def load_save() -> dict:
         sd[k] = CONFIG.get(k, v)
     # Also include any extra keys that might be in the profile
     for k in CONFIG:
-        if k not in sd and not isinstance(CONFIG[k], dict) or k in ("setup_answers",):
+        if (k not in sd and not isinstance(CONFIG[k], dict)) or k in ("setup_answers",):
             sd[k] = CONFIG[k]
     return sd
 

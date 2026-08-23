@@ -12,13 +12,10 @@ Configure api_key and voice_id in your config.json before use.
 Copyright (c) 2026 Abtin (github.com/OneEyeAbtin). All rights reserved.
 This code may not be copied, modified, or distributed without permission.
 """
-import ssl, certifi
+import ssl, certifi, os, re, time
 # Fix SSL errors on Windows with some antivirus setups
-import os
 os.environ.setdefault("SSL_CERT_FILE", certifi.where())
 os.environ.setdefault("REQUESTS_CA_BUNDLE", certifi.where())
-
-import os, re, time
 from pathlib import Path
 from PyQt6.QtCore import QThread, pyqtSignal
 from core.config import CONFIG, TTS_DIR
