@@ -12,6 +12,10 @@ const BUS_TO_CHANNEL = {
   'reply:ready': 'reply'
 }
 
+const TRANSIENT_EMOTIONS = ['talking', 'fullbody']
+
+const FORCEABLE_EMOTIONS = [...new Set([...DEFAULTS.emotions, ...TRANSIENT_EMOTIONS])]
+
 function isPlainObj(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v)
 }
@@ -40,8 +44,8 @@ export function registerIpc({ services, getWin }) {
     const forced = lo.match(/^force(\w+)$/)
     if (forced) {
       const emo = forced[1]
-      if (!DEFAULTS.emotions.includes(emo)) return false
-      services.config.patchSave({ last_emotion: emo })
+      if (!FORCEABLE_EMOTIONS.includes(emo)) return false
+      if (!TRANSIENT_EMOTIONS.includes(emo)) services.config.patchSave({ last_emotion: emo })
       emit('emotion:set', emo)
       return true
     }
