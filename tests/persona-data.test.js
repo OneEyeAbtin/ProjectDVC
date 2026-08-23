@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { PERSONAS, PERSONA_GROUPS, EMO_REMAP } from '../src/main/data/personas.js'
 
 describe('persona data integrity', () => {
-  it('has 23 personas with descriptions', () => {
-    expect(Object.keys(PERSONAS).length).toBe(23)
+  it('has 24 personas with descriptions', () => {
+    expect(Object.keys(PERSONAS).length).toBe(24)
     for (const d of Object.values(PERSONAS)) expect(d.length).toBeGreaterThan(30)
   })
   it('grouped personas all exist', () => {
