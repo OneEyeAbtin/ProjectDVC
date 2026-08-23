@@ -32,6 +32,7 @@ export default function TopBar() {
   const petName = useStore((s) => s.petName)
   const stats = useStore((s) => s.stats)
   const heartsVisible = useStore((s) => s.heartsVisible)
+  const setSettingsOpen = useStore((s) => s.setSettingsOpen)
   const affection = Math.max(0, Math.min(100, Number(stats?.affection ?? 0)))
   const { fill, empty } = heartColors(affection)
   const full = Math.floor(affection / 10)
@@ -69,7 +70,7 @@ export default function TopBar() {
           className="icon-btn"
           title="Settings"
           aria-label="Settings"
-          onClick={() => console.log('[dvc] settings dialog arrives in Plan 3')}
+          onClick={() => setSettingsOpen(true)}
         >
           <Settings size={15} />
         </button>
