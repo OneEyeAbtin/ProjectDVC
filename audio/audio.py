@@ -14,7 +14,7 @@ This code may not be copied, modified, or distributed without permission.
 import asyncio, math, os, re, struct, subprocess, time, wave
 from pathlib import Path
 from PyQt6.QtCore import QThread, pyqtSignal
-from core.config import BASE, SOUNDS_DIR, TTS_DIR
+from core.config import BASE, SOUNDS_DIR, TTS_DIR, VOICES_DIR
 try:
     from audio.tts_elevenlabs import ElevenLabsWorker, is_configured as el_is_configured, list_voices as el_list_voices
 except ImportError:
@@ -27,7 +27,6 @@ except ImportError:
 #   assets/tts/voices/    ← VOICES_DIR
 #   assets/tts/piper.exe  ← PIPER_EXE
 #
-VOICES_DIR = TTS_DIR / "voices"
 PIPER_EXE  = TTS_DIR / "piper.exe"
 
 TTS_DIR.mkdir(exist_ok=True)

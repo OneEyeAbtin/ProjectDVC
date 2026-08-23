@@ -821,13 +821,15 @@ async function _strip(task){
   const len=safeInt(length,50);
   _send({ type:'task_progress',task:label,done:0,total:len,message:`Strip mining ${len} blocks...` });
   try{ _bot.pathfinder.setMovements(_mc()); await _bot.pathfinder.goto(new goals.GoalY(11)); }catch(e){}
+  const startPos=_bot.entity.position.clone();
+  const syaw=_bot.entity.yaw; const sdx=-Math.sin(syaw),sdz=-Math.cos(syaw);
   let dug=0;
   for(let i=0;i<len&&_active&&!_aborted(_gen);i++){
-    const pos=_bot.entity.position;
-    const ahead=_bot.entity.position.offset(0,0,1);
+    const ahead=_bot.entity.position.offset(sdx,0,sdz);
     const bl=_bot.blockAt(ahead); if(bl&&bl.name!=='air'){ try{ await _safeDig(bl); dug++; }catch(e){} }
-    for(const dx of [-1,1]){ const s=_bot.entity.position.offset(dx,0,0); const b=_bot.blockAt(s); if(b&&b.name.includes('ore')){ await _safeDig(b).catch(()=>{}); } }
-    try{ _bot.pathfinder.setMovements(_mc()); await _bot.pathfinder.goto(new goals.GoalNear(pos.x,pos.y,pos.z+i+1,1)); }catch(e){}
+    const lx=-Math.sin(syaw+Math.PI/2),lz=-Math.cos(syaw+Math.PI/2);
+    for(const s of [1,-1]){ const sb=_bot.blockAt(_bot.entity.position.offset(lx*s,0,lz*s)); if(sb&&sb.name.includes('ore')){ await _safeDig(sb).catch(()=>{}); } }
+    try{ _bot.pathfinder.setMovements(_mc()); await _bot.pathfinder.goto(new goals.GoalNear(startPos.x+sdx*(i+1),startPos.y,startPos.z+sdz*(i+1),1)); }catch(e){}
     if(i%10===0) _send({ type:'task_progress',task:label,done:i,total:len,message:`Strip ${i}/${len}` });
   }
   if(!_aborted(_gen)) _send({ type:'task_result',task:label,status:'done',message:`Strip mined ${dug} blocks ✓` });
@@ -944,7 +946,7 @@ async function _craft({item,count,label}){
   }catch(e){ _send({ type:'task_result',task:label,status:'error',message:`Craft: ${e.message}` }); }
 }
 
-async function _smelt({item,count,label}){
+async function _smelt({item,count,label,_gen}){
   const n=safeInt(count); const fDef=_bot.registry.blocksByName.furnace;
   const furnace=fDef&&_bot.findBlock({matching:fDef.id,maxDistance:16});
   if(!furnace){ _send({ type:'task_result',task:label,status:'error',message:'No furnace nearby!' }); return; }
@@ -957,7 +959,8 @@ async function _smelt({item,count,label}){
     if(!fuel){ fw.close(); _send({ type:'task_result',task:label,status:'error',message:'No fuel!' }); return; }
     await fw.putFuel(fuel.type,null,Math.min(fuel.count,n)); await fw.putInput(inp.type,null,Math.min(inp.count,n));
     _send({ type:'task_progress',task:label,done:0,total:1,message:`Smelting ${n}x ${item}... (~${n*10}s)` });
-    await _sleep(n*10000); await fw.takeOutput(); fw.close();
+    for(let _t=0;_t<n*10000&&!_aborted(_gen);_t+=500) await _sleep(500);
+    try{ await fw.takeOutput(); }catch(e){} fw.close();
     _send({ type:'task_result',task:label,status:'done',message:`Smelted ${n}x ${item} ✓` });
   }catch(e){ _send({ type:'task_result',task:label,status:'error',message:`Smelt: ${e.message}` }); }
 }

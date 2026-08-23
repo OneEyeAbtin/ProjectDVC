@@ -371,7 +371,6 @@ class MCBrain:
                     d = self._call_model(f"[TASK_DONE] {note}")
                     self._act_ai(d)
                 else:
-                    import random as _rand
                     if task in ("inv", "status", "inventory"):
                         pass
                     elif note:
@@ -383,8 +382,8 @@ class MCBrain:
                             f"*stretches* All done! {note}",
                             f"Done! {note}",
                         ]
-                        txt = _rand.choice(done_pool)
-                        self.on_emotion(_rand.choice(done_emos))
+                        txt = random.choice(done_pool)
+                        self.on_emotion(random.choice(done_emos))
                         self.on_chat(txt)
                         self.on_cmd("chat", {"message": txt})
                 if task_list:
@@ -443,14 +442,13 @@ class MCBrain:
             print(f"[MC_BRAIN] [EVENT] {event}: {detail}")
             if event == "died":
                 self._local("death", emo="sad")
-                import random as _rand
                 lines = [
                     "*respawning* Going to grab my stuff!",
                     "I died — going back for my items~",
                     "*ghost noises* On my way back for my stuff~",
                     "Ugh, I died... going to retrieve my items!",
                 ]
-                txt = _rand.choice(lines)
+                txt = random.choice(lines)
                 self.on_chat(txt)
                 self.on_cmd("chat", {"message": txt})
             elif event == "player_joined":
@@ -578,7 +576,8 @@ class MCBrain:
         if self._loop and not self._loop.is_closed():
             self._loop.call_soon_threadsafe(self._loop.stop)
 
-    def send_cmd(self, cmd: str, args: dict = {}):
+    def send_cmd(self, cmd: str, args: dict = None):
+        if args is None: args = {}
         if not self.ws or not self.running:
             print("[MC_BRAIN] Not connected to bot WS")
             return

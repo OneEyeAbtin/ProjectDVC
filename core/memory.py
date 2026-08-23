@@ -399,41 +399,6 @@ def compress_traits_async(
 # SYSTEM PROMPT BUILDER — used by _sys_prompt in main.py
 # ═════════════════════════════════════════════════════════════════════════════
 
-def build_memory_prompt(sd: dict, traits: list[str]) -> str:
-    """
-    Build the full MEMORY block for the system prompt.
-    Includes: setup answers, permanent traits, session traits, last summary.
-    """
-    parts = []
-
-    # Setup answers (permanent profile)
-    sa = sd.get("setup_answers", {})
-    if sa:
-        lines = "\n".join(f"- {k.replace('_',' ')}: {v}"
-                          for k, v in sa.items() if v and v != "skip")
-        if lines:
-            parts.append(f"PROFILE:\n{lines}")
-
-    # Learned traits — split by tier
-    perm, sess = split_tiers(traits)
-    # Remove anything already in setup_answers to avoid duplication
-    sa_vals = {str(v).lower() for v in sa.values()}
-    perm = [t for t in perm if not any(
-        sv in t.lower() for sv in sa_vals if len(sv) > 3
-    )]
-    if perm:
-        parts.append("PERMANENT FACTS:\n" + "\n".join(f"- {t}" for t in perm[:20]))
-    if sess:
-        parts.append("RECENT LEARNED:\n" + "\n".join(f"- {t}" for t in sess[-15:]))
-
-    # Last session summary
-    summary = sd.get(_KEY_SESSION_SUM, "")
-    if summary:
-        parts.append(f"LAST SESSION:\n{summary}")
-
-    return "\n\n".join(parts) if parts else "None yet."
-
-
 # ── legacy alias used in a few older call sites ───────────────────────────────
 def load_session(sd: dict) -> dict | None:
     return sd.get(_KEY_RAW_HIST)

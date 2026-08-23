@@ -198,7 +198,8 @@ class TaskQueue:
             self._send(task.cmd, task.args)
 
             # Wait for completion (with 60s timeout for long tasks like mining)
-            timeout = 120 if task.cmd == "mine" else 60
+            _INFINITE = {"cave", "explore", "strip", "guard", "farm", "fish", "lumber", "tunnel"}
+            timeout = 9999 if task.cmd in _INFINITE else (120 if task.cmd == "mine" else 60)
             completed = self._result_event.wait(timeout=timeout)
 
             if not completed:

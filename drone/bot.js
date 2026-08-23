@@ -139,7 +139,7 @@ function handlePercent(raw, fromPlayer){
       case 'follow': case 'follower':{ const p=parts[1]||fromPlayer||USERNAME; setMode('follower',{player:p}); bot.chat(`👁 Following ${p}!`); break; }
       case 'task': case 'tasks': setMode('task'); bot.chat('⚒ Task mode~ %help for commands'); break;
       case 'mine': case 'dig': task({ cmd:'mine', block:(parts[1]||'stone').replace('minecraft:',''), count:safeInt(parts[2]), label:`Mine ${safeInt(parts[2])}x ${parts[1]||'stone'}` }); break;
-      case 'gather': case 'collect': task({ cmd:'mine', block:(parts[1]||'stone').replace('minecraft:',''), count:safeInt(parts[2],64), label:`Gather ${safeInt(parts[2],64)}x ${parts[1]||'stone'}` }); break;
+      case 'gather': task({ cmd:'mine', block:(parts[1]||'stone').replace('minecraft:',''), count:safeInt(parts[2],64), label:`Gather ${safeInt(parts[2],64)}x ${parts[1]||'stone'}` }); break;
       case 'chop': case 'wood': case 'lumber': task({ cmd:'lumber', label:'Chop all nearby trees' }); break;
       case 'cave': task({ cmd:'cave', label:'Cave mining' }); break;
       case 'strip': task({ cmd:'strip', length:safeInt(parts[1],50), label:`Strip mine ${safeInt(parts[1],50)} blocks` }); break;
@@ -326,11 +326,11 @@ function attachEvents(){
           // After respawn: go back for items, then resume whatever mode we were in
           try{ follower?.stop?.(); }catch(e){}
           try{ taskRunner?.stop?.(); }catch(e){}
-          taskRunner.start(bot, send);
-          taskRunner.queueTask({ cmd:'goto',   x:deathPos.x, y:deathPos.y, z:deathPos.z, label:`Return to death (${Math.round(deathPos.x)},${Math.round(deathPos.y)},${Math.round(deathPos.z)})` });
-          taskRunner.queueTask({ cmd:'collect', label:'Collect dropped items' });
+          taskRunner?.start(bot, send);
+          taskRunner?.queueTask({ cmd:'goto',   x:deathPos.x, y:deathPos.y, z:deathPos.z, label:`Return to death (${Math.round(deathPos.x)},${Math.round(deathPos.y)},${Math.round(deathPos.z)})` });
+          taskRunner?.queueTask({ cmd:'collect', label:'Collect dropped items' });
           // After retrieval tasks, switch back to follower
-          taskRunner.queueTask({ cmd:'follow',  player:USERNAME, label:`Resume following ${USERNAME}` });
+          taskRunner?.queueTask({ cmd:'follow',  player:USERNAME, label:`Resume following ${USERNAME}` });
         }, 2500);
       }catch(e){
         console.log('[BOT] Respawn failed:', e.message);
