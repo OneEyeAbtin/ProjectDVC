@@ -81,7 +81,9 @@ export function dedupTraits(traits) {
     if (typeof raw !== 'string') continue
     const trait = raw.trim()
     if (!trait) continue
-    if (!cleaned.some((kept) => areDuplicates(trait, kept))) cleaned.push(trait)
+    const idx = cleaned.findIndex((kept) => areDuplicates(trait, kept))
+    if (idx === -1) cleaned.push(trait)
+    else if (trait.length > cleaned[idx].length) cleaned[idx] = trait
   }
   return cleaned
 }
