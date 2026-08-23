@@ -79,6 +79,7 @@ export default function ChatPanel() {
       <div className="input-row">
         <input
           className="chat-input"
+          aria-label="Message"
           value={draft}
           placeholder={busy ? '' : 'Say something...'}
           disabled={busy}

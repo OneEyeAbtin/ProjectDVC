@@ -68,11 +68,18 @@ export default function TopBar() {
           type="button"
           className="icon-btn"
           title="Settings"
+          aria-label="Settings"
           onClick={() => console.log('[dvc] settings dialog arrives in Plan 3')}
         >
           <Settings size={15} />
         </button>
-        <button type="button" className="icon-btn" title="Close" onClick={() => window.close()}>
+        <button
+          type="button"
+          className="icon-btn"
+          title="Close"
+          aria-label="Close"
+          onClick={() => window.close()}
+        >
           <X size={15} />
         </button>
       </div>

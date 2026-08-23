@@ -46,6 +46,7 @@ export default function SetupWizard() {
             <input
               ref={inputRef}
               className="wiz-input"
+              aria-label={q.q}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
