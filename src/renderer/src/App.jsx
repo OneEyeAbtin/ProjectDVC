@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
 import { useStore, useBoot } from './state/store.js'
+import SetupWizard from './features/setup/SetupWizard.jsx'
+import Companion from './features/companion/Companion.jsx'
 
 export default function App() {
   useBoot()
@@ -18,9 +20,9 @@ export default function App() {
           <span className="boot-dot" />
         </div>
       ) : setupComplete ? (
-        <div />
+        <Companion />
       ) : (
-        <div />
+        <SetupWizard />
       )}
     </div>
   )

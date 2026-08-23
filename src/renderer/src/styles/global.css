@@ -12,6 +12,26 @@ html, body, #root { height: 100%; background: transparent; overflow: hidden;
 .glass { background: color-mix(in srgb, var(--bg3) 72%, transparent);
   backdrop-filter: blur(15px); border: 1px solid var(--border); }
 button { cursor: pointer; font-family: inherit; }
+input { user-select: text; }
+
+.boot-splash {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.boot-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--acc1);
+  animation: boot-pulse 1s ease-in-out infinite;
+}
+@keyframes boot-pulse {
+  0%, 100% { transform: scale(.7); opacity: .4; }
+  50% { transform: scale(1.15); opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
