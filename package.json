@@ -1,0 +1,26 @@
+{
+  "name": "projectdvc",
+  "version": "2.0.0",
+  "description": "Desktop Virtual Companion",
+  "main": "out/main/index.js",
+  "author": "Abtin",
+  "license": "UNLICENSED",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "string-similarity-js": "^2.1.4",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.2.0",
+    "electron-vite": "^2.3.0",
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vitest": "^2.1.8"
+  }
+}
