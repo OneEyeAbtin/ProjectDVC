@@ -8,6 +8,7 @@ export function createCharactersService({ outfitsDir, emotions = [] }) {
   const allEmotions = new Set([...emotions, ...TRANSIENT_EMOTIONS].map((e) => String(e).toLowerCase()))
   let files = null
   let registry = new Map()
+  let prefixSprites = new Map()
 
   function ensureScanned() {
     if (files === null) scan()
@@ -31,7 +32,23 @@ export function createCharactersService({ outfitsDir, emotions = [] }) {
       }
     }
     registerPrefixes([...prefixes].sort())
+    assignSprites()
     return files
+  }
+
+  function assignSprites() {
+    prefixSprites = new Map()
+    const owned = new Set()
+    const sorted = [...registry.keys()].sort((a, b) => b.length - a.length)
+    for (const stem of Object.keys(files)) {
+      const owner = sorted.find(
+        (p) => stem.startsWith(p) && stem.length > p.length && !owned.has(stem)
+      )
+      if (owner === undefined) continue
+      owned.add(stem)
+      if (!prefixSprites.has(owner)) prefixSprites.set(owner, {})
+      prefixSprites.get(owner)[stem.slice(owner.length)] = files[stem]
+    }
   }
 
   function registerPrefixes(prefixes) {
@@ -53,7 +70,8 @@ export function createCharactersService({ outfitsDir, emotions = [] }) {
         count: [...emotions]
           .map((e) => String(e).toLowerCase())
           .filter((e) => Boolean(files[`${prefix}${e}`])).length,
-        hasFullbody: Boolean(files[`${prefix}fullbody`])
+        hasFullbody: Boolean(files[`${prefix}fullbody`]),
+        sprites: { ...(prefixSprites.get(prefix) ?? {}) }
       }))
   }
 
