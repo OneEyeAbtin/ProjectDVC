@@ -172,16 +172,29 @@ describe('ipc msg:send cheat codes', () => {
     expect(profiles.length).toBe(2)
   })
 
-  it('forceEMOTION sets emotion incl transient talking; invalid falls through', async () => {
+  it('forceEMOTION: transient talking is emit-only, never persisted; invalid falls through', async () => {
     const h = makeHarness()
     expect(h.call('msg:send', { text: 'forcetalking' })).toEqual({ cheated: true })
-    expect(h.config.getSave().last_emotion).toBe('talking')
+    expect(h.config.getSave().last_emotion).toBe('neutral')
+    expect(h.sent.some(([c, p]) => c === 'emotion' && p === 'talking')).toBe(true)
 
     h.sent.length = 0
     expect(h.call('msg:send', { text: 'forcebanana' })).toEqual({ queued: true })
     await flush()
-    expect(h.config.getSave().last_emotion).toBe('talking')
+    expect(h.config.getSave().last_emotion).toBe('neutral')
     expect(h.brain.history.some((m) => m.role === 'user' && m.content === 'forcebanana')).toBe(true)
+  })
+
+  it('forceEMOTION: fullbody accepted as transient target; forcelove persists last_emotion', () => {
+    const h = makeHarness()
+    expect(h.call('cheat:try', { text: 'forcefullbody' })).toEqual({ cheated: true })
+    expect(h.config.getSave().last_emotion).toBe('neutral')
+    expect(h.sent.some(([c, p]) => c === 'emotion' && p === 'fullbody')).toBe(true)
+
+    h.sent.length = 0
+    expect(h.call('cheat:try', { text: 'forcelove' })).toEqual({ cheated: true })
+    expect(h.config.getSave().last_emotion).toBe('love')
+    expect(h.sent.some(([c, p]) => c === 'emotion' && p === 'love')).toBe(true)
   })
 
   it('amnesia clears brain history only', async () => {
