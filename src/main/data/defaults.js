@@ -70,7 +70,7 @@ export const DEFAULTS = {
     forceEMOTION: 'Force any emotion (e.g. forceevil, forcehappy)'
   },
 
-  default_persona: 'goth',
+  default_persona: 'Gothic',
   outfits: { Base: 'charlotte' },
 
   user_name: 'User',
