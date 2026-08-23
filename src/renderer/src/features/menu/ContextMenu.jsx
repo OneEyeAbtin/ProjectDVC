@@ -47,6 +47,7 @@ export default function ContextMenu() {
 
   useEffect(() => {
     function onContextMenu(event) {
+      if (useStore.getState().settingsOpen) return
       if (!event.target.closest?.('.shell')) return
       event.preventDefault()
       setSection(null)
