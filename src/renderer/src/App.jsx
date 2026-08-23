@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useStore, useBoot } from './state/store.js'
 import SetupWizard from './features/setup/SetupWizard.jsx'
 import Companion from './features/companion/Companion.jsx'
+import ContextMenu from './features/menu/ContextMenu.jsx'
 
 export default function App() {
   useBoot()
@@ -24,6 +25,7 @@ export default function App() {
       ) : (
         <SetupWizard />
       )}
+      <ContextMenu />
     </div>
   )
 }

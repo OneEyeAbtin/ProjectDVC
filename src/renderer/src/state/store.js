@@ -27,9 +27,16 @@ export const useStore = create((set, get) => ({
   traits: [],
   permanentFacts: [],
   outfits: [],
+  personaGroups: {},
+  themes: [],
+  brainMode: 'online',
+  config: {},
   historyCount: 0,
   maxHistory: 20,
   lastResponse: '',
+
+  // ui overlays
+  settingsOpen: false,
 
   // setup + errors
   setupQuestions: [],
@@ -62,6 +69,10 @@ export const useStore = create((set, get) => ({
         traits: Array.isArray(data.traits) ? data.traits : [],
         permanentFacts: Array.isArray(data.permanentFacts) ? data.permanentFacts : [],
         outfits: Array.isArray(data.outfitManifest) ? data.outfitManifest : [],
+        personaGroups: data.personaGroups && typeof data.personaGroups === 'object' ? data.personaGroups : {},
+        themes: Array.isArray(data.themes) ? data.themes : [],
+        brainMode: save.brain_mode ?? 'online',
+        config: data.config && typeof data.config === 'object' ? data.config : {},
         maxHistory: Number(data.config?.max_history) || 20,
         setupQuestions: Array.isArray(data.setupQuestions) ? data.setupQuestions : [],
         lastResponse: typeof save.last_response === 'string' ? save.last_response : ''
@@ -152,6 +163,44 @@ export const useStore = create((set, get) => ({
     }
   },
 
+  setSettingsOpen(open) {
+    set({ settingsOpen: Boolean(open) })
+  },
+
+  // Optimistic profile switches; rolled back if the IPC round-trip fails.
+  setTheme(themeId) {
+    const next = String(themeId ?? '').trim()
+    if (!next || next === get().theme) return
+    const prev = get().theme
+    set({ theme: next })
+    window.dvc.invoke('profile:save', { theme_id: next }).catch((err) => {
+      set({ theme: prev })
+      get().setError({ scope: 'profile', message: String(err?.message ?? err) })
+    })
+  },
+
+  setPersona(name) {
+    const next = String(name ?? '').trim()
+    if (!next || next === get().persona) return
+    const prev = get().persona
+    set({ persona: next })
+    window.dvc.invoke('profile:save', { persona: next }).catch((err) => {
+      set({ persona: prev })
+      get().setError({ scope: 'profile', message: String(err?.message ?? err) })
+    })
+  },
+
+  switchOutfit(name) {
+    const next = String(name ?? '').trim()
+    if (!next || next === get().outfit) return
+    const prev = get().outfit
+    set({ outfit: next })
+    window.dvc.invoke('outfit:switch', { name: next }).catch((err) => {
+      set({ outfit: prev })
+      get().setError({ scope: 'profile', message: String(err?.message ?? err) })
+    })
+  },
+
   _applySave(save = {}) {
     set({
       setupComplete: Boolean(save.setup_complete),
@@ -162,6 +211,7 @@ export const useStore = create((set, get) => ({
       stats: save.stats ?? get().stats,
       heartsVisible: save.hearts_visible !== undefined ? save.hearts_visible !== false : get().heartsVisible,
       theme: save.theme_id ?? get().theme,
+      brainMode: save.brain_mode ?? get().brainMode,
       emotion: save.last_emotion ?? get().emotion
     })
   },
@@ -170,6 +220,7 @@ export const useStore = create((set, get) => ({
     if (!data) return
     if (data.save && typeof data.save === 'object') {
       get()._applySave(data.save)
+      if (data.config && typeof data.config === 'object') set({ config: data.config })
       if (data.config?.max_history) set({ maxHistory: Number(data.config.max_history) || 20 })
       return
     }

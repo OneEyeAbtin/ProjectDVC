@@ -1,0 +1,104 @@
+.ctx-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 218px;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, .5);
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg4) transparent;
+  animation: ctx-pop .12s ease;
+}
+@keyframes ctx-pop {
+  from { opacity: 0; transform: scale(.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.ctx-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: none;
+  border: none;
+  border-radius: 9px;
+  padding: 7px 9px;
+  color: var(--txt1);
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  transition: background .12s ease;
+}
+.ctx-row:hover,
+.swatch-cell:hover { background: color-mix(in srgb, var(--bg4) 70%, transparent); }
+
+.ctx-section { font-weight: 600; }
+.ctx-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ctx-chev {
+  color: var(--txt2);
+  flex-shrink: 0;
+  transition: transform .15s ease;
+}
+.ctx-chev.open { transform: rotate(90deg); }
+
+.ctx-check { color: var(--acc1); flex-shrink: 0; }
+
+.ctx-sep {
+  height: 1px;
+  margin: 5px 8px;
+  background: var(--border);
+}
+
+.ctx-group-row {
+  padding-top: 5px;
+  padding-bottom: 5px;
+  font-size: 12px;
+  color: var(--txt2);
+}
+.ctx-sub {
+  margin-left: 16px;
+  border-left: 1px solid var(--border);
+}
+
+.ctx-theme-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  padding: 3px 2px 6px;
+}
+.swatch-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 5px 7px;
+  color: var(--txt2);
+  font-size: 11px;
+  font-family: inherit;
+  text-align: left;
+  transition: background .12s ease, color .12s ease;
+}
+.swatch-cell.active { color: var(--txt1); background: color-mix(in srgb, var(--acc1) 14%, transparent); }
+.swatch-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, .28);
+}
+.swatch-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
