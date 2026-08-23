@@ -224,9 +224,14 @@ export function createBrain({
     }
   }
 
+  function clearHistory() {
+    hist.length = 0
+  }
+
   return {
     send,
     sysPrompt,
+    clearHistory,
     get history() {
       return hist.map((m) => ({ ...m }))
     }
