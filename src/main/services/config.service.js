@@ -54,11 +54,11 @@ export function createConfigService({ rootDir }) {
   if (!fs.existsSync(savePath)) writeJsonAtomic(savePath, save)
 
   function getConfig() {
-    return config
+    return structuredClone(config)
   }
 
   function getSave() {
-    return save
+    return structuredClone(save)
   }
 
   function patchConfig(patch) {
