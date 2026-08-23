@@ -14,6 +14,9 @@ assets/tts/voices/*.json
 assets/models
 data/permanent_facts.json
 data/session_cache.json
+data/config.json
+data/save.json
+data/memory/
 dvc_profile.json
 .env
 traits.txt
