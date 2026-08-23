@@ -85,6 +85,10 @@ describe('ipc app:init', () => {
     )
     expect(boot.setupQuestions.length).toBeGreaterThan(0)
     expect(boot.personaGroups).toHaveProperty('💕 Dere Types')
+    expect(boot.greetings.Tsundere).toContain('{name}')
+    expect(boot.greetings.Tsundere).toContain('[EMOTION:')
+    expect(boot.greetings.Gothic).toContain('[EMOTION: smirk]')
+    expect(typeof boot.greetings.Vampire).toBe('string')
     expect(boot.themes).toContain('midnight-sakura')
   })
 

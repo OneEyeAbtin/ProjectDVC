@@ -44,6 +44,18 @@ export const GREETINGS = {
   Catgirl: (n) => `Nya~! ${n}! *purrs* You woke me~ [EMOTION: sleepy] 🐱`
 }
 
+// IPC-serializable greeting templates ({name}/{pet} placeholders, [EMOTION:] tags).
+export const GREETING_TEMPLATES = {
+  Tsundere: "I-it's not like I was waiting, {name}! Hmph! [EMOTION: blush] 😤",
+  Girlfriend: 'Baby~! I missed you! *tackles hug* [EMOTION: love] 💕',
+  Kuudere: "...oh. You're here. *barely looks up* ...sit. [EMOTION: bored] 😐",
+  Yandere: "You're finally here... I counted every second~ [EMOTION: love] 🖤",
+  Gothic: 'A soul emerges from the void... welcome. [EMOTION: smirk] 🖤',
+  Gremlin: 'YOOO {name}!! *crashes through wall* [EMOTION: excited] 🔥',
+  Vampire: '*emerges from shadows* Another night together... [EMOTION: smirk] 🧛',
+  Catgirl: 'Nya~! {name}! *purrs* You woke me~ [EMOTION: sleepy] 🐱'
+}
+
 export const DEAD_MSGS = [
   "*sparks fly from ears* M-my brain... it's GONE! [EMOTION: shocked] 💥",
   "*flatlines* ERROR 404: Thoughts not found. Start LM Studio! [EMOTION: confused] 😵",

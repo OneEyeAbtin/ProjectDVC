@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { on, emit } from './bus.js'
 import { DEFAULTS, SETTINGS_KEYS, SAVE_KEYS } from './data/defaults.js'
-import { PERSONA_GROUPS } from './data/personas.js'
+import { PERSONA_GROUPS, GREETING_TEMPLATES } from './data/personas.js'
 import { THEME_LIST } from './data/themes.js'
 import { parseTags } from './services/brain.service.js'
 
@@ -101,6 +101,7 @@ export function registerIpc({ services, getWin }) {
       outfitManifest: services.characters.manifest(),
       setupQuestions: DEFAULTS.setup_questions,
       personaGroups: PERSONA_GROUPS,
+      greetings: GREETING_TEMPLATES,
       themes: THEME_LIST
     }),
 
