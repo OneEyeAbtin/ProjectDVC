@@ -1,0 +1,65 @@
+.wizard {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 26px;
+}
+.wizard-card {
+  width: 100%;
+  border-radius: 18px;
+  padding: 30px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.wiz-emoji {
+  font-size: 54px;
+  line-height: 1;
+  animation: wiz-pop .35s ease;
+}
+@keyframes wiz-pop {
+  from { transform: scale(.6); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.wiz-question {
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 500;
+  font-size: 17px;
+  text-align: center;
+  color: var(--txt1);
+  line-height: 1.4;
+}
+.wiz-input {
+  width: 100%;
+  text-align: center;
+  background: color-mix(in srgb, var(--bg1) 65%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 11px 14px;
+  color: var(--txt1);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color .15s ease;
+}
+.wiz-input:focus { border-color: var(--acc1); }
+.wiz-progress {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--bg4) 80%, transparent);
+}
+.wiz-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--acc1), var(--acc2), var(--acc3));
+  transition: width .3s ease;
+}
+.wiz-counter {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--txt2);
+}
