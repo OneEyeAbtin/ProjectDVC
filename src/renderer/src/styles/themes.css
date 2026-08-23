@@ -1,0 +1,77 @@
+:root {
+  --bg1:#0d0816; --bg2:#1a1025; --bg3:#2d1f3d; --bg4:#3d2a54;
+  --acc1:#ff6b9d; --acc2:#c084fc; --acc3:#67e8f9;
+  --txt1:#f0e6ff; --txt2:#b8a5d4; --border:rgba(192,132,252,.25);
+}
+
+[data-theme='midnight-sakura'] {
+  --bg1:#0d0816; --bg2:#1a1025; --bg3:#2d1f3d; --bg4:#3d2a54;
+  --acc1:#ff6b9d; --acc2:#c084fc; --acc3:#67e8f9;
+  --txt1:#f0e6ff; --txt2:#b8a5d4; --border:rgba(192,132,252,.25);
+}
+
+[data-theme='crimson-abyss'] {
+  --bg1:#0a0608; --bg2:#160a0e; --bg3:#261218; --bg4:#361820;
+  --acc1:#ff2d55; --acc2:#ff6b35; --acc3:#ffd60a;
+  --txt1:#ffe8e8; --txt2:#cc9999; --border:rgba(255,45,85,.25);
+}
+
+[data-theme='ocean-dream'] {
+  --bg1:#060d14; --bg2:#0a1628; --bg3:#102038; --bg4:#162c4a;
+  --acc1:#00d4ff; --acc2:#0099ff; --acc3:#7df9ff;
+  --txt1:#e0f4ff; --txt2:#7ab8d4; --border:rgba(0,212,255,.2);
+}
+
+[data-theme='forest-dusk'] {
+  --bg1:#070c08; --bg2:#0e1a10; --bg3:#172a1a; --bg4:#1f3824;
+  --acc1:#4ade80; --acc2:#86efac; --acc3:#fbbf24;
+  --txt1:#e8f5e0; --txt2:#8aaa90; --border:rgba(74,222,128,.2);
+}
+
+[data-theme='synthwave'] {
+  --bg1:#08060f; --bg2:#12091e; --bg3:#1e0f32; --bg4:#2a1545;
+  --acc1:#f72585; --acc2:#7209b7; --acc3:#4cc9f0;
+  --txt1:#fce4ff; --txt2:#b07cc6; --border:rgba(247,37,133,.25);
+}
+
+[data-theme='arctic-ghost'] {
+  --bg1:#070a0f; --bg2:#0e1520; --bg3:#162030; --bg4:#1e2c40;
+  --acc1:#a8d8ff; --acc2:#6eb5ff; --acc3:#ffffff;
+  --txt1:#eef4ff; --txt2:#8aaccc; --border:rgba(168,216,255,.18);
+}
+
+[data-theme='darkwave'] {
+  --bg1:#0a0005; --bg2:#150009; --bg3:#220010; --bg4:#30001a;
+  --acc1:#cc0033; --acc2:#880022; --acc3:#ff4466;
+  --txt1:#ffe0e8; --txt2:#996677; --border:rgba(204,0,51,.30);
+}
+
+[data-theme='matrix'] {
+  --bg1:#000300; --bg2:#000a00; --bg3:#001200; --bg4:#001e00;
+  --acc1:#00ff41; --acc2:#008f11; --acc3:#00ff41;
+  --txt1:#ccffcc; --txt2:#447744; --border:rgba(0,255,65,.22);
+}
+
+[data-theme='ethereal'] {
+  --bg1:#f0f4ff; --bg2:#e8eeff; --bg3:#dde5ff; --bg4:#c7d4ff;
+  --acc1:#fbbf24; --acc2:#93c5fd; --acc3:#ffffff;
+  --txt1:#1e1b4b; --txt2:#6366f1; --border:rgba(147,197,253,.50);
+}
+
+[data-theme='neon-city'] {
+  --bg1:#06040f; --bg2:#100b1e; --bg3:#1a1233; --bg4:#251a4a;
+  --acc1:#ff2ea6; --acc2:#00e5ff; --acc3:#ffe066;
+  --txt1:#f2ecff; --txt2:#9c8fc9; --border:rgba(255,46,166,.25);
+}
+
+[data-theme='amber-terminal'] {
+  --bg1:#0a0600; --bg2:#140d00; --bg3:#221600; --bg4:#33220a;
+  --acc1:#ffb000; --acc2:#cc7a00; --acc3:#ffd75e;
+  --txt1:#ffe8c2; --txt2:#b08d57; --border:rgba(255,176,0,.22);
+}
+
+[data-theme='gold'] {
+  --bg1:#0b0906; --bg2:#161209; --bg3:#241c10; --bg4:#332818;
+  --acc1:#d4af37; --acc2:#8c6d1f; --acc3:#ffe08a;
+  --txt1:#faf3dd; --txt2:#a89a72; --border:rgba(212,175,55,.28);
+}
