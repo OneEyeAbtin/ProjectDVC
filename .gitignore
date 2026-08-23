@@ -29,3 +29,11 @@ traits.txt
 espeak-ng-data/
 /assets/tts
 .aider*
+
+# Electron / Node build artifacts
+node_modules/
+out/
+dist/
+dist-electron/
+data/tts-cache/
+*.log
