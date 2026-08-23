@@ -144,6 +144,16 @@ describe('brain sysPrompt', () => {
     expect(p.endsWith('MEMORY:\nMEMORY BLOCK')).toBe(true)
     expect(brain.history).toEqual([])
   })
+
+  it('unknown persona falls back to Gothic description, never empty', () => {
+    const brain = createBrain({
+      config: fakeConfig({ persona: 'Nonexistent' }),
+      memory: fakeMemory(),
+      personaName: 'Also-Missing',
+      callLLM: async () => ''
+    })
+    expect(brain.sysPrompt()).toContain(PERSONAS.Gothic)
+  })
 })
 
 describe('brain send', () => {

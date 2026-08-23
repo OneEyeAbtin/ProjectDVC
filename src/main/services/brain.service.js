@@ -90,7 +90,7 @@ export function createBrain({
   function sysPrompt() {
     const sd = save()
     const persona = personaName || sd.persona || DEFAULTS.persona
-    const pd = PERSONAS[persona] ?? ''
+    const pd = PERSONAS[persona] ?? PERSONAS.Gothic ?? ''
     const st = Object.entries(sd.stats ?? {})
       .map(([k, v]) => `${k}:${v}/100`)
       .join(', ')
