@@ -73,6 +73,15 @@ export function createConfigService({ rootDir }) {
     return save
   }
 
+  function setSaveEntries(entries) {
+    for (const [key, value] of Object.entries(entries)) {
+      if (!SAVE_KEYS.includes(key)) continue
+      save[key] = structuredClone(value)
+    }
+    writeJsonAtomic(savePath, save)
+    return getSave()
+  }
+
   function migrateLegacyIfNeeded() {
     const markerPath = path.join(memoryDir, '.migrated')
     if (fs.existsSync(markerPath)) return false
@@ -140,5 +149,5 @@ export function createConfigService({ rootDir }) {
     return true
   }
 
-  return { getConfig, getSave, patchConfig, patchSave, migrateLegacyIfNeeded }
+  return { rootDir, getConfig, getSave, patchConfig, patchSave, setSaveEntries, migrateLegacyIfNeeded }
 }

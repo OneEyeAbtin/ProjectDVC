@@ -1,9 +1,14 @@
 import { ipcMain } from 'electron'
+import fs from 'node:fs'
+import path from 'node:path'
 import { on, emit } from './bus.js'
 import { DEFAULTS, SETTINGS_KEYS, SAVE_KEYS } from './data/defaults.js'
 import { PERSONA_GROUPS, GREETING_TEMPLATES } from './data/personas.js'
 import { THEME_LIST } from './data/themes.js'
 import { parseTags } from './services/brain.service.js'
+import { createConfigService } from './services/config.service.js'
+import { createMemoryService } from './services/memory.service.js'
+import { createBrain } from './services/brain.service.js'
 
 const BUS_TO_CHANNEL = {
   'emotion:set': 'emotion',
@@ -35,6 +40,19 @@ export function registerIpc({ services, getWin }) {
     services.config.patchSave({ last_emotion: parsed.emotion })
     emit('reply:ready', { text: parsed.clean, emotion: parsed.emotion })
     emit('emotion:set', parsed.emotion)
+  }
+
+  async function deliverReply(reply) {
+    if (!reply) return
+    const stats = reply.applyTo(services.config.getSave().stats ?? {})
+    services.config.patchSave({ stats })
+    for (const trait of reply.traits ?? []) {
+      services.memory.addTrait(trait)
+      services.memory.rotateAndSave()
+    }
+    push('reply', { text: reply.text ?? reply.clean ?? '', emotion: reply.emotion })
+    push('stats', services.config.getSave().stats)
+    push('traits', services.memory.getSessionTraits())
   }
 
   function runCheat(input) {
@@ -132,22 +150,105 @@ export function registerIpc({ services, getWin }) {
       if (runCheat(text)) return { cheated: true }
       void (async () => {
         try {
-          const reply = await services.brain.send(text)
-          if (!reply) return
-          const stats = reply.applyTo(services.config.getSave().stats ?? {})
-          services.config.patchSave({ stats })
-          for (const trait of reply.traits ?? []) {
-            services.memory.addTrait(trait)
-            services.memory.rotateAndSave()
-          }
-          push('reply', { text: reply.text ?? reply.clean ?? '', emotion: reply.emotion })
-          push('stats', services.config.getSave().stats)
-          push('traits', services.memory.getSessionTraits())
+          await deliverReply(await services.brain.send(text))
         } catch (err) {
           push('error', { scope: 'brain', message: String(err?.message ?? err) })
         }
       })()
       return { queued: true }
+    },
+
+    'msg:regenerate': () => {
+      void (async () => {
+        try {
+          const reply = await services.brain.regenerate()
+          if (!reply) {
+            push('error', { scope: 'brain', message: 'Nothing to regenerate' })
+            return
+          }
+          await deliverReply(reply)
+        } catch (err) {
+          push('error', { scope: 'brain', message: String(err?.message ?? err) })
+        }
+      })()
+      return { queued: true }
+    },
+
+    'stats:adjust': (payload) => {
+      const key = payload?.key
+      const stats = { ...services.config.getSave().stats }
+      if (!key || !(key in stats)) throw new Error(`Unknown stat: ${key}`)
+      const current = Number(stats[key]) || 0
+      const delta = Number(payload?.delta) || 0
+      stats[key] = Math.max(0, Math.min(100, current + delta))
+      services.config.patchSave({ stats })
+      push('stats', stats)
+      return stats
+    },
+
+    'memory:delete-trait': (payload) => {
+      const result = services.memory.removeSessionTrait(payload?.text)
+      push('traits', result)
+      return result
+    },
+
+    'memory:wipe-traits': () => {
+      const result = services.memory.setSessionTraits([])
+      push('traits', result)
+      return result
+    },
+
+    'memory:delete-permanent': (payload) =>
+      services.memory.deletePermanent(payload?.text),
+
+    'memory:wipe-permanent': () => services.memory.wipePermanent(),
+
+    'memory:clear-summary': () => services.config.patchSave({ session_summary: '' }),
+
+    'history:get': () => ({ history: services.brain.history }),
+
+    'history:clear': () => {
+      services.brain.clearHistory()
+      return {}
+    },
+
+    'setup:redo': () => {
+      services.memory.setSessionTraits([])
+      services.config.setSaveEntries({ setup_complete: false, setup_answers: {} })
+      push('traits', services.memory.getSessionTraits())
+      return services.config.getSave()
+    },
+
+    'profile:factory-reset': () => {
+      const rootDir = services.config.rootDir
+      const dataDir = path.join(rootDir, 'data')
+      const memoryDir = path.join(dataDir, 'memory')
+      for (const name of ['config.json', 'save.json']) {
+        try {
+          fs.rmSync(path.join(dataDir, name), { force: true })
+        } catch {
+          void 0
+        }
+      }
+      for (const name of ['session-traits.json', 'permanent-facts.json', 'session-cache.json', '.migrated']) {
+        try {
+          fs.rmSync(path.join(memoryDir, name), { force: true })
+        } catch {
+          void 0
+        }
+      }
+      // Re-instantiate in place so every handler reads/writes fresh state.
+      // brain is recreated too because it captures config/memory references.
+      services.config = createConfigService({ rootDir })
+      services.memory = createMemoryService({ rootDir })
+      services.brain = createBrain({
+        config: services.config,
+        memory: services.memory,
+        onSummary: (summary) => {
+          if (summary) services.config.patchSave({ session_summary: summary })
+        }
+      })
+      return services.config.getSave()
     },
 
     'profile:save': (patch) => {
@@ -160,6 +261,9 @@ export function registerIpc({ services, getWin }) {
       }
       if (Object.keys(configPatch).length) services.config.patchConfig(configPatch)
       if (Object.keys(savePatch).length) services.config.patchSave(savePatch)
+      const touchesWindow =
+        ('always_on_top' in configPatch || 'tray_enabled' in configPatch) && services.window
+      if (touchesWindow) services.window.applySettings()
       const result = { config: services.config.getConfig(), save: services.config.getSave() }
       push('profile', result)
       return result
