@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Check, ChevronRight } from 'lucide-react'
 import { useStore } from '../../state/store.js'
-import { INTERACT_MENU, INTERACTIONS, THEME_META } from './menuData.js'
+import { INTERACT_MENU, INTERACTIONS, THEME_META, UTILITY_ENTRIES } from './menuData.js'
 import './context-menu.css'
 
 const EDGE_PAD = 8
@@ -110,6 +110,11 @@ export default function ContextMenu() {
     useStore.getState().setSettingsOpen(true)
   }
 
+  function openUtility(id) {
+    close()
+    if (id === 'stats') useStore.getState().setStatsOpen(true)
+  }
+
   return (
     <div ref={panelRef} className="glass ctx-menu" role="menu" aria-label="Companion options" style={{ left: pos.x, top: pos.y }}>
       <SectionRow label="👗 Outfits" open={section === 'outfits'} onToggle={() => toggleSection('outfits')} />
@@ -173,6 +178,17 @@ export default function ContextMenu() {
       <button type="button" className="ctx-row ctx-section" onClick={openSettings}>
         <span className="ctx-label">⚙ Settings</span>
       </button>
+
+      {UTILITY_ENTRIES.map((entry) => (
+        <button
+          key={entry.id}
+          type="button"
+          className="ctx-row ctx-section"
+          onClick={() => openUtility(entry.id)}
+        >
+          <span className="ctx-label">{entry.label}</span>
+        </button>
+      ))}
 
       <SectionRow label="✨ Interact" open={section === 'interact'} onToggle={() => toggleSection('interact')} />
       {section === 'interact' &&

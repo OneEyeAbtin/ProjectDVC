@@ -4,6 +4,7 @@ import SetupWizard from './features/setup/SetupWizard.jsx'
 import Companion from './features/companion/Companion.jsx'
 import ContextMenu from './features/menu/ContextMenu.jsx'
 import SettingsOverlay from './features/settings/SettingsOverlay.jsx'
+import StatsDialog from './features/stats/StatsDialog.jsx'
 
 export default function App() {
   useBoot()
@@ -27,6 +28,7 @@ export default function App() {
         <SetupWizard />
       )}
       <ContextMenu />
+      <StatsDialog />
       <SettingsOverlay />
     </div>
   )
