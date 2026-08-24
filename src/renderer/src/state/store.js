@@ -253,9 +253,11 @@ export const useStore = create((set, get) => ({
     const current = Number(stats[key]) || 0
     const next = Math.max(0, Math.min(100, current + Number(delta) || 0))
     if (next === current) return
+    const prev = stats[key]
     stats[key] = next
     set({ stats })
     window.dvc.invoke('stats:adjust', { key, delta }).catch((err) => {
+      if (get().stats?.[key] === next) set({ stats: { ...get().stats, [key]: prev } })
       get().setError({ scope: 'stats', message: String(err?.message ?? err) })
     })
   },
