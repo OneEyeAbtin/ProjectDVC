@@ -171,3 +171,290 @@ describe('edge provider', () => {
     ).rejects.toThrow(/Edge TTS failed/)
   })
 })
+
+// ── voice service + media protocol ──────────────────────────────────────────
+
+import { on } from '../src/main/bus.js'
+import { cleanSpeechText, createVoiceService, chainFor } from '../src/main/services/voice.service.js'
+import { resolveMediaPath } from '../src/main/media-protocol.js'
+import { createConfigService } from '../src/main/services/config.service.js'
+
+function stubProvider(name, behavior) {
+  const calls = []
+  const fn = vi.fn(async ({ text, emotion, outPath }) => {
+    calls.push({ name, text, emotion, outPath })
+    if (behavior) await behavior({ text, emotion, outPath })
+    return outPath
+  })
+  return { fn, calls }
+}
+
+function makeService({
+  configPatch = {},
+  elevenlabs,
+  edge,
+  piper
+} = {}) {
+  const config = createConfigService({ rootDir: dir })
+  if (Object.keys(configPatch).length) config.patchConfig(configPatch)
+  return {
+    config,
+    svc: createVoiceService({
+      rootDir: dir,
+      getConfig: () => config.getConfig(),
+      providers: {
+        elevenlabs: elevenlabs?.impl ?? { synthesize: elevenlabs?.fn ?? vi.fn() },
+        edge: edge?.impl ?? { synthesize: edge?.fn ?? vi.fn() },
+        piper: piper?.impl ?? { synthesize: piper?.fn ?? vi.fn() }
+      }
+    }),
+    elevenlabs,
+    edge,
+    piper
+  }
+}
+
+function collectBus(topic) {
+  const events = []
+  const off = on(topic, (payload) => events.push(payload))
+  return { events, off }
+}
+
+const elCfg = { api_key: 'sk', voice_id: 'v1', model_id: 'eleven_flash_v2_5' }
+
+describe('cleanSpeechText (legacy regex port)', () => {
+  it('strips *actions*, [tags], and non-speech chars', () => {
+    expect(cleanSpeechText('*waves* Hello there! [EMOTION: happy] 💖')).toBe('Hello there!')
+    expect(cleanSpeechText("I-I can't believe it... right?!")).toBe("I-I can't believe it... right?!")
+    expect(cleanSpeechText('[EMOTION: love]')).toBe('')
+    expect(cleanSpeechText(null)).toBe('')
+  })
+
+  it('keeps accented letters (unicode-aware \\w parity)', () => {
+    expect(cleanSpeechText('café naïve')).toBe('café naïve')
+  })
+})
+
+describe('voice service arbitration', () => {
+  it('falls back EL → edge on VoiceQuotaError; piper never called', async () => {
+    const edge = stubProvider('edge')
+    const piper = stubProvider('piper')
+    const h = makeService({
+      configPatch: { tts_config: { enabled: true, engine: 'elevenlabs' }, elevenlabs: elCfg },
+      elevenlabs: stubProvider('el', () => {
+        throw new VoiceQuotaError('HTTP 402 — quota hit')
+      }),
+      edge,
+      piper
+    })
+
+    const ttsReady = collectBus('tts:ready')
+    const result = await h.svc.speak({ text: '*giggles* hi!', emotion: 'happy' })
+
+    expect(result.path).toMatch(/tts-cache[\\/]tts_\d+\.mp3$/)
+    expect(result.emotion).toBe('happy')
+    // Providers receive the CLEANED text.
+    expect(edge.calls[0].text).toBe('hi!')
+    expect(piper.calls).toHaveLength(0)
+    expect(ttsReady.events).toEqual([{ path: result.path, emotion: 'happy' }])
+    ttsReady.off()
+  })
+
+  it('engine pinning: edge only runs edge even with EL configured', async () => {
+    const el = stubProvider('el')
+    const piper = stubProvider('piper')
+    const h = makeService(
+      {
+        configPatch: { tts_config: { engine: 'edge' }, elevenlabs: elCfg },
+        elevenlabs: el,
+        edge: stubProvider('edge'),
+        piper
+      }
+    )
+    await h.svc.speak({ text: 'hey', emotion: null })
+    expect(el.calls).toHaveLength(0)
+    expect(h.edge.calls).toHaveLength(1)
+    expect(piper.calls).toHaveLength(0)
+  })
+
+  it('engine pinning: piper only runs piper and gets a .wav cache path + model cfg', async () => {
+    const model = path.join(dir, 'assets', 'tts', 'voices', 'en-test-medium.onnx.json')
+    fs.mkdirSync(path.dirname(model), { recursive: true })
+    fs.writeFileSync(model, '{}')
+    const piper = stubProvider('piper')
+    const el = stubProvider('el')
+    const h = makeService({
+      configPatch: {
+        tts_config: { engine: 'piper', piper_voice: path.join(dir, 'm.onnx') },
+        elevenlabs: elCfg
+      },
+      elevenlabs: el,
+      edge: stubProvider('edge'),
+      piper
+    })
+    await h.svc.speak({ text: 'offline mode' })
+    expect(el.calls).toHaveLength(0)
+    expect(h.edge.calls).toHaveLength(0)
+    expect(piper.calls).toHaveLength(1)
+    expect(piper.calls[0].outPath.endsWith('.wav')).toBe(true)
+  })
+
+  it('unconfigured EL is skipped in the elevenlabs chain', async () => {
+    const el = stubProvider('el')
+    const h = makeService({
+      configPatch: { tts_config: { engine: 'elevenlabs' }, elevenlabs: {} },
+      elevenlabs: el,
+      edge: stubProvider('edge')
+    })
+    await h.svc.speak({ text: 'no creds' })
+    expect(el.calls).toHaveLength(0)
+    expect(h.edge.calls).toHaveLength(1)
+  })
+
+  it('non-quota failure does not cascade; emits tts {error} and returns null', async () => {
+    const edge = stubProvider('edge')
+    const h = makeService({
+      configPatch: { tts_config: { engine: 'elevenlabs' }, elevenlabs: elCfg },
+      elevenlabs: stubProvider('el', () => {
+        throw new Error('network exploded')
+      }),
+      edge
+    })
+    const ttsErr = collectBus('tts')
+    const result = await h.svc.speak({ text: 'boom' })
+    expect(result).toBeNull()
+    expect(edge.calls).toHaveLength(0)
+    expect(ttsErr.events).toHaveLength(1)
+    expect(ttsErr.events[0].error).toContain('network exploded')
+    ttsErr.off()
+  })
+
+  it('quota errors cascade through every engine before failing', async () => {
+    const quota = () => {
+      throw new VoiceQuotaError('HTTP 429')
+    }
+    const h = makeService({
+      configPatch: { tts_config: { engine: 'elevenlabs' }, elevenlabs: elCfg },
+      elevenlabs: stubProvider('el', quota),
+      edge: stubProvider('edge', quota),
+      piper: stubProvider('piper', quota)
+    })
+    const ttsErr = collectBus('tts')
+    const result = await h.svc.speak({ text: 'all dead' })
+    expect(result).toBeNull()
+    expect(ttsErr.events[0].error).toContain('429')
+    ttsErr.off()
+  })
+
+  it('skips silently when text cleans to empty', async () => {
+    const edge = stubProvider('edge')
+    const h = makeService({ configPatch: { tts_config: { engine: 'edge' } }, edge })
+    expect(await h.svc.speak({ text: '*silent wave*' })).toBeNull()
+    expect(await h.svc.speak({ text: '' })).toBeNull()
+    expect(edge.calls).toHaveLength(0)
+  })
+
+  it('speak never throws even when providers explode synchronously', async () => {
+    const h = makeService({
+      configPatch: { tts_config: { engine: 'edge' } },
+      edge: { impl: { synthesize: () => { throw new Error('sync boom') } } }
+    })
+    const ttsErr = collectBus('tts')
+    await expect(h.svc.speak({ text: 'x' })).resolves.toBeNull()
+    ttsErr.off()
+  })
+})
+
+describe('cache rotation', () => {
+  it('writes tts_0..tts_9 then wraps around, overwriting the oldest', async () => {
+    const h = makeService({ configPatch: { tts_config: { engine: 'edge' } }, edge: stubProvider('e') })
+    const paths = []
+    for (let i = 0; i < 12; i++) {
+      const r = await h.svc.speak({ text: `line ${i}` })
+      paths.push(path.basename(r.path))
+    }
+    expect(paths.slice(0, 10)).toEqual(paths.slice(0, 10).map((_, i) => `tts_${i}.mp3`))
+    expect(paths[10]).toBe('tts_0.mp3')
+    expect(paths[11]).toBe('tts_1.mp3')
+  })
+
+  it('piper attempts use .wav siblings of the same counter', async () => {
+    const h = makeService({
+      configPatch: { tts_config: { engine: 'piper', piper_voice: '/x.onnx' } },
+      piper: stubProvider('p')
+    })
+    const first = await h.svc.speak({ text: 'a' })
+    expect(path.basename(first.path)).toBe('tts_0.wav')
+  })
+})
+
+describe('scanPiperVoices + isConfigured', () => {
+  it('lists .onnx stems from assets/tts/voices and reports EL configured state', () => {
+    fs.mkdirSync(path.join(dir, 'assets', 'tts', 'voices'), { recursive: true })
+    fs.writeFileSync(path.join(dir, 'assets', 'tts', 'voices', 'b_voice.onnx'), '')
+    fs.writeFileSync(path.join(dir, 'assets', 'tts', 'voices', 'a_voice.onnx'), '')
+    fs.writeFileSync(path.join(dir, 'assets', 'tts', 'voices', 'a_voice.onnx.json'), '{}')
+    fs.writeFileSync(path.join(dir, 'assets', 'tts', 'voices', 'notes.txt'), '')
+
+    const config = createConfigService({ rootDir: dir })
+    config.patchConfig({ elevenlabs: elCfg })
+    const svc = createVoiceService({ rootDir: dir, getConfig: () => config.getConfig() })
+
+    expect(svc.scanPiperVoices()).toEqual(['a_voice', 'b_voice'])
+    expect(svc.isConfigured()).toBe(true)
+
+    const bare = createVoiceService({ rootDir: dir, getConfig: () => config.getConfig() })
+    void bare
+    const noElRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dvc-tts-noel-'))
+    const noEl = createConfigService({ rootDir: noElRoot })
+    const svc2 = createVoiceService({ rootDir: noElRoot, getConfig: () => noEl.getConfig() })
+    expect(svc2.isConfigured()).toBe(false)
+  })
+})
+
+describe('chainFor', () => {
+  it('pins per engine and builds the fallback order for elevenlabs', () => {
+    expect(chainFor('edge', true)).toEqual(['edge'])
+    expect(chainFor('piper', true)).toEqual(['piper'])
+    expect(chainFor('elevenlabs', true)).toEqual(['elevenlabs', 'edge', 'piper'])
+    expect(chainFor('elevenlabs', false)).toEqual(['edge', 'piper'])
+  })
+})
+
+describe('resolveMediaPath (pure traversal guard)', () => {
+  const roots = [
+    { mount: 'tts-cache', root: path.resolve('/app/root/data/tts-cache') },
+    path.resolve('/app/root/assets')
+  ]
+
+  it('resolves files inside allowlisted roots', () => {
+    expect(resolveMediaPath('/tts-cache/tts_3.mp3', roots)).toBe(
+      path.resolve('/app/root/data/tts-cache/tts_3.mp3')
+    )
+    expect(resolveMediaPath('/sprites/x.png', [path.resolve('/app/root/assets')])).toBe(
+      path.resolve('/app/root/assets/sprites/x.png')
+    )
+  })
+
+  it('bare mount never maps into the mounted cache root', () => {
+    const resolved = resolveMediaPath('/tts-cache/', roots)
+    expect(resolved).not.toBe(path.resolve('/app/root/data/tts-cache'))
+  })
+
+  it.each([
+    '/../secrets.txt',
+    '/..%2F..%2Fetc%2Fpasswd',
+    '/../../etc/passwd',
+    '/tts-cache/../../../etc/passwd',
+    '\\\\server\\share\\x',
+    '',
+    null
+  ])('rejects traversal attempt %j', (attempt) => {
+    expect(resolveMediaPath(attempt, roots)).toBeNull()
+  })
+
+  it('rejects when no roots are provided', () => {
+    expect(resolveMediaPath('/tts-cache/a.mp3', [])).toBeNull()
+    expect(resolveMediaPath('/tts-cache/a.mp3', undefined)).toBeNull()
+  })
+})
