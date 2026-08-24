@@ -93,6 +93,20 @@ describe('config service', () => {
     expect(fs.existsSync(path.join(dir, 'data/config.json.tmp'))).toBe(false)
   })
 
+  it('patchSave/patchConfig return defensive copies (match getters)', () => {
+    const svc = createConfigService({ rootDir: dir })
+    svc.migrateLegacyIfNeeded()
+    const save = svc.patchSave({ stats: { affection: 77 } })
+    save.stats.affection = 999
+    save.user_name = 'mutated'
+    expect(svc.getSave().stats.affection).toBe(77)
+    expect(svc.getSave().user_name).not.toBe('mutated')
+
+    const config = svc.patchConfig({ max_history: 9 })
+    config.max_history = 999
+    expect(svc.getConfig().max_history).toBe(9)
+  })
+
   it('corrupt json files fall back to defaults without throwing', () => {
     fs.mkdirSync(path.join(dir, 'data'), { recursive: true })
     fs.writeFileSync(path.join(dir, 'data/config.json'), '{not json')

@@ -29,7 +29,7 @@ export default function App() {
   // Ctrl+, toggles settings globally — even while typing in an input.
   useEffect(() => {
     function onKeyDown(event) {
-      if (event.ctrlKey && !event.altKey && !event.metaKey && event.key === ',') {
+      if (event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey && event.key === ',') {
         event.preventDefault()
         const { settingsOpen, setSettingsOpen } = useStore.getState()
         setSettingsOpen(!settingsOpen)

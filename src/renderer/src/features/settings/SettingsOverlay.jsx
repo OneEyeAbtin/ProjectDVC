@@ -124,7 +124,7 @@ function ConfirmButton({ className = '', confirmLabel = 'Really?', ariaLabel, on
       disabled={pending}
       onClick={handleClick}
     >
-      {armed ? confirmLabel : children}
+      {pending ? '…' : armed ? confirmLabel : children}
     </button>
   )
 }

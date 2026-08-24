@@ -140,6 +140,8 @@
   line-height: 1.55;
   color: var(--txt1);
   word-wrap: break-word;
+  user-select: text;
+  cursor: text;
 }
 .bubble-action {
   font-style: italic;

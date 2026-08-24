@@ -1,4 +1,5 @@
 import { DEFAULTS } from '../data/defaults.js'
+import { PERSISTENT_EMOTIONS } from '../data/emotions.js'
 import {
   PERSONAS,
   DEAD_MSGS,
@@ -8,7 +9,6 @@ import {
 } from '../data/personas.js'
 import { defaultCallLLM } from '../providers/llm.js'
 
-const PERSISTENT_EMOTIONS = DEFAULTS.emotions.filter((e) => e !== 'talking')
 const SUMMARY_TIMEOUT_MS = 15000
 const CHAT_TIMEOUT_MS = 30000
 const SUMMARY_HISTORY_LIMIT = 20

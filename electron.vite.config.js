@@ -15,6 +15,9 @@ function copySprites() {
       const src = r('assets/outfits')
       const dest = r('out/renderer/sprites')
       if (!fs.existsSync(src)) return
+      // Prune stale sprites from a previous build so removed outfit files
+      // don't linger in the production output.
+      fs.rmSync(dest, { recursive: true, force: true })
       fs.mkdirSync(dest, { recursive: true })
       for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
         if (!entry.isFile()) continue

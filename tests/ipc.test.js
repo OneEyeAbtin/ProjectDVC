@@ -91,6 +91,7 @@ describe('ipc app:init', () => {
     expect(boot.greetings.Gothic).toContain('[EMOTION: smirk]')
     expect(typeof boot.greetings.Vampire).toBe('string')
     expect(boot.themes).toContain('midnight-sakura')
+    expect(boot.transientEmotions).toEqual(['talking', 'fullbody'])
   })
 
   it('getters in payload are defensive copies', () => {

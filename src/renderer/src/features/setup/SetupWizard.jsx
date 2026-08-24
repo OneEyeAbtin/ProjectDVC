@@ -13,6 +13,7 @@ export default function SetupWizard() {
   const [draft, setDraft] = useState('')
   const [done, setDone] = useState(false)
   const inputRef = useRef(null)
+  const doneTimer = useRef(null)
 
   const total = questions.length
   const q = total > 0 ? questions[step] : null
@@ -23,9 +24,13 @@ export default function SetupWizard() {
     inputRef.current?.focus()
   }, [step])
 
+  // The completion handoff is deferred for the celebration beat; clear it if
+  // the wizard unmounts before it fires.
+  useEffect(() => () => clearTimeout(doneTimer.current), [])
+
   function finalize(finalAnswers) {
     setDone(true)
-    setTimeout(() => completeSetup(finalAnswers), 1400)
+    doneTimer.current = setTimeout(() => completeSetup(finalAnswers), 1400)
   }
 
   function advance() {

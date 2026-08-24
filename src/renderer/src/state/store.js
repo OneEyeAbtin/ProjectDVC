@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
 import { create } from 'zustand'
 
-const TRANSIENT_EMOTIONS = ['talking', 'fullbody']
+// Fallback until app:init delivers the authoritative list from main
+// (src/main/data/emotions.js is the single source).
+const FALLBACK_TRANSIENT_EMOTIONS = ['talking', 'fullbody']
 
 // Fallback lines for tag-only replies (LLM returned only [EMOTION]/[STAT]
 // tags, so `clean` is empty) — keeps the typewriter cycle alive instead of
@@ -35,6 +37,7 @@ export const useStore = create((set, get) => ({
   personaGroups: {},
   greetings: {},
   themes: [],
+  transientEmotions: FALLBACK_TRANSIENT_EMOTIONS,
   brainMode: 'online',
   config: {},
   fontScale: 1,
@@ -86,6 +89,9 @@ export const useStore = create((set, get) => ({
         personaGroups: data.personaGroups && typeof data.personaGroups === 'object' ? data.personaGroups : {},
         greetings: data.greetings && typeof data.greetings === 'object' ? data.greetings : {},
         themes: Array.isArray(data.themes) ? data.themes : [],
+        transientEmotions: Array.isArray(data.transientEmotions) && data.transientEmotions.length
+          ? data.transientEmotions
+          : FALLBACK_TRANSIENT_EMOTIONS,
         brainMode: save.brain_mode ?? 'online',
         config: data.config && typeof data.config === 'object' ? data.config : {},
         fontScale: Number(save.font_scale) || 1,
@@ -148,9 +154,9 @@ export const useStore = create((set, get) => ({
   },
 
   completeType() {
-    const { bubble, pendingEmotion, emotion } = get()
+    const { bubble, pendingEmotion, emotion, transientEmotions } = get()
     const next =
-      pendingEmotion && !TRANSIENT_EMOTIONS.includes(pendingEmotion) ? pendingEmotion : emotion
+      pendingEmotion && !transientEmotions.includes(pendingEmotion) ? pendingEmotion : emotion
     // transientEmotion: null — any completed reply ends a forced render-only
     // state like `talking`, so the sprite/badge unfreeze (audit #4).
     clearTimeout(get()._transientTimer)
@@ -176,7 +182,8 @@ export const useStore = create((set, get) => ({
   setEmotion(name) {
     if (!name || typeof name !== 'string') return
     clearTimeout(get()._transientTimer)
-    if (TRANSIENT_EMOTIONS.includes(name)) {
+    const transientEmotions = get().transientEmotions
+    if (transientEmotions.includes(name)) {
       set({ transientEmotion: name })
       // QoL: render-only lip-sync states self-clear after 2s without another
       // toggle, so a stuck `talking` can never outlive its reply.
