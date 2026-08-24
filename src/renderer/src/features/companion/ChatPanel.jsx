@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, Copy, Mic, RotateCcw, SendHorizontal, X } from 'lucide-react'
+import { Check, Copy, Mic, RotateCcw, SendHorizontal, Square, X } from 'lucide-react'
 import { useStore } from '../../state/store.js'
 import { playSfx } from '../../lib/sfx.js'
+import { useMic } from '../voice/useMic.js'
+import { SEGMENT_COUNT } from '../voice/micHelpers.js'
 import { useTypewriter } from './useTypewriter.js'
 
 // Ported from legacy: *asterisk actions* render as italic muted spans.
@@ -41,6 +43,18 @@ export default function ChatPanel() {
   const [copied, setCopied] = useState(false)
   const copiedTimer = useRef(null)
   const scrollRef = useRef(null)
+
+  // Voice input: transcript fills the input, then auto-sends (legacy parity).
+  // The send timer lives here so it dies with the panel, not inside the hook.
+  const sendTimer = useRef(0)
+  useEffect(() => () => clearTimeout(sendTimer.current), [])
+  const { micState, segments, toggle: micToggle } = useMic({
+    setInput: (text) => {
+      setDraft(text)
+      clearTimeout(sendTimer.current)
+      sendTimer.current = setTimeout(() => useStore.getState().sendMsg(text), 600)
+    }
+  })
 
   // Muted bubbles (boot "last response" replay) render statically.
   const { shown, typing: charTyping } = useTypewriter(bubble?.muted ? null : bubble?.text ?? null, {
@@ -128,8 +142,28 @@ export default function ChatPanel() {
             }
           }}
         />
-        <button type="button" className="mic-btn" title="Voice (Plan 4)" disabled>
-          <Mic size={16} />
+        {micState === 'recording' && (
+          <div className="vu-meter" aria-hidden="true">
+            {Array.from({ length: SEGMENT_COUNT }, (_, i) => (
+              <span
+                key={i}
+                className={
+                  'vu-seg' +
+                  (i < segments ? ` lit vu-${i < 4 ? 'g' : i < 6 ? 'y' : 'r'}` : '')
+                }
+              />
+            ))}
+          </div>
+        )}
+        <button
+          type="button"
+          className={'mic-btn' + (micState === 'recording' ? ' recording' : '')}
+          title={micState === 'idle' ? 'Voice input' : micState === 'recording' ? 'Stop recording' : 'Processing…'}
+          aria-label={micState === 'idle' ? 'Start voice input' : micState === 'recording' ? 'Stop recording' : 'Processing…'}
+          disabled={micState === 'processing'}
+          onClick={() => micToggle()}
+        >
+          {micState === 'recording' ? <Square size={14} /> : <Mic size={16} />}
         </button>
         <button type="button" className="send-btn" title="Send" disabled={busy} onClick={submit}>
           <SendHorizontal size={17} />

@@ -459,6 +459,80 @@ describe('resolveMediaPath (pure traversal guard)', () => {
   })
 })
 
+describe('transcribe (Groq Whisper STT)', () => {
+  const bigBuffer = new Uint8Array(20000)
+
+  function stubSttFetch(payload) {
+    const fetchMock = vi.fn().mockResolvedValue(payload)
+    vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
+  }
+
+  it('rejects buffers under ~0.3s of webm without hitting the network', async () => {
+    const h = makeService({ configPatch: { online_api_key: 'sk-groq' } })
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+    await expect(h.svc.transcribe({ buffer: new Uint8Array(9999), mime: 'audio/webm' })).rejects.toThrow(
+      /Recording too short/
+    )
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('asks for an API key instead of firing an unauthenticated request', async () => {
+    const h = makeService({})
+    await expect(h.svc.transcribe({ buffer: bigBuffer, mime: 'audio/webm' })).rejects.toThrow(/API key/)
+  })
+
+  it('posts multipart form to Groq with model + response_format and returns trimmed text', async () => {
+    const fetchMock = stubSttFetch({ ok: true, status: 200, text: async () => '  hello there \n' })
+    const h = makeService({
+      configPatch: { online_api_key: 'sk-groq', tts_config: { stt_model: 'whisper-large-v3' } }
+    })
+    await expect(h.svc.transcribe({ buffer: bigBuffer, mime: 'audio/webm' })).resolves.toEqual({
+      text: 'hello there'
+    })
+
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe('https://api.groq.com/openai/v1/audio/transcriptions')
+    expect(init.headers.Authorization).toBe('Bearer sk-groq')
+    expect(init.method).toBe('POST')
+    expect(init.body).toBeInstanceOf(FormData)
+    expect(init.body.get('model')).toBe('whisper-large-v3')
+    expect(init.body.get('response_format')).toBe('text')
+    const file = init.body.get('file')
+    expect(file.name).toBe('audio.webm')
+    expect(file.type).toBe('audio/webm')
+    expect(file.size).toBe(20000)
+  })
+
+  it('falls back to whisper-large-v3-turbo when stt_model is unset', async () => {
+    const fetchMock = stubSttFetch({ ok: true, status: 200, text: async () => 'hi' })
+    const h = makeService({
+      configPatch: { online_api_key: 'sk-groq', tts_config: {} }
+    })
+    await h.svc.transcribe({ buffer: bigBuffer, mime: '' })
+    expect(fetchMock.mock.calls[0][1].body.get('model')).toBe('whisper-large-v3-turbo')
+    // Empty mime falls back to webm (the only container we ever record).
+    expect(fetchMock.mock.calls[0][1].body.get('file').type).toBe('audio/webm')
+  })
+
+  it.each([401, 429, 500])('surfaces HTTP %i as a friendly error naming the status', async (status) => {
+    stubSttFetch({ ok: false, status, text: async () => '{"error":"nope"}' })
+    const h = makeService({ configPatch: { online_api_key: 'sk-groq' } })
+    await expect(h.svc.transcribe({ buffer: bigBuffer, mime: 'audio/webm' })).rejects.toThrow(
+      new RegExp(`HTTP ${status}`)
+    )
+  })
+
+  it('wraps network failures with context instead of leaking raw errors', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('ECONNREFUSED')))
+    const h = makeService({ configPatch: { online_api_key: 'sk-groq' } })
+    await expect(h.svc.transcribe({ buffer: bigBuffer, mime: 'audio/webm' })).rejects.toThrow(
+      /Speech-to-text request failed.*ECONNREFUSED/s
+    )
+  })
+})
+
 // ── ipc auto-speak wiring ───────────────────────────────────────────────────
 
 import { ipcMain } from 'electron'
@@ -491,7 +565,11 @@ function makeIpcHarness({ ttsEnabled = false, withVoice = true } = {}) {
     memory,
     callLLM: async () => 'a spoken wonder [EMOTION: happy]'
   })
-  const voice = { speak: vi.fn(async () => ({ path: '/x.mp3', emotion: null })), stop: vi.fn() }
+  const voice = {
+    speak: vi.fn(async () => ({ path: '/x.mp3', emotion: null })),
+    stop: vi.fn(),
+    transcribe: vi.fn(async () => ({ text: 'transcribed words' }))
+  }
   const sent = []
   registerIpc({
     services: {
@@ -568,5 +646,56 @@ describe('auto-speak wiring', () => {
     const h = makeIpcHarness({ withVoice: false })
     expect(h.call('voice:speak', { text: 'x' })).toEqual({ unsupported: true })
     expect(h.sent.at(-1)).toEqual(['tts', { unsupported: true }])
+  })
+})
+
+describe('voice:stt-transcribe ack pattern', () => {
+  const bigBuffer = new Uint8Array(20000).buffer
+
+  it('returns {text} on success, passing buffer + mime to the service', async () => {
+    const h = makeIpcHarness({ ttsEnabled: false })
+    await expect(
+      h.call('voice:stt-transcribe', { buffer: bigBuffer, mime: 'audio/webm' })
+    ).resolves.toEqual({ text: 'transcribed words' })
+    expect(h.voice.transcribe).toHaveBeenCalledTimes(1)
+    const arg = h.voice.transcribe.mock.calls[0][0]
+    expect(arg.mime).toBe('audio/webm')
+    expect(arg.buffer).toBeInstanceOf(Uint8Array)
+    expect(arg.buffer.byteLength).toBe(20000)
+  })
+
+  it('accepts typed-array views and byteOffsets', async () => {
+    const h = makeIpcHarness()
+    const view = new Uint8Array(40000).subarray(10000) // 30000 bytes, offset
+    await h.call('voice:stt-transcribe', { buffer: view, mime: 'audio/mp4' })
+    const arg = h.voice.transcribe.mock.calls[0][0]
+    expect(arg.buffer.byteLength).toBe(30000)
+    expect(Array.from(arg.buffer.slice(0, 4))).toEqual(Array.from(view.slice(0, 4)))
+  })
+
+  it('returns {error} when the service throws — never a rejected invoke', async () => {
+    const h = makeIpcHarness({ ttsEnabled: true })
+    h.voice.transcribe.mockRejectedValue(new Error('Recording too short'))
+    await expect(
+      h.call('voice:stt-transcribe', { buffer: bigBuffer, mime: 'audio/webm' })
+    ).resolves.toEqual({ error: 'Recording too short' })
+  })
+
+  it('returns {error} when no voice service exists', async () => {
+    const h = makeIpcHarness({ withVoice: false })
+    await expect(
+      h.call('voice:stt-transcribe', { buffer: bigBuffer, mime: 'audio/webm' })
+    ).resolves.toEqual({ error: 'Voice service unavailable' })
+  })
+
+  it('tolerates malformed payloads', async () => {
+    const h = makeIpcHarness()
+    // Null payload yields a zero-byte buffer; the service guard rejects it.
+    h.voice.transcribe.mockRejectedValueOnce(new Error('Recording too short'))
+    await expect(h.call('voice:stt-transcribe', null)).resolves.toEqual({
+      error: 'Recording too short'
+    })
+    const arg = h.voice.transcribe.mock.calls[0][0]
+    expect(arg.buffer.byteLength).toBe(0)
   })
 })

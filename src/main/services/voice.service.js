@@ -8,6 +8,16 @@ import * as piperProvider from '../providers/tts/piper.js'
 
 const CACHE_FILE_COUNT = 10
 
+const GROQ_STT_URL = 'https://api.groq.com/openai/v1/audio/transcriptions'
+// ~0.3s of webm/opus audio; anything smaller is a stray tap, not speech.
+export const MIN_RECORDING_BYTES = 10000
+export const DEFAULT_STT_MODEL = 'whisper-large-v3-turbo'
+
+// Pure guard so tests can pin the threshold without network.
+export function isRecordingTooShort(byteLength) {
+  return Number(byteLength ?? 0) < MIN_RECORDING_BYTES
+}
+
 // Legacy text cleaning (port of audio.py TTSWorker.run): strip *actions*,
 // strip [...] tags, strip non-speech chars. Unicode-aware so accented
 // letters survive, matching Python's \w semantics.
@@ -133,5 +143,45 @@ export function createVoiceService({ rootDir, getConfig, providers }) {
   // Placeholder — the renderer owns playback (and thus stop).
   function stop() {}
 
-  return { speak, stop, scanPiperVoices, isConfigured, cacheDir }
+  // Mic STT via Groq Whisper (legacy stt_groq.py parity). Throws plain Errors
+  // with friendly messages; the ipc handler catches them into {error} acks.
+  async function transcribe({ buffer, mime }) {
+    const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer ?? 0)
+    if (isRecordingTooShort(bytes.byteLength)) {
+      throw new Error('Recording too short — hold the mic button while you speak.')
+    }
+    const cfg = safeGetConfig()
+    const apiKey = cfg?.online_api_key
+    if (!apiKey) throw new Error('Voice input needs an API key — add one in Settings → General.')
+
+    const model = cfg.tts_config?.stt_model || DEFAULT_STT_MODEL
+    const form = new FormData()
+    form.append('file', new Blob([bytes], { type: mime || 'audio/webm' }), 'audio.webm')
+    form.append('model', model)
+    form.append('response_format', 'text')
+
+    let res
+    try {
+      res = await fetch(GROQ_STT_URL, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: form
+      })
+    } catch (err) {
+      throw new Error(`Speech-to-text request failed: ${String(err?.message ?? err)}`)
+    }
+    if (!res.ok) {
+      let detail = ''
+      try {
+        detail = (await res.text()).slice(0, 200)
+      } catch {
+        void 0
+      }
+      throw new Error(`Speech-to-text failed (HTTP ${res.status})${detail ? `: ${detail}` : ''}`)
+    }
+    const text = String(await res.text() ?? '').trim()
+    return { text }
+  }
+
+  return { speak, stop, transcribe, scanPiperVoices, isConfigured, cacheDir }
 }

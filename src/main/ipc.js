@@ -439,6 +439,27 @@ export function registerIpc({ services, getWin, idleRand = Math.random }) {
     'voice:stop': () => {
       services.voice?.stop?.()
       return { stopped: true }
+    },
+
+    // Mic STT: invoke ack carries the result directly ({text} or {error}) —
+    // no push needed since only the requesting renderer cares.
+    'voice:stt-transcribe': async (payload) => {
+      try {
+        if (!services.voice?.transcribe) {
+          return { error: 'Voice service unavailable' }
+        }
+        const raw = payload?.buffer
+        let bytes
+        if (raw instanceof ArrayBuffer) bytes = new Uint8Array(raw)
+        else if (ArrayBuffer.isView(raw)) {
+          bytes = new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength)
+        } else bytes = new Uint8Array(0)
+        const mime = typeof payload?.mime === 'string' ? payload.mime : ''
+        const { text } = await services.voice.transcribe({ buffer: bytes, mime })
+        return { text }
+      } catch (err) {
+        return { error: String(err?.message ?? err) }
+      }
     }
   }
 

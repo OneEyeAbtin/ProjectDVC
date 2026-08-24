@@ -238,6 +238,34 @@
   color: #fff;
 }
 .mic-btn:disabled, .send-btn:disabled { cursor: default; opacity: .55; filter: grayscale(.4); }
+.mic-btn.recording {
+  color: #ff4444;
+  border-color: #ff4444;
+  animation: mic-pulse 1.2s ease-in-out infinite;
+}
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, .45); }
+  50% { box-shadow: 0 0 0 5px rgba(255, 68, 68, 0); }
+}
+
+/* 8-segment VU meter (legacy parity) — green→yellow→red by index */
+.vu-meter {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: space-between;
+  height: 30px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.vu-seg {
+  width: 5px;
+  flex: 1;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--txt2) 25%, transparent);
+}
+.vu-seg.lit.vu-g { background: #4ade80; }
+.vu-seg.lit.vu-y { background: #fbbf24; }
+.vu-seg.lit.vu-r { background: #ff4444; }
 
 .chat-mini-btn {
   width: 28px;

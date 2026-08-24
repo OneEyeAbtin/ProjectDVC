@@ -363,7 +363,8 @@ describe('preload allowlist extensions', () => {
       'msg:regenerate',
       'setup:redo',
       'profile:factory-reset',
-      'characters:rescan'
+      'characters:rescan',
+      'voice:stt-transcribe'
     ]
     for (const ch of channels) {
       ipcRenderer.invoke.mockResolvedValueOnce({ ok: true })
