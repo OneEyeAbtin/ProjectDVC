@@ -2,6 +2,8 @@
   position: fixed;
   z-index: 60;
   min-width: 218px;
+  /* Stay inside the 400px shell: 400 - 2×8 edge pad - 2×1 shell border - slack. */
+  max-width: 370px;
   max-height: calc(100vh - 16px);
   overflow-y: auto;
   border-radius: 14px;
@@ -70,7 +72,9 @@
 
 .ctx-theme-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0,·) lets columns compress so long names ellipsize instead of
+     widening the menu past the shell edge. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 2px;
   padding: 3px 2px 6px;
 }
@@ -78,6 +82,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
   background: none;
   border: none;
   border-radius: 8px;
