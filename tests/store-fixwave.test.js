@@ -234,4 +234,38 @@ describe('fixwave B renderer fixes', () => {
       expect(useStore.getState().error).toBe(null)
     })
   })
+
+  describe('fixwave D: boot payload traits reach the Memory-tab slice', () => {
+    it('app:init traits + permanentFacts seed the slices SettingsOverlay reads', async () => {
+      const bootPromise = useStore.getState().boot()
+      settleInvoke('app:init', 'resolve', {
+        save: { setup_complete: true },
+        traits: [
+          "User's user name: Abtin",
+          "User's pet name: Raven",
+          'Abtin thinks Raven is beautiful'
+        ],
+        permanentFacts: ["user's age: 30"]
+      })
+      await bootPromise
+
+      const s = useStore.getState()
+      expect(s.booted).toBe(true)
+      // SettingsOverlay subscribes `useStore((s) => s.traits)` for the
+      // "Session traits" list and `s.permanentFacts` for "Permanent facts".
+      expect(s.traits).toEqual([
+        "User's user name: Abtin",
+        "User's pet name: Raven",
+        'Abtin thinks Raven is beautiful'
+      ])
+      expect(s.permanentFacts).toEqual(["user's age: 30"])
+    })
+
+    it('non-array traits in the boot payload fall back to an empty list', async () => {
+      const bootPromise = useStore.getState().boot()
+      settleInvoke('app:init', 'resolve', { save: {}, traits: 'garbage' })
+      await bootPromise
+      expect(useStore.getState().traits).toEqual([])
+    })
+  })
 })
