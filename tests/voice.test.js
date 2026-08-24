@@ -458,3 +458,115 @@ describe('resolveMediaPath (pure traversal guard)', () => {
     expect(resolveMediaPath('/tts-cache/a.mp3', undefined)).toBeNull()
   })
 })
+
+// ── ipc auto-speak wiring ───────────────────────────────────────────────────
+
+import { ipcMain } from 'electron'
+import { registerIpc } from '../src/main/ipc.js'
+import { createBrain } from '../src/main/services/brain.service.js'
+import { createMemoryService } from '../src/main/services/memory.service.js'
+import { createCharactersService } from '../src/main/services/characters.service.js'
+import { emit } from '../src/main/bus.js'
+
+const ipcFlush = () => new Promise((resolve) => setTimeout(resolve, 0))
+
+function makeIpcHarness({ ttsEnabled = false, withVoice = true } = {}) {
+  fs.mkdirSync(path.join(dir, 'outfits'), { recursive: true })
+  const config = createConfigService({ rootDir: dir })
+  if (ttsEnabled) {
+    config.patchConfig({
+      online_api_key: 'sk-test',
+      online_api_url: 'http://x',
+      online_api_model: 'm',
+      tts_config: { enabled: true }
+    })
+  }
+  const memory = createMemoryService({ rootDir: dir })
+  const characters = createCharactersService({
+    outfitsDir: path.join(dir, 'outfits'),
+    emotions: ['neutral', 'happy']
+  })
+  const brain = createBrain({
+    config,
+    memory,
+    callLLM: async () => 'a spoken wonder [EMOTION: happy]'
+  })
+  const voice = { speak: vi.fn(async () => ({ path: '/x.mp3', emotion: null })), stop: vi.fn() }
+  const sent = []
+  registerIpc({
+    services: {
+      config,
+      memory,
+      characters,
+      brain,
+      ...(withVoice ? { voice } : {})
+    },
+    getWin: () => ({
+      isDestroyed: () => false,
+      webContents: { send: (channel, payload) => sent.push([channel, payload]) }
+    })
+  })
+  const handlers = new Map(ipcMain.handle.mock.calls.map(([ch, fn]) => [ch, fn]))
+  return { config, voice, sent, call: (ch, payload) => handlers.get(ch)(null, payload) }
+}
+
+describe('auto-speak wiring', () => {
+  it('speaks every reply automatically when tts_config.enabled', async () => {
+    const h = makeIpcHarness({ ttsEnabled: true })
+    expect(h.call('msg:send', { text: 'say something' })).toEqual({ queued: true })
+    await ipcFlush()
+    expect(h.voice.speak).toHaveBeenCalledTimes(1)
+    // Receives the pushed (tag-stripped) reply text + emotion.
+    expect(h.voice.speak).toHaveBeenCalledWith({ text: 'a spoken wonder', emotion: 'happy' })
+  })
+
+  it('does not speak when disabled or when no voice service exists', async () => {
+    const off = makeIpcHarness({ ttsEnabled: false })
+    off.call('msg:send', { text: 'quiet please' })
+    await ipcFlush()
+    expect(off.voice.speak).not.toHaveBeenCalled()
+
+    const noVoice = makeIpcHarness({ ttsEnabled: true, withVoice: false })
+    noVoice.call('msg:send', { text: 'mute mode' })
+    await ipcFlush()
+    expect(noVoice.sent.some(([c]) => c === 'reply')).toBe(true)
+  })
+
+  it('cheat replies are spoken too (legacy parity)', async () => {
+    const h = makeIpcHarness({ ttsEnabled: true })
+    h.call('msg:send', { text: 'forcehappy' })
+    await ipcFlush()
+    expect(h.voice.speak).toHaveBeenCalledTimes(1)
+    expect(h.voice.speak).toHaveBeenCalledWith({
+      text: expect.stringContaining('strikes a pose'),
+      emotion: 'happy'
+    })
+  })
+
+  it('speak failures never break the reply flow', async () => {
+    const h = makeIpcHarness({ ttsEnabled: true })
+    h.voice.speak.mockRejectedValue(new Error('audio exploded'))
+    h.call('msg:send', { text: 'still delivers' })
+    await ipcFlush()
+    expect(h.sent.some(([c]) => c === 'reply')).toBe(true)
+  })
+
+  it('voice:speak queues through the service; bridge forwards tts:ready to the renderer', async () => {
+    const h = makeIpcHarness({ ttsEnabled: false })
+    expect(h.call('voice:speak', { text: 'hello', emotion: 'love' })).toEqual({ queued: true })
+    expect(h.voice.speak).toHaveBeenCalledWith({ text: 'hello', emotion: 'love' })
+    expect(h.call('voice:speak', 'plain string')).toEqual({ queued: true })
+    expect(h.voice.speak).toHaveBeenLastCalledWith({ text: 'plain string', emotion: null })
+    expect(h.call('voice:stop')).toEqual({ stopped: true })
+    expect(h.voice.stop).toHaveBeenCalledTimes(1)
+
+    emit('tts:ready', { path: '/cache/tts_0.mp3', emotion: 'love' })
+    expect(h.sent.at(-1)).toEqual(['tts', { path: '/cache/tts_0.mp3', emotion: 'love' }])
+  })
+
+  it('voice:speak without a voice service reports unsupported (legacy placeholder)', () => {
+    const h = makeIpcHarness({ withVoice: false })
+    expect(h.call('voice:speak', { text: 'x' })).toEqual({ unsupported: true })
+    expect(h.sent.at(-1)).toEqual(['tts', { unsupported: true }])
+  })
+})
