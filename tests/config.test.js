@@ -85,11 +85,11 @@ describe('config service', () => {
   it('patchConfig persists to disk atomically', () => {
     const svc = createConfigService({ rootDir: dir })
     svc.migrateLegacyIfNeeded()
-    svc.patchConfig({ max_history: 42, tts: { enabled: true } })
+    svc.patchConfig({ max_history: 42, tts_config: { enabled: true } })
     const onDisk = JSON.parse(fs.readFileSync(path.join(dir, 'data/config.json'), 'utf8'))
     expect(onDisk.max_history).toBe(42)
-    expect(onDisk.tts.enabled).toBe(true)
-    expect(onDisk.tts.engine).toBe('online')
+    expect(onDisk.tts_config.enabled).toBe(true)
+    expect(onDisk.tts_config.engine).toBe('edge')
     expect(fs.existsSync(path.join(dir, 'data/config.json.tmp'))).toBe(false)
   })
 

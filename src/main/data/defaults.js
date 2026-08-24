@@ -8,8 +8,15 @@ export const DEFAULTS = {
   online_api_model: '',
 
   max_history: 20,
-  tts: { enabled: false, engine: 'online', online_voice: 'en-US-AriaNeural' },
-  elevenlabs: { api_key: '', voice_id: '', model_id: '' },
+  tts_config: {
+    enabled: false,
+    engine: 'edge',
+    edge_voice: 'en-US-AriaNeural',
+    piper_voice: '',
+    stt_engine: 'groq',
+    stt_model: 'whisper-large-v3-turbo'
+  },
+  elevenlabs: { api_key: '', voice_id: '', model_id: 'eleven_flash_v2_5' },
   stt: { engine: 'groq', groq_model: '', local_model: 'base', mic_gain: 4.0 },
 
   minecraft_v2: null,
