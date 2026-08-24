@@ -1,19 +1,30 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
 vi.mock('electron', () => ({
   nativeImage: { createFromDataURL: vi.fn() },
-  Tray: class {},
-  Menu: { buildFromTemplate: vi.fn() },
+  Tray: class {
+    static instances = []
+    constructor() {
+      this.menuCalls = []
+      Tray.instances.push(this)
+    }
+    setToolTip() {}
+    setContextMenu(menu) {
+      this.menuCalls.push(menu)
+    }
+    destroy() {}
+  },
+  Menu: { buildFromTemplate: vi.fn((tpl) => tpl) },
   screen: { getPrimaryDisplay: vi.fn(), getDisplayMatching: vi.fn() },
   app: { on: vi.fn(), quit: vi.fn(), whenReady: () => Promise.resolve() }
 }))
 
 import { clampToWorkarea, createWindowService } from '../src/main/services/window.service.js'
 import { createConfigService } from '../src/main/services/config.service.js'
-import { screen } from 'electron'
+import { screen, Menu, Tray } from 'electron'
 
 const WA = { x: 0, y: 0, width: 1920, height: 1040 }
 
@@ -76,6 +87,92 @@ describe('createWindowService config binding', () => {
     expect(written.win_y).toBe(222)
     expect(written.persona).toBe('Tsundere')
     expect(written.session_summary).toBeUndefined()
+  })
+})
+
+describe('tray menu visibility label', () => {
+  beforeEach(() => {
+    Tray.instances.length = 0
+    Menu.buildFromTemplate.mockClear()
+  })
+
+  function makeVisibilityWin() {
+    const listeners = {}
+    let visible = true
+    return {
+      win: {
+        on: (ev, fn) => {
+          listeners[ev] = fn
+        },
+        isDestroyed: () => false,
+        setAlwaysOnTop: () => {},
+        getPosition: () => [0, 0],
+        getBounds: () => ({ width: 400, height: 700 }),
+        isVisible: () => visible,
+        show: () => {
+          visible = true
+          listeners.show?.()
+        },
+        hide: () => {
+          visible = false
+          listeners.hide?.()
+        },
+        focus: () => {}
+      }
+    }
+  }
+
+  it('label reflects visibility ("Hide DVC"/"Show DVC") and rebuilds on change', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dvc-tray-'))
+    const config = createConfigService({ rootDir: root })
+    config.patchConfig({ tray_enabled: true })
+    const { win } = makeVisibilityWin()
+    const svc = createWindowService({ win, getConfig: () => config })
+    svc.applySettings()
+
+    expect(Tray.instances).toHaveLength(1)
+    const tray = Tray.instances[0]
+    expect(tray.menuCalls.at(-1)[0].label).toBe('Hide DVC')
+
+    win.hide()
+    expect(tray.menuCalls.at(-1)[0].label).toBe('Show DVC')
+
+    win.show()
+    expect(tray.menuCalls.at(-1)[0].label).toBe('Hide DVC')
+    // one rebuild per visibility event + the initial build
+    expect(tray.menuCalls).toHaveLength(3)
+  })
+
+  it('menu click toggles visibility per current state', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dvc-tray2-'))
+    const config = createConfigService({ rootDir: root })
+    config.patchConfig({ tray_enabled: true })
+    const { win } = makeVisibilityWin()
+    const svc = createWindowService({ win, getConfig: () => config })
+    svc.applySettings()
+    const tray = Tray.instances[0]
+
+    tray.menuCalls.at(-1)[0].click() // visible → hides
+    expect(win.isVisible()).toBe(false)
+
+    tray.menuCalls.at(-1)[0].click() // hidden → shows + focuses
+    expect(win.isVisible()).toBe(true)
+  })
+
+  it('destroyTray via applySettings stops rebuilds without errors', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dvc-tray3-'))
+    const config = createConfigService({ rootDir: root })
+    config.patchConfig({ tray_enabled: true })
+    const { win } = makeVisibilityWin()
+    const svc = createWindowService({ win, getConfig: () => config })
+    svc.applySettings()
+    expect(Tray.instances).toHaveLength(1)
+
+    config.patchConfig({ tray_enabled: false })
+    svc.applySettings() // destroys tray
+
+    win.hide() // rebuild is a guarded no-op, must not throw
+    expect(Tray.instances).toHaveLength(1)
   })
 })
 

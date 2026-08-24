@@ -99,7 +99,8 @@ export const useStore = create((set, get) => ({
       dvc.on('traits', (traits) => set({ traits: Array.isArray(traits) ? traits : [] })),
       dvc.on('memory', () => set({ historyCount: 0 })),
       dvc.on('profile', (p) => get()._applyProfile(p)),
-      dvc.on('error', (e) => get().setError(e))
+      dvc.on('error', (e) => get().setError(e)),
+      dvc.on('outfits', (list) => set({ outfits: Array.isArray(list) ? list : [] }))
     ]
     set({ _unsubs: unsubs })
   },
@@ -292,6 +293,17 @@ export const useStore = create((set, get) => ({
       if (get().outfit === next) set({ outfit: prev })
       get().setError({ scope: 'profile', message: String(err?.message ?? err) })
     })
+  },
+
+  // Re-scan the outfits directory; main pushes the refreshed manifest back on
+  // `outfits`, and the invoke result reconciles it here too.
+  async rescanOutfits() {
+    try {
+      const outfits = await window.dvc.invoke('characters:rescan')
+      if (Array.isArray(outfits)) set({ outfits })
+    } catch (err) {
+      get().setError({ scope: 'profile', message: String(err?.message ?? err) })
+    }
   },
 
   _applySave(save = {}) {

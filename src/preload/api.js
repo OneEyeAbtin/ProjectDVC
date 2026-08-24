@@ -17,6 +17,7 @@ export const INVOKE_CHANNELS = new Set([
   'history:get',
   'history:clear',
   'outfit:switch',
+  'characters:rescan',
   'cheat:try',
   'voice:speak',
   'voice:stop'
@@ -30,7 +31,8 @@ export const PUSH_CHANNELS = new Set([
   'memory',
   'error',
   'tts',
-  'profile'
+  'profile',
+  'outfits'
 ])
 
 contextBridge.exposeInMainWorld('dvc', {

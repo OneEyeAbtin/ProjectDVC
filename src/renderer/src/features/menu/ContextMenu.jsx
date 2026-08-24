@@ -90,6 +90,11 @@ export default function ContextMenu() {
     useStore.getState().switchOutfit(name)
   }
 
+  function rescanOutfits() {
+    close()
+    useStore.getState().rescanOutfits()
+  }
+
   function pickPersona(name) {
     close()
     useStore.getState().setPersona(name)
@@ -118,10 +123,14 @@ export default function ContextMenu() {
   return (
     <div ref={panelRef} className="glass ctx-menu" role="menu" aria-label="Companion options" style={{ left: pos.x, top: pos.y }}>
       <SectionRow label="👗 Outfits" open={section === 'outfits'} onToggle={() => toggleSection('outfits')} />
-      {section === 'outfits' &&
-        outfits.map((o) => (
-          <OptionRow key={o.prefix || o.name} label={o.name} active={o.name === currentOutfit} onClick={() => pickOutfit(o.name)} />
-        ))}
+      {section === 'outfits' && (
+        <>
+          {outfits.map((o) => (
+            <OptionRow key={o.prefix || o.name} label={o.name} active={o.name === currentOutfit} onClick={() => pickOutfit(o.name)} />
+          ))}
+          <OptionRow label="🔄 Rescan outfits" onClick={rescanOutfits} />
+        </>
+      )}
 
       <div className="ctx-sep" />
 

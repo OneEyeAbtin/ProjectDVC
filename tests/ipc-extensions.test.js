@@ -71,6 +71,7 @@ function makeHarness({ callLLM, seedSessionTraits } = {}) {
     root,
     config,
     memory,
+    characters,
     brain,
     llmCalls: () => llmCalls,
     call: (channel, payload) => handlers.get(channel)(null, payload),
@@ -311,6 +312,41 @@ describe('profile:factory-reset', () => {
   })
 })
 
+describe('characters:rescan', () => {
+  it('re-scans the outfits dir, returns refreshed manifest and pushes it on `outfits`', () => {
+    const h = makeHarness()
+    const outfitsDir = path.join(h.root, 'outfits')
+    const before = h.call('characters:rescan')
+    expect(before.some((o) => o.prefix === 'charlotte')).toBe(true)
+    const charlotteBefore = before.find((o) => o.prefix === 'charlotte')
+
+    // Drop a new sprite in while "running".
+    fs.writeFileSync(path.join(outfitsDir, 'charlottesad.png'), '')
+    const after = h.call('characters:rescan')
+    const charlotteAfter = after.find((o) => o.prefix === 'charlotte')
+
+    expect(charlotteBefore.count).toBe(1)
+    expect(charlotteAfter.count).toBe(2)
+    expect(Object.keys(charlotteAfter.sprites)).toEqual(
+      expect.arrayContaining(['happy', 'sad'])
+    )
+    // Refreshed manifest pushed on the `outfits` channel
+    const outfitPushes = h.sent.filter(([c]) => c === 'outfits')
+    expect(outfitPushes).toHaveLength(2)
+    expect(outfitPushes.at(-1)[1].find((o) => o.prefix === 'charlotte').count).toBe(2)
+
+    // New sprite is immediately resolvable
+    expect(h.characters.resolveSprite('charlotte', 'sad')).toBeTruthy()
+  })
+
+  it('rescan is safe when the outfits dir disappears', () => {
+    const h = makeHarness()
+    fs.rmSync(path.join(h.root, 'outfits'), { recursive: true, force: true })
+    const manifest = h.call('characters:rescan')
+    expect(Array.isArray(manifest)).toBe(true)
+  })
+})
+
 describe('preload allowlist extensions', () => {
   it('accepts each new invoke channel and still rejects unknown ones', async () => {
     const { ipcRenderer } = await import('electron')
@@ -326,12 +362,22 @@ describe('preload allowlist extensions', () => {
       'history:clear',
       'msg:regenerate',
       'setup:redo',
-      'profile:factory-reset'
+      'profile:factory-reset',
+      'characters:rescan'
     ]
     for (const ch of channels) {
       ipcRenderer.invoke.mockResolvedValueOnce({ ok: true })
       await expect(api.invoke(ch)).resolves.toEqual({ ok: true })
     }
     await expect(api.invoke('evil:channel')).rejects.toThrow('Unknown channel')
+  })
+
+  it('allows subscribing to the outfits push channel and rejects unknown ones', async () => {
+    const { ipcRenderer } = await import('electron')
+    const api = contextBridge.exposeInMainWorld.mock.calls.at(-1)[1]
+    const unsub = api.on('outfits', () => {})
+    expect(typeof unsub).toBe('function')
+    expect(ipcRenderer.on).toHaveBeenCalledWith('outfits', expect.any(Function))
+    expect(() => api.on('evil:push', () => {})).toThrow('Unknown channel')
   })
 })
