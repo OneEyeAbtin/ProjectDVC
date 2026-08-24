@@ -8,9 +8,13 @@ import { createMemoryService } from './services/memory.service.js'
 import { createCharactersService } from './services/characters.service.js'
 import { createBrain } from './services/brain.service.js'
 import { createWindowService } from './services/window.service.js'
+import { createQuitFlush } from './lib/session-cache.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 let win
+// Assigned once services exist inside whenReady; the module-level before-quit
+// listener below reads through it so registration order never matters.
+let flushSessionCacheRef = null
 
 function createWindow() {
   win = new BrowserWindow({
@@ -35,23 +39,37 @@ app.whenReady().then(() => {
     outfitsDir: path.join(rootDir, 'assets', 'outfits'),
     emotions: DEFAULTS.emotions
   })
+
+  // Mutable services bag: every callback/handler must read through it so the
+  // profile:factory-reset instance swap never leaves a stale reference behind
+  // (audit #3). The brain below captures config/memory directly, but it is
+  // itself replaced on reset — its onSummary closure is what must stay live.
+  const services = {
+    config: configSvc,
+    memory: memorySvc,
+    characters: charactersSvc
+  }
+
   const brainSvc = createBrain({
     config: configSvc,
     memory: memorySvc,
     onSummary: (summary) => {
-      if (summary) configSvc.patchSave({ session_summary: summary })
+      if (summary) services.config.patchSave({ session_summary: summary })
     }
   })
+  services.brain = brainSvc
 
-  const services = {
-    config: configSvc,
-    memory: memorySvc,
-    characters: charactersSvc,
-    brain: brainSvc
-  }
+  // Crash recovery: summarize any history cached at previous shutdown.
+  brainSvc.compressPending()
 
   createWindow()
-  const windowSvc = createWindowService({ win, getConfig: () => services.config })
+  const flushSessionCache = createQuitFlush({ getServices: () => services })
+  flushSessionCacheRef = flushSessionCache
+  const windowSvc = createWindowService({
+    win,
+    getConfig: () => services.config,
+    onCloseToQuit: flushSessionCache
+  })
   windowSvc.applySettings()
   windowSvc.trackPosition()
   win.once('ready-to-show', () => windowSvc.restorePosition())
@@ -60,4 +78,12 @@ app.whenReady().then(() => {
 
   registerIpc({ services, getWin: () => win })
 })
+
+// Shutdown: persist chat history to session-cache.json so the next boot can
+// summarize it (audit #2). The window-service close-when-not-hiding path calls
+// the same flusher; createQuitFlush guards against a double write.
+app.on('before-quit', () => {
+  flushSessionCacheRef?.()
+})
+
 app.on('window-all-closed', () => app.quit())

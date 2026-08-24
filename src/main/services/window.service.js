@@ -22,7 +22,7 @@ export function clampToWorkarea(x, y, w, h, wa) {
 // getConfig must be a lazy accessor (e.g. () => services.config) so the service
 // always reads the CURRENT config instance — factory reset replaces services.config,
 // and a captured stale instance would resurrect pre-reset save.json on window move.
-export function createWindowService({ win, getConfig }) {
+export function createWindowService({ win, getConfig, onCloseToQuit, getWorkAreaForPoint }) {
   let tray = null
   let trayFailed = false
   let moveTimer = null
@@ -104,7 +104,12 @@ export function createWindowService({ win, getConfig }) {
     if (cfg.hide_to_tray && cfg.tray_enabled && tray) {
       event.preventDefault()
       win.hide()
+      return
     }
+    // Closing without hide-to-tray means the app is going down — persist chat
+    // history for next-boot summarization. Shared flusher with 'before-quit';
+    // double writes are guarded inside the flusher itself.
+    onCloseToQuit?.()
   })
 
   return { applySettings, trackPosition, restorePosition }

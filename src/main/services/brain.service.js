@@ -250,6 +250,7 @@ export function createBrain({
     regenerate,
     sysPrompt,
     clearHistory,
+    compressPending,
     get history() {
       return hist.map((m) => ({ ...m }))
     }
