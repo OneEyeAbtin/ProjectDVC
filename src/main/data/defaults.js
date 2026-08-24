@@ -98,6 +98,7 @@ export const DEFAULTS = {
   always_on_top: true,
   tray_enabled: true,
   ui_sounds: true,
+  idle_chat: true,
   hide_to_tray: true,
   win_x: -1,
   win_y: -1,

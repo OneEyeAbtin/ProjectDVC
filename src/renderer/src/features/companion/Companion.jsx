@@ -5,6 +5,11 @@ import Portrait from './Portrait.jsx'
 import ChatPanel from './ChatPanel.jsx'
 import './companion.css'
 
+// Legacy parity (legacy/core/main.py::_greet): when a session summary exists,
+// acknowledge the previous session instead of the persona greeting.
+const SESSION_SUMMARY_GREETING =
+  "*looks up* Oh, {name}'s back~ Last time... {summary}... [EMOTION: happy] 💫"
+
 function resolveGreeting(template, userName, petName) {
   let emotion = null
   const text = String(template ?? '')
@@ -27,7 +32,13 @@ export default function Companion() {
     const delay = st.lastResponse ? 2500 : 400
     const t = setTimeout(() => {
       const s = useStore.getState()
-      const template = s.greetings?.[s.persona]
+      const summary = typeof s.sessionSummary === 'string' ? s.sessionSummary.trim() : ''
+      let template
+      if (summary) {
+        template = SESSION_SUMMARY_GREETING.replace('{summary}', summary.slice(0, 80))
+      } else {
+        template = s.greetings?.[s.persona]
+      }
       if (template) {
         const { text, emotion } = resolveGreeting(template, s.userName, s.petName)
         s.say(text, emotion)
