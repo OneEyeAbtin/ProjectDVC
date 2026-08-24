@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { X } from 'lucide-react'
 import { useStore } from '../../state/store.js'
 import './setup.css'
 
@@ -6,6 +7,7 @@ export default function SetupWizard() {
   const questions = useStore((s) => s.setupQuestions)
   const completeSetup = useStore((s) => s.completeSetup)
   const error = useStore((s) => s.error)
+  const dismissError = useStore((s) => s.dismissError)
   const [step, setStep] = useState(0)
   const [answers, setAnswers] = useState({})
   const [draft, setDraft] = useState('')
@@ -14,7 +16,8 @@ export default function SetupWizard() {
 
   const total = questions.length
   const q = total > 0 ? questions[step] : null
-  const percent = done ? 100 : Math.round((step / Math.max(total, 1)) * 100)
+  // QoL: start at 1/(total+1) so question 1 of 20 doesn't read as 0%.
+  const percent = done ? 100 : Math.round(((step + 1) / (total + 1)) * 100)
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -60,7 +63,15 @@ export default function SetupWizard() {
         {done && <h2 className="wiz-question">All done!</h2>}
         {error && (
           <div className="error-chip" role="alert">
-            ⚠ {error.message}
+            <span className="error-chip-msg">⚠ {error.message}</span>
+            <button
+              type="button"
+              className="chip-dismiss"
+              aria-label="Dismiss"
+              onClick={dismissError}
+            >
+              <X size={12} />
+            </button>
           </div>
         )}
         {!done && q && (

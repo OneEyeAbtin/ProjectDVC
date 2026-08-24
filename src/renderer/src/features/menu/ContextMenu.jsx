@@ -47,7 +47,8 @@ export default function ContextMenu() {
 
   useEffect(() => {
     function onContextMenu(event) {
-      if (useStore.getState().settingsOpen) return
+      // Suppressed while a dialog is up so the menu never floats over it.
+      if (useStore.getState().settingsOpen || useStore.getState().statsOpen) return
       if (!event.target.closest?.('.shell')) return
       event.preventDefault()
       setSection(null)
@@ -64,6 +65,9 @@ export default function ContextMenu() {
       if (panelRef.current && !panelRef.current.contains(event.target)) setPos(null)
     }
     function onKeyDown(event) {
+      // Escape closes only the TOPMOST layer: dialogs outrank the context menu.
+      const st = useStore.getState()
+      if (event.key === 'Escape' && (st.settingsOpen || st.statsOpen)) return
       if (event.key === 'Escape') setPos(null)
     }
     window.addEventListener('mousedown', onPointerDown)

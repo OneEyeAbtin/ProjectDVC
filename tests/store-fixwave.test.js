@@ -156,4 +156,82 @@ describe('fixwave B renderer fixes', () => {
       expect(s.error).toBe(null)
     })
   })
+
+  describe('QoL wave B', () => {
+    it('transientEmotion auto-expires 2s after the last set and stays on refreshes', async () => {
+      useStore.getState().setEmotion('talking')
+      expect(useStore.getState().transientEmotion).toBe('talking')
+
+      // A refresh 1s in restarts the window instead of clearing early.
+      await vi.advanceTimersByTimeAsync(1000)
+      useStore.getState().setEmotion('talking')
+      await vi.advanceTimersByTimeAsync(1500)
+      expect(useStore.getState().transientEmotion).toBe('talking')
+
+      await vi.advanceTimersByTimeAsync(600)
+      expect(useStore.getState().transientEmotion).toBe(null)
+    })
+
+    it('a persistent emotion change cancels the pending expiry', async () => {
+      useStore.getState().setEmotion('talking')
+      useStore.getState().setEmotion('happy')
+      expect(useStore.getState().transientEmotion).toBe(null)
+      await vi.advanceTimersByTimeAsync(2500)
+      expect(useStore.getState().emotion).toBe('happy')
+    })
+
+    it('boot seeds historyCount from history:get', async () => {
+      void useStore.getState().boot()
+      settleInvoke('app:init', 'resolve', {})
+      await flush()
+
+      settleInvoke('history:get', 'resolve', {
+        history: Array.from({ length: 33 }, (_, i) => ({
+          role: i % 2 ? 'assistant' : 'user',
+          content: `m${i}`
+        }))
+      })
+      await flush()
+      // Clamped to maxHistory.
+      expect(useStore.getState().historyCount).toBe(20)
+    })
+
+    it('seeded count keeps growing on later replies', async () => {
+      void useStore.getState().boot()
+      settleInvoke('app:init', 'resolve', { config: { max_history: 20 } })
+      await flush()
+      settleInvoke('history:get', 'resolve', {
+        history: [
+          { role: 'user', content: 'a' },
+          { role: 'assistant', content: 'b' },
+          { role: 'user', content: 'c' },
+          { role: 'assistant', content: 'd' },
+          { role: 'user', content: 'e' }
+        ]
+      })
+      await flush()
+      expect(useStore.getState().historyCount).toBe(5)
+
+      // Later replies keep incrementing from the seeded base.
+      useStore.getState()._onReply({ text: 'hi' })
+      expect(useStore.getState().historyCount).toBe(6)
+    })
+
+    it('history:get failures never block boot', async () => {
+      void useStore.getState().boot()
+      settleInvoke('app:init', 'resolve', { save: { setup_complete: true } })
+      await flush()
+      settleInvoke('history:get', 'reject', new Error('nope'))
+      await flush()
+      expect(useStore.getState().booted).toBe(true)
+      expect(useStore.getState().error).toBe(null)
+    })
+
+    it('dismissError clears the chip immediately', () => {
+      useStore.getState().setError({ scope: 'brain', message: 'x' })
+      expect(useStore.getState().error?.scope).toBe('brain')
+      useStore.getState().dismissError()
+      expect(useStore.getState().error).toBe(null)
+    })
+  })
 })

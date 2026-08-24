@@ -96,15 +96,32 @@ function useArmTimeout(ms = 3000) {
 }
 
 // Destructive actions need two clicks: the first arms (red "Really?" label,
-// auto-disarms after 3s), the second executes.
+// auto-disarms after 3s), the second executes. Async actions disable the
+// button until they settle so a slow IPC can't be double-fired.
 function ConfirmButton({ className = '', confirmLabel = 'Really?', ariaLabel, onConfirm, children }) {
   const { armed, press } = useArmTimeout()
+  const [pending, setPending] = useState(false)
+  function handleClick() {
+    if (pending) return
+    press(() => {
+      const result = onConfirm?.()
+      if (result && typeof result.then === 'function') {
+        setPending(true)
+        result.then(
+          () => setPending(false),
+          () => setPending(false)
+        )
+      }
+    })
+  }
   return (
     <button
       type="button"
       className={armed ? `${className} confirm-armed` : className}
       aria-label={ariaLabel}
-      onClick={() => press(onConfirm)}
+      aria-busy={pending || undefined}
+      disabled={pending}
+      onClick={handleClick}
     >
       {armed ? confirmLabel : children}
     </button>
@@ -174,6 +191,7 @@ function HistoryViewer() {
           type="button"
           className="btn ghost small"
           aria-expanded={expanded}
+          disabled={loading}
           onClick={toggle}
         >
           {loading ? 'Loading…' : expanded ? 'Hide history' : 'Show history'}

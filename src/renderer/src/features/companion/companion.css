@@ -160,11 +160,29 @@
 .error-chip {
   border: 1px solid var(--acc3);
   border-radius: 10px;
-  padding: 6px 10px;
+  padding: 6px 8px 6px 10px;
   font-size: 0.75rem;
   color: var(--acc3);
   margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
+.error-chip-msg { flex: 1; word-break: break-word; }
+.chip-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  opacity: .7;
+}
+.chip-dismiss:hover { opacity: 1; background: color-mix(in srgb, var(--acc3) 15%, transparent); }
 
 .mem-label {
   font-size: 0.625rem;

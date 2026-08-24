@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, Copy, Mic, RotateCcw, SendHorizontal } from 'lucide-react'
+import { Check, Copy, Mic, RotateCcw, SendHorizontal, X } from 'lucide-react'
 import { useStore } from '../../state/store.js'
 import { playSfx } from '../../lib/sfx.js'
 import { useTypewriter } from './useTypewriter.js'
@@ -35,6 +35,7 @@ export default function ChatPanel() {
   const regenerate = useStore((s) => s.regenerate)
   const lastUserText = useStore((s) => s.lastUserText)
   const completeType = useStore((s) => s.completeType)
+  const dismissError = useStore((s) => s.dismissError)
 
   const [draft, setDraft] = useState('')
   const [copied, setCopied] = useState(false)
@@ -83,8 +84,16 @@ export default function ChatPanel() {
     <section className="chat-panel">
       <div className="glass bubble-region" ref={scrollRef}>
         {error && (
-          <div className="error-chip">
-            ⚠ {error.message}
+          <div className="error-chip" role="alert">
+            <span className="error-chip-msg">⚠ {error.message}</span>
+            <button
+              type="button"
+              className="chip-dismiss"
+              aria-label="Dismiss"
+              onClick={dismissError}
+            >
+              <X size={12} />
+            </button>
           </div>
         )}
         {thinking && !bubble && <em className="bubble-action">*thinking...</em>}
@@ -108,6 +117,12 @@ export default function ChatPanel() {
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') submit()
+            // Shell-style recall: empty input + ArrowUp brings back the last
+            // sent message (only when idle; the input is disabled while busy).
+            else if (e.key === 'ArrowUp' && draft === '' && !busy && lastUserText) {
+              e.preventDefault()
+              setDraft(lastUserText)
+            }
           }}
         />
         <button type="button" className="mic-btn" title="Voice (Plan 4)" disabled>
@@ -131,7 +146,7 @@ export default function ChatPanel() {
           className="chat-mini-btn"
           title="Copy reply"
           aria-label="Copy reply"
-          disabled={!displayText}
+          disabled={busy || !displayText}
           onClick={copyReply}
         >
           {copied ? <Check size={14} /> : <Copy size={14} />}
