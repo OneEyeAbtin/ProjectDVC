@@ -90,6 +90,11 @@ describe('ipc app:init', () => {
     expect(boot.greetings.Tsundere).toContain('[EMOTION:')
     expect(boot.greetings.Gothic).toContain('[EMOTION: smirk]')
     expect(typeof boot.greetings.Vampire).toBe('string')
+    expect(Object.keys(boot.greetings).length).toBe(24)
+    expect(boot.personaTransforms.Tsundere).toContain('[EMOTION: blush]')
+    expect(Object.keys(boot.personaTransforms).length).toBe(24)
+    expect(typeof boot.personaDescriptions.Tsundere).toBe('string')
+    expect(Object.keys(boot.personaDescriptions).length).toBe(24)
     expect(boot.themes).toContain('midnight-sakura')
     expect(boot.transientEmotions).toEqual(['talking', 'fullbody'])
   })
@@ -331,6 +336,14 @@ describe('ipc profile:save', () => {
 
     h.call('profile:save', { pet_name: 'Nova' })
     expect(windowService.applySettings).not.toHaveBeenCalled()
+  })
+
+  it('hint_brain_shown is a persistable save key defaulting to false', () => {
+    const h = makeHarness()
+    expect(h.config.getSave().hint_brain_shown).toBe(false)
+    const result = h.call('profile:save', { hint_brain_shown: true })
+    expect(result.save.hint_brain_shown).toBe(true)
+    expect(h.config.getSave().hint_brain_shown).toBe(true)
   })
 })
 

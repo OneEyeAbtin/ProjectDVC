@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { on, emit } from './bus.js'
 import { DEFAULTS, SETTINGS_KEYS, SAVE_KEYS } from './data/defaults.js'
-import { PERSONA_GROUPS, GREETING_TEMPLATES, IDLE_LINES } from './data/personas.js'
+import { PERSONA_GROUPS, GREETING_TEMPLATES, PERSONA_TRANSFORM, PERSONAS, IDLE_LINES } from './data/personas.js'
 import { TRANSIENT_EMOTIONS, FORCEABLE_EMOTIONS } from './data/emotions.js'
 import { THEME_LIST } from './data/themes.js'
 import { parseTags } from './services/brain.service.js'
@@ -137,6 +137,8 @@ export function registerIpc({ services, getWin, idleRand = Math.random }) {
       setupQuestions: DEFAULTS.setup_questions,
       personaGroups: PERSONA_GROUPS,
       greetings: GREETING_TEMPLATES,
+      personaTransforms: PERSONA_TRANSFORM,
+      personaDescriptions: PERSONAS,
       themes: THEME_LIST,
       transientEmotions: TRANSIENT_EMOTIONS
     }),
