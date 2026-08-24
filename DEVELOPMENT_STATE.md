@@ -28,12 +28,14 @@ pre-rebuild checkpoint commit `e812075`.
 |---|---|---|
 | Plan 1 ✅ | **done, on branch** | Scaffold, themes, config+migration, memory, characters, brain, IPC, wizard, companion UI, context menu, settings shell |
 | Plan 2 ⬜ | **next** | Voice: TTS chain (ElevenLabs→edge-tts→Piper), lip-sync, mic STT (Groq first) |
-| Plan 3 ✅ | **done, on branch** | Depth+QoL: stats dialog, memory viewer + wipes + msg-limit, history channels, regenerate, tray/window persistence/always-on-top, WebAudio sounds, regenerate/copy buttons, shortcuts, font scale, redo-setup + factory reset. Commit range: `32017e0..3f7d315` (+ this docs commit) |
+| Plan 3 ✅ | **done, on branch** | Depth+QoL: stats dialog, memory viewer + wipes + msg-limit, history channels, regenerate, tray/window persistence/always-on-top, WebAudio sounds, regenerate/copy buttons, shortcuts, font scale, redo-setup + factory reset. Commit range: `32017e0..3f7d315` |
+| Audit ✅ | **done, on branch** | Deep logic audit (1 Critical/3 Important/8 Minor — all fixed) + QoL wave. Commit range: `60df194..0a1454b`. 148/148 tests |
 | Plan 4 ⬜ | after Plan 2 | Minecraft reattach via `minecraft_v2` slot (drone/ untouched, waiting) |
 
 **Spec:** `docs/superpowers/specs/2026-08-23-electron-rebuild-design.md`
 **Plan 1:** `docs/superpowers/plans/2026-08-23-plan1-scaffold-core-companion.md`
 **Plan 3:** `docs/superpowers/plans/2026-08-24-plan3-depth-qol.md`
+**Audit + fix waves:** `.superpowers/sdd/2026-08-24-plan3-depth-qol/audit-report.md` (findings) — all 26 items fixed & re-reviewed MERGE_READY
 **Execution ledger (all review findings + rulings):**
 `.superpowers/sdd/2026-08-23-plan1-scaffold-core-companion/progress.md`
 
@@ -70,7 +72,7 @@ Known minors introduced by Plan 3 (non-blocking):
 ```bash
 npm install        # once
 npm run dev        # dev launch (Linux: see sandbox note below)
-npm test           # vitest, 116 tests, all green
+npm test           # vitest, 148 tests, all green
 npx electron-vite build   # prod build to out/
 ```
 
