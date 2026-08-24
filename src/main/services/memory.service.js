@@ -175,6 +175,15 @@ export function createMemoryService({ rootDir }) {
     return getPermanent()
   }
 
+  // Bulk merge used by memory:import — no reclassification, facts land in the
+  // permanent tier exactly as labeled in the exported file.
+  function addPermanentFacts(list) {
+    const incoming = (Array.isArray(list) ? list : []).filter((f) => typeof f === 'string')
+    permanent = dedupTraits([...permanent, ...incoming])
+    persistPermanent()
+    return getPermanent()
+  }
+
   function rotateAndSave() {
     if (sessionTraits.length > MAX_SESSION_TRAITS) {
       sessionTraits = sessionTraits.slice(-MAX_SESSION_TRAITS)
@@ -267,6 +276,7 @@ export function createMemoryService({ rootDir }) {
     removeSessionTrait,
     deletePermanent,
     wipePermanent,
+    addPermanentFacts,
     rotateAndSave,
     buildMemoryPrompt,
     classifyTrait,

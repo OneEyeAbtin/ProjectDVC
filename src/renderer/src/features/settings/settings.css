@@ -103,6 +103,16 @@
   margin-top: 2px;
 }
 
+.mem-io-row {
+  display: flex;
+  gap: 6px;
+}
+.mem-io-row .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
 .segmented {
   display: flex;
   gap: 3px;

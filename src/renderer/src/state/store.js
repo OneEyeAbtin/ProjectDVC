@@ -279,6 +279,30 @@ export const useStore = create((set, get) => ({
     }
   },
 
+  async exportMemories() {
+    try {
+      const res = await window.dvc.invoke('memory:export')
+      return Boolean(res?.saved)
+    } catch (err) {
+      get().setError({ scope: 'memory', message: String(err?.message ?? err) })
+      return false
+    }
+  },
+
+  async importMemories() {
+    try {
+      const res = await window.dvc.invoke('memory:import')
+      if (!res?.imported) return false
+      if (Array.isArray(res.traits)) set({ traits: res.traits })
+      if (Array.isArray(res.permanentFacts)) set({ permanentFacts: res.permanentFacts })
+      if (typeof res.sessionSummary === 'string') set({ sessionSummary: res.sessionSummary })
+      return true
+    } catch (err) {
+      get().setError({ scope: 'memory', message: String(err?.message ?? err) })
+      return false
+    }
+  },
+
   // Optimistic profile switches; rolled back if the IPC round-trip fails.
   setTheme(themeId) {
     const next = String(themeId ?? '').trim()

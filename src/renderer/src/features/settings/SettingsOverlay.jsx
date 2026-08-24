@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, Eye, EyeOff, Trash2, X } from 'lucide-react'
+import { Check, Download, Eye, EyeOff, Trash2, Upload, X } from 'lucide-react'
 import { useStore } from '../../state/store.js'
 import { THEME_META } from '../menu/menuData.js'
 import './settings.css'
@@ -560,6 +560,25 @@ export default function SettingsOverlay() {
           {tab === 'Voice' && <p className="tab-placeholder">Voice arrives in Plan 2</p>}
           {tab === 'Memory' && (
             <>
+              <div className="mem-io-row">
+                <button
+                  type="button"
+                  className="btn ghost small"
+                  aria-label="Export memories to file"
+                  onClick={() => useStore.getState().exportMemories()}
+                >
+                  <Download size={13} /> Export
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost small"
+                  aria-label="Import memories from file"
+                  onClick={() => useStore.getState().importMemories()}
+                >
+                  <Upload size={13} /> Import
+                </button>
+              </div>
+
               <h3 className="section-title">Session traits</h3>
               <TraitList
                 items={traits}
