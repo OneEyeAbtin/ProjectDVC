@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Heart, Settings, X } from 'lucide-react'
+import { BarChart3, Heart, Settings, X } from 'lucide-react'
 import { useStore } from '../../state/store.js'
 
 // Ported from legacy _upd_hearts color stages.
@@ -65,6 +65,15 @@ export default function TopBar() {
       </div>
       <h1 className="pet-name">{petName}</h1>
       <div className="topbar-actions">
+        <button
+          type="button"
+          className="icon-btn"
+          title="Stats"
+          aria-label="Stats"
+          onClick={() => useStore.getState().setStatsOpen(true)}
+        >
+          <BarChart3 size={15} />
+        </button>
         <button
           type="button"
           className="icon-btn"

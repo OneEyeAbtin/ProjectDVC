@@ -38,6 +38,7 @@ export const useStore = create((set, get) => ({
 
   // ui overlays
   settingsOpen: false,
+  statsOpen: false,
 
   // setup + errors
   setupQuestions: [],
@@ -169,6 +170,10 @@ export const useStore = create((set, get) => ({
     set({ settingsOpen: Boolean(open) })
   },
 
+  setStatsOpen(open) {
+    set({ statsOpen: Boolean(open) })
+  },
+
   // Optimistic profile switches; rolled back if the IPC round-trip fails.
   setTheme(themeId) {
     const next = String(themeId ?? '').trim()
@@ -189,6 +194,20 @@ export const useStore = create((set, get) => ({
     window.dvc.invoke('profile:save', { persona: next }).catch((err) => {
       if (get().persona === next) set({ persona: prev })
       get().setError({ scope: 'profile', message: String(err?.message ?? err) })
+    })
+  },
+
+  // Optimistic ±delta; the `stats` push from the main process reconciles.
+  adjustStat(key, delta) {
+    const stats = { ...get().stats }
+    if (!(key in stats)) return
+    const current = Number(stats[key]) || 0
+    const next = Math.max(0, Math.min(100, current + Number(delta) || 0))
+    if (next === current) return
+    stats[key] = next
+    set({ stats })
+    window.dvc.invoke('stats:adjust', { key, delta }).catch((err) => {
+      get().setError({ scope: 'stats', message: String(err?.message ?? err) })
     })
   },
 

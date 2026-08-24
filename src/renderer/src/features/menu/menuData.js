@@ -50,3 +50,7 @@ export const THEME_META = [
   { id: 'amber-terminal', name: 'Amber Terminal', dot: ['#ffb000', '#cc7a00'] },
   { id: 'gold', name: 'Gold', dot: ['#d4af37', '#8c6d1f'] }
 ]
+
+// Direct-action rows rendered next to the Settings entry; openers are wired
+// by id in ContextMenu.jsx.
+export const UTILITY_ENTRIES = [{ id: 'stats', label: '📊 Stats' }]
