@@ -7,6 +7,7 @@ import { createConfigService } from './services/config.service.js'
 import { createMemoryService } from './services/memory.service.js'
 import { createCharactersService } from './services/characters.service.js'
 import { createBrain } from './services/brain.service.js'
+import { createWindowService } from './services/window.service.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 let win
@@ -15,7 +16,7 @@ function createWindow() {
   win = new BrowserWindow({
     width: 400, height: 700,
     frame: false, transparent: true, resizable: false,
-    alwaysOnTop: true, backgroundColor: '#00000000',
+    backgroundColor: '#00000000',
     webPreferences: {
       preload: path.join(__dirname, '../preload/api.js'),
       contextIsolation: true, nodeIntegration: false, sandbox: false
@@ -41,10 +42,22 @@ app.whenReady().then(() => {
       if (summary) configSvc.patchSave({ session_summary: summary })
     }
   })
+
+  createWindow()
+  const windowSvc = createWindowService({ win, config: configSvc })
+  windowSvc.applySettings()
+  windowSvc.trackPosition()
+  win.once('ready-to-show', () => windowSvc.restorePosition())
+
   registerIpc({
-    services: { config: configSvc, memory: memorySvc, characters: charactersSvc, brain: brainSvc },
+    services: {
+      config: configSvc,
+      memory: memorySvc,
+      characters: charactersSvc,
+      brain: brainSvc,
+      window: windowSvc
+    },
     getWin: () => win
   })
-  createWindow()
 })
 app.on('window-all-closed', () => app.quit())
