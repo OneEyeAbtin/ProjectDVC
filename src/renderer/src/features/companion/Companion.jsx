@@ -23,6 +23,22 @@ function resolveGreeting(template, userName, petName) {
   return { text, emotion }
 }
 
+// First-run nudge: shown once through the say pipeline when the brain is
+// unconfigured (online mode, no API key, no local URL).
+const BRAIN_HINT =
+  '(Psst — I need a brain to think! Add an API key in Settings → AI/API, or switch brain mode to Offline in Settings → General~ [EMOTION: thinking] 💡)'
+
+function stripEmotionTag(template) {
+  let emotion = null
+  const text = String(template ?? '')
+    .replace(/\[EMOTION:\s*(\w+)\]/gi, (_, tag) => {
+      emotion = tag.toLowerCase()
+      return ''
+    })
+    .trim()
+  return { text, emotion }
+}
+
 export default function Companion() {
   // Boot greeting: replay last response faded, then greet after 2.5s.
   // Persona-specific templates arrive via app:init; generic line is the fallback.
@@ -30,6 +46,7 @@ export default function Companion() {
     const st = useStore.getState()
     if (st.lastResponse) st.showMuted(st.lastResponse)
     const delay = st.lastResponse ? 2500 : 400
+    let hintTimer = null
     const t = setTimeout(() => {
       const s = useStore.getState()
       const summary = typeof s.sessionSummary === 'string' ? s.sessionSummary.trim() : ''
@@ -45,8 +62,27 @@ export default function Companion() {
       } else {
         s.say(`Hey ${s.userName}! I'm ${s.petName}! ✨`, 'happy')
       }
+
+      // One-time brain hint: only when no brain is configured at all.
+      if (
+        s.brainMode === 'online' &&
+        !s.config?.online_api_key &&
+        !s.config?.local_api_url &&
+        !s.hintBrainShown
+      ) {
+        hintTimer = setTimeout(() => {
+          const cur = useStore.getState()
+          if (cur.hintBrainShown || cur.thinking || cur.typing) return
+          const { text, emotion } = stripEmotionTag(BRAIN_HINT)
+          cur.say(text, emotion)
+          window.dvc.invoke('profile:save', { hint_brain_shown: true }).catch(() => {})
+        }, 5000)
+      }
     }, delay)
-    return () => clearTimeout(t)
+    return () => {
+      clearTimeout(t)
+      clearTimeout(hintTimer)
+    }
   }, [])
 
   return (

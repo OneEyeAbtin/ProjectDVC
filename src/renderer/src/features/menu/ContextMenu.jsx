@@ -15,9 +15,9 @@ function SectionRow({ label, open, onToggle }) {
   )
 }
 
-function OptionRow({ label, active, onClick }) {
+function OptionRow({ label, active, title, onClick }) {
   return (
-    <button type="button" className="ctx-row" onClick={onClick}>
+    <button type="button" className="ctx-row" title={title} onClick={onClick}>
       <span className="ctx-label">{label}</span>
       {active && <Check size={13} className="ctx-check" aria-hidden="true" />}
     </button>
@@ -32,6 +32,7 @@ export default function ContextMenu() {
 
   const outfits = useStore((s) => s.outfits)
   const personaGroups = useStore((s) => s.personaGroups)
+  const personaDescriptions = useStore((s) => s.personaDescriptions)
   const currentOutfit = useStore((s) => s.outfit)
   const currentPersona = useStore((s) => s.persona)
   const currentTheme = useStore((s) => s.theme)
@@ -153,12 +154,17 @@ export default function ContextMenu() {
               <ChevronRight size={11} className={`ctx-chev${groupOpen === group ? ' open' : ''}`} aria-hidden="true" />
               <span className="ctx-label">{group}</span>
             </button>
-            {groupOpen === group &&
-              names.map((name) => (
-                <div className="ctx-sub" key={name}>
-                  <OptionRow label={name} active={name === currentPersona} onClick={() => pickPersona(name)} />
-                </div>
-              ))}
+              {groupOpen === group &&
+                names.map((name) => (
+                  <div className="ctx-sub" key={name}>
+                    <OptionRow
+                      label={name}
+                      active={name === currentPersona}
+                      title={String(personaDescriptions?.[name] ?? '').slice(0, 90) || undefined}
+                      onClick={() => pickPersona(name)}
+                    />
+                  </div>
+                ))}
           </div>
         ))}
 
