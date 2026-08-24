@@ -15,6 +15,7 @@ let win
 // Assigned once services exist inside whenReady; the module-level before-quit
 // listener below reads through it so registration order never matters.
 let flushSessionCacheRef = null
+let ipcDisposeRef = null
 
 function createWindow() {
   win = new BrowserWindow({
@@ -76,7 +77,7 @@ app.whenReady().then(() => {
   // Register the window service so profile:save can apply always_on_top/tray_enabled live.
   services.window = windowSvc
 
-  registerIpc({ services, getWin: () => win })
+  ipcDisposeRef = registerIpc({ services, getWin: () => win })?.dispose ?? null
 })
 
 // Shutdown: persist chat history to session-cache.json so the next boot can
@@ -84,6 +85,9 @@ app.whenReady().then(() => {
 // the same flusher; createQuitFlush guards against a double write.
 app.on('before-quit', () => {
   flushSessionCacheRef?.()
+  // Stop the idle-chatter timer so no reply push fires during teardown.
+  ipcDisposeRef?.()
+  ipcDisposeRef = null
 })
 
 app.on('window-all-closed', () => app.quit())

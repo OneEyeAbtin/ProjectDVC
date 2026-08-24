@@ -28,6 +28,7 @@ function buildSnapshot(state) {
     always_on_top: cfg.always_on_top !== false,
     tray_enabled: cfg.tray_enabled !== false,
     ui_sounds: cfg.ui_sounds !== false,
+    idle_chat: cfg.idle_chat !== false,
     font_scale: Number(state.fontScale) || 1
   }
 }
@@ -415,6 +416,19 @@ export default function SettingsOverlay() {
                   <span className="toggle-thumb" />
                 </span>
                 <span className="toggle-text">UI sounds</span>
+              </label>
+
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={draft.idle_chat}
+                  onChange={(e) => setField('idle_chat', e.target.checked)}
+                />
+                <span className="toggle-track" aria-hidden="true">
+                  <span className="toggle-thumb" />
+                </span>
+                <span className="toggle-text">Idle chatter</span>
               </label>
 
               <div className="field">

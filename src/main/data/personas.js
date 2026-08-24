@@ -56,6 +56,21 @@ export const GREETING_TEMPLATES = {
   Catgirl: 'Nya~! {name}! *purrs* You woke me~ [EMOTION: sleepy] 🐱'
 }
 
+// Persona-agnostic idle chatter (no [EMOTION:] tags — the idle push path
+// carries no tag parser; emotion stays whatever the sprite last held).
+export const IDLE_LINES = [
+  "*stretches* You've been quiet~ what are you up to?",
+  "*tilts head* ...still there? 👀",
+  "*taps on the glass* Helloooo? Don't forget me~",
+  "*curls up nearby* Take your time... I'll be here. 🌙",
+  'Psst... whatcha doing? ✨',
+  '*peeks over* Did something catch your attention more than me?! 😤',
+  "*hums quietly* ...oh! You're still here~ 😊",
+  '*flips through a book* Bored. Bored. Bored. Bored.',
+  'The silence is suspicious. What are you plotting? 🤔',
+  '*pokes your screen* Boop. That is all. Carry on~ 👆'
+]
+
 export const DEAD_MSGS = [
   "*sparks fly from ears* M-my brain... it's GONE! [EMOTION: shocked] 💥",
   "*flatlines* ERROR 404: Thoughts not found. Start LM Studio! [EMOTION: confused] 😵",

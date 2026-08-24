@@ -3,12 +3,13 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { on, emit } from './bus.js'
 import { DEFAULTS, SETTINGS_KEYS, SAVE_KEYS } from './data/defaults.js'
-import { PERSONA_GROUPS, GREETING_TEMPLATES } from './data/personas.js'
+import { PERSONA_GROUPS, GREETING_TEMPLATES, IDLE_LINES } from './data/personas.js'
 import { THEME_LIST } from './data/themes.js'
 import { parseTags } from './services/brain.service.js'
 import { createConfigService } from './services/config.service.js'
 import { createMemoryService } from './services/memory.service.js'
 import { createBrain } from './services/brain.service.js'
+import { createIdleService, pickIdleLine } from './services/idle.service.js'
 import { atomicWrite } from './lib/atomic.js'
 
 const BUS_TO_CHANNEL = {
@@ -25,10 +26,26 @@ function isPlainObj(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v)
 }
 
-export function registerIpc({ services, getWin }) {
+export function registerIpc({ services, getWin, idleRand = Math.random }) {
   function push(channel, payload) {
     const win = getWin()
     if (win && !win.isDestroyed()) win.webContents.send(channel, payload)
+  }
+
+  // Idle chatter: timestamp refreshed on every user message; the timer resets
+  // on each send so a fire can never land inside an active conversation.
+  let lastActivity = Date.now()
+  const idleSvc = createIdleService({
+    getEnabled: () => services.config.getConfig().idle_chat !== false,
+    getLastActivity: () => lastActivity,
+    fire: () => push('reply', { text: pickIdleLine(IDLE_LINES, idleRand), emotion: null }),
+    rand: idleRand
+  })
+  idleSvc.schedule()
+
+  function touchActivity() {
+    lastActivity = Date.now()
+    idleSvc.reset()
   }
 
   for (const [topic, channel] of Object.entries(BUS_TO_CHANNEL)) {
@@ -150,6 +167,7 @@ export function registerIpc({ services, getWin }) {
 
     'msg:send': (payload) => {
       const text = typeof payload === 'string' ? payload : payload?.text
+      touchActivity()
       if (runCheat(text)) return { cheated: true }
       void (async () => {
         try {
@@ -162,6 +180,7 @@ export function registerIpc({ services, getWin }) {
     },
 
     'msg:regenerate': () => {
+      touchActivity()
       void (async () => {
         try {
           const reply = await services.brain.regenerate()
@@ -315,4 +334,6 @@ export function registerIpc({ services, getWin }) {
   for (const [channel, handler] of Object.entries(handlers)) {
     ipcMain.handle(channel, (_event, payload) => handler(payload))
   }
+
+  return { dispose: () => idleSvc.stop() }
 }
