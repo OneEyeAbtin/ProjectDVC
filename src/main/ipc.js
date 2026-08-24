@@ -25,6 +25,12 @@ function isPlainObj(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v)
 }
 
+function atomicWrite(file, data) {
+  const tmp = `${file}.tmp`
+  fs.writeFileSync(tmp, data)
+  fs.renameSync(tmp, file)
+}
+
 export function registerIpc({ services, getWin }) {
   function push(channel, payload) {
     const win = getWin()
@@ -253,7 +259,7 @@ export function registerIpc({ services, getWin }) {
       // just-wiped API keys). Must NOT call migrateLegacyIfNeeded() here — that would
       // import the legacy profile immediately.
       try {
-        fs.writeFileSync(path.join(memoryDir, '.migrated'), new Date().toISOString())
+        atomicWrite(path.join(memoryDir, '.migrated'), new Date().toISOString())
       } catch {
         void 0
       }
