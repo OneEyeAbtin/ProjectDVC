@@ -20,7 +20,10 @@ export default function StatsDialog() {
     requestAnimationFrame(() => dialogRef.current?.focus())
 
     function onKeyDown(event) {
-      if (event.key === 'Escape') useStore.getState().setStatsOpen(false)
+      // Escape closes only the TOPMOST layer; settings sits above stats.
+      if (event.key === 'Escape' && !useStore.getState().settingsOpen) {
+        useStore.getState().setStatsOpen(false)
+      }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => {

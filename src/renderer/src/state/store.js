@@ -54,6 +54,7 @@ export const useStore = create((set, get) => ({
 
   _unsubs: [],
   _errorTimer: null,
+  _transientTimer: null,
 
   async boot() {
     if (!get().booted) {
@@ -94,6 +95,17 @@ export const useStore = create((set, get) => ({
         sessionSummary: typeof save.session_summary === 'string' ? save.session_summary : '',
         error: null
       })
+      // QoL: seed the MEM counter with the real backlog size (fire-and-forget);
+      // subsequent `reply` pushes keep it in sync.
+      window.dvc
+        .invoke('history:get')
+        .then((res) => {
+          const history = res?.history
+          if (Array.isArray(history)) {
+            set({ historyCount: Math.min(history.length, get().maxHistory) })
+          }
+        })
+        .catch(() => {})
     }
     get()._subscribe()
   },
@@ -117,7 +129,8 @@ export const useStore = create((set, get) => ({
   _teardown() {
     for (const unsub of get()._unsubs) unsub()
     clearTimeout(get()._errorTimer)
-    set({ _unsubs: [], _errorTimer: null })
+    clearTimeout(get()._transientTimer)
+    set({ _unsubs: [], _errorTimer: null, _transientTimer: null })
   },
 
   // ── speech ────────────────────────────────────────────────────────────────
@@ -140,6 +153,7 @@ export const useStore = create((set, get) => ({
       pendingEmotion && !TRANSIENT_EMOTIONS.includes(pendingEmotion) ? pendingEmotion : emotion
     // transientEmotion: null — any completed reply ends a forced render-only
     // state like `talking`, so the sprite/badge unfreeze (audit #4).
+    clearTimeout(get()._transientTimer)
     set({
       typing: false,
       emotion: next,
@@ -161,8 +175,12 @@ export const useStore = create((set, get) => ({
 
   setEmotion(name) {
     if (!name || typeof name !== 'string') return
+    clearTimeout(get()._transientTimer)
     if (TRANSIENT_EMOTIONS.includes(name)) {
       set({ transientEmotion: name })
+      // QoL: render-only lip-sync states self-clear after 2s without another
+      // toggle, so a stuck `talking` can never outlive its reply.
+      get()._transientTimer = setTimeout(() => set({ transientEmotion: null }), 2000)
       return
     }
     set({ emotion: name, transientEmotion: null })
@@ -362,6 +380,12 @@ export const useStore = create((set, get) => ({
       error: { scope: String(err?.scope ?? 'unknown'), message: String(err?.message ?? 'Unknown error') }
     })
     get()._errorTimer = setTimeout(() => set({ error: null }), 6000)
+  },
+
+  // QoL: manual dismissal via the error chip's ✕ button.
+  dismissError() {
+    clearTimeout(get()._errorTimer)
+    set({ error: null })
   }
 }))
 
