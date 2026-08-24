@@ -28,6 +28,22 @@ input { user-select: text; }
   background: var(--acc1);
   animation: boot-pulse 1s ease-in-out infinite;
 }
+.boot-error {
+  position: absolute;
+  bottom: 22px;
+  left: 22px;
+  right: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.boot-error-msg {
+  font-size: 0.75rem;
+  color: var(--acc3);
+  text-align: center;
+  word-break: break-word;
+}
 @keyframes boot-pulse {
   0%, 100% { transform: scale(.7); opacity: .4; }
   50% { transform: scale(1.15); opacity: 1; }

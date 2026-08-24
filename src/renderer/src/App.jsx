@@ -13,6 +13,7 @@ export default function App() {
   const setupComplete = useStore((s) => s.setupComplete)
   const theme = useStore((s) => s.theme)
   const fontScale = useStore((s) => s.fontScale)
+  const bootError = useStore((s) => (s.error?.scope === 'boot' ? s.error : null))
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -43,6 +44,19 @@ export default function App() {
       {!booted ? (
         <div className="boot-splash">
           <span className="boot-dot" />
+          {bootError && (
+            <div className="boot-error" role="alert">
+              <p className="boot-error-msg">⚠ {bootError.message}</p>
+              <button
+                type="button"
+                className="btn ghost small"
+                aria-label="Retry boot"
+                onClick={() => useStore.getState().boot()}
+              >
+                Retry
+              </button>
+            </div>
+          )}
         </div>
       ) : setupComplete ? (
         <Companion />
