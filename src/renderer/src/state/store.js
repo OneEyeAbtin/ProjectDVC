@@ -3,6 +3,11 @@ import { create } from 'zustand'
 
 const TRANSIENT_EMOTIONS = ['talking', 'fullbody']
 
+// Fallback lines for tag-only replies (LLM returned only [EMOTION]/[STAT]
+// tags, so `clean` is empty) — keeps the typewriter cycle alive instead of
+// leaving the UI stuck on `typing` forever (audit #1).
+const TAG_ONLY_LINES = ['*smiles*', '*nods*', 'Mhm~']
+
 export const useStore = create((set, get) => ({
   // boot / identity
   booted: false,
@@ -57,6 +62,9 @@ export const useStore = create((set, get) => ({
         data = await window.dvc.invoke('app:init')
       } catch (err) {
         console.error('[dvc] app:init failed', err)
+        // No auto-dismiss here: the splash retry row must stay visible until
+        // a retry succeeds.
+        set({ error: { scope: 'boot', message: String(err?.message ?? err) } })
         return
       }
       const save = data.save ?? {}
@@ -83,7 +91,8 @@ export const useStore = create((set, get) => ({
         maxHistory: Number(data.config?.max_history) || 20,
         setupQuestions: Array.isArray(data.setupQuestions) ? data.setupQuestions : [],
         lastResponse: typeof save.last_response === 'string' ? save.last_response : '',
-        sessionSummary: typeof save.session_summary === 'string' ? save.session_summary : ''
+        sessionSummary: typeof save.session_summary === 'string' ? save.session_summary : '',
+        error: null
       })
     }
     get()._subscribe()
@@ -97,7 +106,7 @@ export const useStore = create((set, get) => ({
       dvc.on('emotion', (name) => get().setEmotion(name)),
       dvc.on('stats', (stats) => set({ stats: stats ?? {} })),
       dvc.on('traits', (traits) => set({ traits: Array.isArray(traits) ? traits : [] })),
-      dvc.on('memory', () => set({ historyCount: 0 })),
+      dvc.on('memory', () => set({ historyCount: 0, lastUserText: '' })),
       dvc.on('profile', (p) => get()._applyProfile(p)),
       dvc.on('error', (e) => get().setError(e)),
       dvc.on('outfits', (list) => set({ outfits: Array.isArray(list) ? list : [] }))
@@ -129,9 +138,12 @@ export const useStore = create((set, get) => ({
     const { bubble, pendingEmotion, emotion } = get()
     const next =
       pendingEmotion && !TRANSIENT_EMOTIONS.includes(pendingEmotion) ? pendingEmotion : emotion
+    // transientEmotion: null — any completed reply ends a forced render-only
+    // state like `talking`, so the sprite/badge unfreeze (audit #4).
     set({
       typing: false,
       emotion: next,
+      transientEmotion: null,
       pendingEmotion: null,
       lastResponse: bubble?.text ?? get().lastResponse
     })
@@ -139,7 +151,11 @@ export const useStore = create((set, get) => ({
 
   _onReply(payload) {
     set({ thinking: false })
-    get().say(payload?.text ?? '', payload?.emotion ?? null)
+    const text = payload?.text ?? ''
+    get().say(
+      text || TAG_ONLY_LINES[Math.floor(Math.random() * TAG_ONLY_LINES.length)],
+      payload?.emotion ?? null
+    )
     set({ historyCount: Math.min(get().historyCount + 1, get().maxHistory) })
   },
 

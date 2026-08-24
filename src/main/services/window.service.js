@@ -117,6 +117,10 @@ export function createWindowService({ win, getConfig, onCloseToQuit, getWorkArea
   function restorePosition() {
     const save = getConfig().getSave()
     const { win_x: x, win_y: y } = save
+    // Fresh saves carry -1/-1 ("never moved") — keep the OS-default centered
+    // position instead of clamping to top-left. Every other integer pair is a
+    // real placement and restores even when negative (multi-monitor).
+    if (x === -1 && y === -1) return
     if (!Number.isInteger(x) || !Number.isInteger(y)) return
     const wa = workAreaFor(x, y)
     const { width, height } = win.getBounds()

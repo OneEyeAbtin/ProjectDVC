@@ -237,21 +237,27 @@ describe('restorePosition multi-monitor handling', () => {
     expect(calls.setPosition[0]).toEqual([1520, 340])
   })
 
-  it('rejects non-integer saved positions; sentinel -1 clamps to workArea origin', () => {
+  it('skips restore on the fresh-save -1/-1 sentinel but restores other negative coords', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dvc-mm4-'))
     const config = createConfigService({ rootDir: root })
-    screen.getPrimaryDisplay.mockReturnValue({ workArea: WA })
+    const leftMonitorWa = { x: -1920, y: 0, width: 1920, height: 1040 }
     const { win, calls } = makeWin({})
     const svc = createWindowService({
       win,
       getConfig: () => config,
-      getWorkAreaForPoint: () => WA
+      getWorkAreaForPoint: () => leftMonitorWa
     })
-    // Fresh save carries the -1/-1 "never moved" sentinel: integers now pass
-    // validation and clamp to the workArea origin (was silently skipped before).
+    // Fresh save carries the win_x/win_y = -1 "never moved" sentinel: keep the
+    // OS-default centered position instead of parking at top-left.
     svc.restorePosition()
-    expect(calls.setPosition).toEqual([[0, 0]])
+    expect(calls.setPosition).toEqual([])
 
+    // Legit multi-monitor placements (negative) still restore, clamped.
+    config.patchSave({ win_x: -1920, win_y: 100 })
+    svc.restorePosition()
+    expect(calls.setPosition).toEqual([[-1920, 100]])
+
+    // Non-integers are rejected without touching the window.
     config.patchSave({ win_x: Number.NaN, win_y: 10 })
     svc.restorePosition()
     expect(calls.setPosition).toHaveLength(1)

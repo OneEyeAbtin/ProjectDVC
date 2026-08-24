@@ -18,6 +18,9 @@ export function useTypewriter(text, { speed = 18, onDone, onWord, onTick } = {})
     if (!text) {
       setShown('')
       setTyping(false)
+      // Defense-in-depth (audit #1): an empty/absent text must still complete
+      // the cycle, otherwise store `typing` can never reset.
+      doneRef.current?.(text)
       return undefined
     }
     setShown('')
