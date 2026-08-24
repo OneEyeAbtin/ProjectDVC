@@ -1,7 +1,7 @@
 # ProjectDVC 2.0 — Development State
 
 > **Catch-up file for any AI session.** Read this top-to-bottom and you know
-> exactly where the project stands. Last updated: 2026-08-24.
+> exactly where the project stands. Last updated: 2026-08-25.
 
 ---
 
@@ -20,18 +20,18 @@ but deferred (the old Mineflayer bot is kept, untouched, in `drone/`).
 
 ## 2. Where we are in the rebuild
 
-**Plans 1 and 3 are COMPLETE and reviewed.** Branch:
-`electron-rebuild` (30+ commits ahead of `main`). Main still holds the
+**Plans 1, 2 and 3 are COMPLETE and reviewed.** Branch:
+`electron-rebuild` (40+ commits ahead of `main`). Main still holds the
 pre-rebuild checkpoint commit `e812075`.
 
 | Phase | Status | Contents |
 |---|---|---|
 | Plan 1 ✅ | **done, on branch** | Scaffold, themes, config+migration, memory, characters, brain, IPC, wizard, companion UI, context menu, settings shell |
-| Plan 2 ⬜ | **next** | Voice: TTS chain (ElevenLabs→edge-tts→Piper), lip-sync, mic STT (Groq first) |
+| Plan 2 ✅ | **done, on branch** | Voice: TTS chain (ElevenLabs→edge-tts→Piper) + arbitration + auto-speak, lip-sync state machine, voice settings tab, mic STT via Groq Whisper + VU meter + auto-send. Commit range: `5a2da0a..b46d6a0`. Local Whisper STT **deferred** (Groq-only for now). |
 | Plan 3 ✅ | **done, on branch** | Depth+QoL: stats dialog, memory viewer + wipes + msg-limit, history channels, regenerate, tray/window persistence/always-on-top, WebAudio sounds, regenerate/copy buttons, shortcuts, font scale, redo-setup + factory reset. Commit range: `32017e0..3f7d315` |
 | Audit ✅ | **done, on branch** | Deep logic audit (1 Critical/3 Important/8 Minor — all fixed) + QoL wave. Commit range: `60df194..0a1454b`. 148/148 tests |
 | Polish C ✅ | **done, on branch** | Session-summary boot greeting, idle chatter (toggle `idle_chat`), memory export/import, bubble text select, shared emotions module, defensive patches. Commit range: `0a1454b..3e41d58`. 170/170 tests |
-| Plan 4 ⬜ | after Plan 2 | Minecraft reattach via `minecraft_v2` slot (drone/ untouched, waiting) |
+| Plan 4 ⬜ | **next** | Minecraft reattach via `minecraft_v2` slot (drone/ untouched, waiting) |
 
 **Spec:** `docs/superpowers/specs/2026-08-23-electron-rebuild-design.md`
 **Plan 1:** `docs/superpowers/plans/2026-08-23-plan1-scaffold-core-companion.md`
@@ -62,6 +62,38 @@ Rulings made during implementation:
 8. Preload allowlists are exported from `src/preload/api.js` so tests assert
    allowlist ↔ ipcMain handler parity in BOTH directions.
 
+### Plan 2 rulings & known minors (summary)
+
+Rulings made during implementation:
+
+1. Legacy flat save keys (`tts_enabled`/`tts_engine`) stay in SAVE_KEYS but are
+   dead — the authoritative gate is the `tts_config` SETTINGS object
+   `{enabled, engine, edge_voice, piper_voice, stt_engine:'groq',
+   stt_model:'whisper-large-v3-turbo'}`.
+2. Only quota/auth errors (401/402/403/429 → `VoiceQuotaError`) cascade between
+   TTS engines; pinning `engine:'edge'|'piper'` disables fallback entirely.
+3. Auto-speak is ONE call site: inside ipc `push()` when channel === 'reply'
+   (covers normal replies, cheats, idle chatter — legacy spoke everything).
+4. Sprite/audio serving: dev = vite `/@fs/`, prod = `dvc-media://` protocol
+   (traversal-guarded, allowlist mounts `tts-cache` + `assets`).
+5. STT is Groq-first via the SAME `online_api_key`; local Whisper is deferred
+   until Abtin asks (`stt_engine` key exists for the future switch).
+6. `voice:stt-transcribe` returns `{text}`/`{error}` as a plain invoke ack (no
+   push) — only the requesting renderer cares; recordings under ~0.3s of webm
+   (<10000 bytes) are rejected with "Recording too short".
+7. Mic capture lives entirely in the sandboxed renderer (getUserMedia/
+   MediaRecorder — no extra permissions needed); only raw bytes cross IPC.
+   Transcript fills the input then auto-sends after 600ms (legacy parity); the
+   8-segment VU meter is log-scaled RMS from an AnalyserNode.
+
+Known minors introduced by Plan 2 (non-blocking):
+
+- Edge TTS hits the live Microsoft endpoint at synth time; no fully-offline
+  synthesis test coverage (unit-mocked only).
+- `dvc-media` buffers whole audio files in memory — fine for short clips.
+- No speech detected (empty Groq result) shows "No speech detected" chip but
+  keeps the transcript flow idle — legacy behaved the same way silently.
+
 Known minors introduced by Plan 3 (non-blocking):
 
 - `cheat:try` also triggers the reply push (channel currently unused by renderer).
@@ -73,7 +105,7 @@ Known minors introduced by Plan 3 (non-blocking):
 ```bash
 npm install        # once
 npm run dev        # dev launch (Linux: see sandbox note below)
-npm test           # vitest, 170 tests, all green
+npm test           # vitest, 250 tests, all green
 npx electron-vite build   # prod build to out/
 ```
 
@@ -104,7 +136,9 @@ src/main/            Electron main = the brain (plain Node, no Python anywhere)
     themes.js            THEME_LIST (12 ids) + THEMES_NAME_TO_ID
   providers/llm.js       OpenAI-compatible fetch caller
 src/preload/api.js   window.dvc bridge — channel ALLOWLIST (security)
-src/renderer/        React (zustand store, features/{setup,companion,menu,settings,stats})
+src/renderer/        React (zustand store, features/{setup,companion,menu,settings,stats,voice})
+  features/voice/      useMic (mic capture+VU), useVoice (TTS playback+lip-sync),
+                       lipSyncLoop, micHelpers — Groq STT + ElevenLabs/edge/Piper TTS
   lib/sfx.js           WebAudio synth sounds (blip/notify/statUp/statDown/error)
   styles/themes.css    12 themes as [data-theme] CSS variable blocks
 legacy/              entire old Python app (reference only, never delete)
@@ -117,8 +151,8 @@ invoke: `app:init, setup:complete, msg:send, msg:regenerate, profile:save,
 profile:factory-reset, setup:redo, stats:adjust, memory:delete-trait,
 memory:wipe-traits, memory:delete-permanent, memory:wipe-permanent,
 memory:clear-summary, history:get, history:clear, outfit:switch, cheat:try,
-voice:speak, voice:stop` · push: `reply, emotion, stats, traits, memory,
-error, tts, profile`
+voice:speak, voice:stop, voice:stt-transcribe` · push: `reply, emotion, stats,
+traits, memory, error, tts, profile, outfits`
 
 ## 5. Data migration (already works against real data)
 
@@ -175,7 +209,9 @@ keys). `data/config.json`, `data/save.json`, `data/memory/` also gitignored.**
 
 ## 9. Immediate next steps
 
-1. Abtin runs visual QA (§8) on his machine, reports issues
-2. Write Plan 2 (voice: TTS chain, lip-sync, mic STT) → execute same subagent-driven flow
-3. Then Plan 4 (Minecraft reattach via `minecraft_v2` slot in drone/)
-4. Merge `electron-rebuild` → `main` when Plans 2–4 are done and Abtin is happy
+1. Abtin runs visual QA (§8) on his machine, reports issues — **incl. Plan 2
+   voice**: speak a reply (edge engine works keyless), lip-sync toggle, mic
+   button → VU meter → transcript auto-sends (needs `online_api_key`)
+2. Write Plan 4 (Minecraft reattach via `minecraft_v2` slot in drone/) →
+   execute same subagent-driven flow
+3. Merge `electron-rebuild` → `main` when Plans 2–4 are done and Abtin is happy
