@@ -50,6 +50,12 @@ export const useStore = create((set, get) => ({
   lastUserText: '',
   sessionSummary: '',
 
+  // voice / lip-sync (Plan 2)
+  audioPlaying: false,
+  lipSyncTts: true,
+  lipSyncText: false,
+  piperVoices: [],
+
   // ui overlays
   settingsOpen: false,
   statsOpen: false,
@@ -107,6 +113,10 @@ export const useStore = create((set, get) => ({
         setupQuestions: Array.isArray(data.setupQuestions) ? data.setupQuestions : [],
         lastResponse: typeof save.last_response === 'string' ? save.last_response : '',
         sessionSummary: typeof save.session_summary === 'string' ? save.session_summary : '',
+        audioPlaying: false,
+        lipSyncTts: save.lip_sync_tts !== false,
+        lipSyncText: save.lip_sync_text === true,
+        piperVoices: Array.isArray(data.piperVoices) ? data.piperVoices : [],
         error: null
       })
       // QoL: seed the MEM counter with the real backlog size (fire-and-forget);
@@ -202,6 +212,17 @@ export const useStore = create((set, get) => ({
   },
 
   // ── actions ───────────────────────────────────────────────────────────────
+  // Text lip-sync tick (fired per word boundary by the typewriter): toggles
+  // the render-only talking state against neutral. Skipped while real TTS
+  // audio is playing (the TTS loop owns transientEmotion then) or when the
+  // feature is off. Sets transientEmotion directly — 'neutral' must stay a
+  // render-only override here, not clobber the canonical emotion mid-reply.
+  textLipSync(talking) {
+    if (!get().lipSyncText || get().audioPlaying) return
+    set({ transientEmotion: talking ? 'talking' : 'neutral' })
+  },
+
+
   sendMsg(textRaw) {
     const text = String(textRaw ?? '').trim()
     const { thinking, typing } = get()
@@ -409,6 +430,9 @@ export const useStore = create((set, get) => ({
       hintBrainShown: save.hint_brain_shown !== undefined ? save.hint_brain_shown === true : get().hintBrainShown,
       fontScale: save.font_scale !== undefined ? Number(save.font_scale) || 1 : get().fontScale,
       emotion: save.last_emotion ?? get().emotion,
+      lipSyncTts: save.lip_sync_tts !== undefined ? save.lip_sync_tts !== false : get().lipSyncTts,
+      lipSyncText:
+        save.lip_sync_text !== undefined ? save.lip_sync_text === true : get().lipSyncText,
       sessionSummary:
         typeof save.session_summary === 'string' ? save.session_summary : get().sessionSummary
     })

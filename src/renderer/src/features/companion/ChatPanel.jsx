@@ -47,7 +47,10 @@ export default function ChatPanel() {
     onDone: () => completeType(),
     onTick: (i) => {
       if (i % 3 === 0) playSfx('blip')
-    }
+    },
+    // lip_sync_text: alternate talking↔neutral per word (store skips the
+    // toggle while TTS audio is playing — that loop wins).
+    onWord: (talking) => useStore.getState().textLipSync(talking)
   })
 
   useEffect(() => () => clearTimeout(copiedTimer.current), [])
