@@ -2,6 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { Check, Download, Eye, EyeOff, Trash2, Upload, X } from 'lucide-react'
 import { useStore } from '../../state/store.js'
 import { THEME_META } from '../menu/menuData.js'
+import {
+  buildSnapshot,
+  diffPatch,
+  EDGE_VOICE_SUGGESTIONS,
+  TEST_EMOTIONS,
+  TEST_VOICE_LINE,
+  TTS_ENGINES
+} from './settingsDraft.js'
 import './settings.css'
 
 const TABS = ['General', 'AI/API', 'Voice', 'Memory']
@@ -9,29 +17,6 @@ const BRAIN_MODES = ['local', 'online', 'offline']
 const HISTORY_PAGE = 50
 const FONT_MIN = 0.85
 const FONT_MAX = 1.3
-
-function buildSnapshot(state) {
-  const cfg = state.config ?? {}
-  return {
-    user_name: state.userName ?? '',
-    pet_name: state.petName ?? '',
-    brain_mode: state.brainMode ?? 'online',
-    hearts_visible: state.heartsVisible !== false,
-    theme_id: state.theme ?? 'midnight-sakura',
-    max_history: Number(cfg.max_history) || 20,
-    online_api_url: cfg.online_api_url ?? '',
-    online_api_key: cfg.online_api_key ?? '',
-    online_api_model: cfg.online_api_model ?? '',
-    local_api_url: cfg.local_api_url ?? '',
-    local_api_key: cfg.local_api_key ?? '',
-    local_api_model: cfg.local_api_model ?? '',
-    always_on_top: cfg.always_on_top !== false,
-    tray_enabled: cfg.tray_enabled !== false,
-    ui_sounds: cfg.ui_sounds !== false,
-    idle_chat: cfg.idle_chat !== false,
-    font_scale: Number(state.fontScale) || 1
-  }
-}
 
 function TextField({ id, label, value, onChange, placeholder }) {
   return (
@@ -231,9 +216,12 @@ export default function SettingsOverlay() {
   const traits = useStore((s) => s.traits)
   const permanentFacts = useStore((s) => s.permanentFacts)
   const sessionSummary = useStore((s) => s.sessionSummary)
+  const piperVoices = useStore((s) => s.piperVoices)
   const [tab, setTab] = useState('General')
   const [draft, setDraft] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [testEmotion, setTestEmotion] = useState('neutral')
+  const [testing, setTesting] = useState(false)
   const snapshot = useRef(null)
   const persistedTheme = useRef('')
   const restoreFocus = useRef(null)
@@ -267,8 +255,22 @@ export default function SettingsOverlay() {
 
   if (!open || !draft) return null
 
+  // Test voice uses the SAVED config; any unsaved draft edit means the sample
+  // would not reflect what the user sees, so the button waits for a Save.
+  const draftDirty = Object.keys(diffPatch(draft, snapshot.current)).length > 0
+
   function setField(key, value) {
     setDraft((d) => ({ ...d, [key]: value }))
+  }
+
+  // Nested objects are replaced whole: any subfield edit produces a new
+  // object reference so the snapshot diff sends it as one replacement.
+  function setTtsField(key, value) {
+    setDraft((d) => ({ ...d, tts_config: { ...d.tts_config, [key]: value } }))
+  }
+
+  function setElevenlabsField(key, value) {
+    setDraft((d) => ({ ...d, elevenlabs: { ...d.elevenlabs, [key]: value } }))
   }
 
   function previewTheme(id) {
@@ -286,12 +288,21 @@ export default function SettingsOverlay() {
     useStore.getState().setSettingsOpen(false)
   }
 
+  async function testVoice() {
+    if (testing || draftDirty) return
+    setTesting(true)
+    try {
+      await window.dvc.invoke('voice:speak', { text: TEST_VOICE_LINE, emotion: testEmotion })
+    } catch (err) {
+      useStore.getState().setError({ scope: 'voice', message: String(err?.message ?? err) })
+    } finally {
+      setTesting(false)
+    }
+  }
+
   async function save() {
     if (!draft || !snapshot.current || saving) return
-    const patch = {}
-    for (const [key, value] of Object.entries(draft)) {
-      if (value !== snapshot.current[key]) patch[key] = value
-    }
+    const patch = diffPatch(draft, snapshot.current)
     if (!Object.keys(patch).length) {
       cancel()
       return
@@ -557,7 +568,169 @@ export default function SettingsOverlay() {
             </>
           )}
 
-          {tab === 'Voice' && <p className="tab-placeholder">Voice arrives in Plan 2</p>}
+          {tab === 'Voice' && (
+            <>
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={draft.tts_config.enabled}
+                  aria-label="Speak replies aloud"
+                  onChange={(e) => setTtsField('enabled', e.target.checked)}
+                />
+                <span className="toggle-track" aria-hidden="true">
+                  <span className="toggle-thumb" />
+                </span>
+                <span className="toggle-text">Speak replies aloud</span>
+              </label>
+
+              <div className="field">
+                <span className="field-label" id="tts-engine-label">Voice engine</span>
+                <div className="segmented" role="group" aria-labelledby="tts-engine-label">
+                  {TTS_ENGINES.map((engine) => (
+                    <button
+                      key={engine}
+                      type="button"
+                      className={`seg${draft.tts_config.engine === engine ? ' active' : ''}`}
+                      aria-pressed={draft.tts_config.engine === engine}
+                      onClick={() => setTtsField('engine', engine)}
+                    >
+                      {engine}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {draft.tts_config.engine === 'elevenlabs' && (
+                <>
+                  <SecretField
+                    id="elevenlabs-api-key"
+                    label="ElevenLabs API key"
+                    value={draft.elevenlabs.api_key}
+                    onChange={(v) => setElevenlabsField('api_key', v)}
+                  />
+                  <TextField
+                    id="elevenlabs-voice-id"
+                    label="Voice ID"
+                    value={draft.elevenlabs.voice_id}
+                    onChange={(v) => setElevenlabsField('voice_id', v)}
+                  />
+                  <TextField
+                    id="elevenlabs-model-id"
+                    label="Model"
+                    placeholder="eleven_flash_v2_5"
+                    value={draft.elevenlabs.model_id}
+                    onChange={(v) => setElevenlabsField('model_id', v)}
+                  />
+                </>
+              )}
+
+              {draft.tts_config.engine === 'edge' && (
+                <div className="field">
+                  <label htmlFor="edge-voice-input">Edge voice</label>
+                  <input
+                    id="edge-voice-input"
+                    type="text"
+                    list="edge-voice-suggestions"
+                    value={draft.tts_config.edge_voice}
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-label="Edge voice name"
+                    onChange={(e) => setTtsField('edge_voice', e.target.value)}
+                  />
+                  <datalist id="edge-voice-suggestions">
+                    {EDGE_VOICE_SUGGESTIONS.map((voice) => (
+                      <option key={voice} value={voice} />
+                    ))}
+                  </datalist>
+                </div>
+              )}
+
+              {draft.tts_config.engine === 'piper' && (
+                <div className="field">
+                  <label htmlFor="piper-voice-select">Piper voice</label>
+                  <select
+                    id="piper-voice-select"
+                    value={draft.tts_config.piper_voice}
+                    aria-label="Piper voice model"
+                    onChange={(e) => setTtsField('piper_voice', e.target.value)}
+                  >
+                    {!piperVoices.length && (
+                      <option value="" disabled>
+                        (none found)
+                      </option>
+                    )}
+                    {piperVoices.map((voice) => (
+                      <option key={voice} value={voice}>
+                        {voice}
+                      </option>
+                    ))}
+                    {draft.tts_config.piper_voice && !piperVoices.includes(draft.tts_config.piper_voice) && (
+                      <option value={draft.tts_config.piper_voice}>
+                        {draft.tts_config.piper_voice} (missing)
+                      </option>
+                    )}
+                  </select>
+                </div>
+              )}
+
+              <h3 className="section-title">Lip-sync</h3>
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={draft.lip_sync_tts}
+                  aria-label="Animate mouth during spoken replies"
+                  onChange={(e) => setField('lip_sync_tts', e.target.checked)}
+                />
+                <span className="toggle-track" aria-hidden="true">
+                  <span className="toggle-thumb" />
+                </span>
+                <span className="toggle-text">Animate while speaking</span>
+              </label>
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={draft.lip_sync_text}
+                  aria-label="Animate mouth while text types out"
+                  onChange={(e) => setField('lip_sync_text', e.target.checked)}
+                />
+                <span className="toggle-track" aria-hidden="true">
+                  <span className="toggle-thumb" />
+                </span>
+                <span className="toggle-text">Animate while typing</span>
+              </label>
+
+              <h3 className="section-title">Test voice</h3>
+              <div className="field">
+                <label htmlFor="test-voice-emotion">Emotion</label>
+                <select
+                  id="test-voice-emotion"
+                  value={testEmotion}
+                  onChange={(e) => setTestEmotion(e.target.value)}
+                >
+                  {TEST_EMOTIONS.map((emo) => (
+                    <option key={emo} value={emo}>
+                      {emo}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="voice-test-row">
+                <button
+                  type="button"
+                  className="btn ghost small"
+                  aria-label={`Test voice with sample line, emotion ${testEmotion}`}
+                  disabled={testing || draftDirty || !window.dvc}
+                  onClick={() => testVoice()}
+                >
+                  {testing ? 'Speaking…' : 'Test voice'}
+                </button>
+                {draftDirty && <span className="voice-hint">Save first to test these changes</span>}
+              </div>
+            </>
+          )}
           {tab === 'Memory' && (
             <>
               <div className="mem-io-row">
