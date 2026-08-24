@@ -33,7 +33,7 @@
 }
 .stats-head h2 {
   font-family: 'Fredoka', sans-serif;
-  font-size: 17px;
+  font-size: 1.0625rem;
   font-weight: 600;
   color: var(--txt1);
 }
@@ -52,7 +52,7 @@
 .stat-name {
   width: 84px;
   flex-shrink: 0;
-  font-size: 12.5px;
+  font-size: 0.7813rem;
   color: var(--txt1);
   text-transform: capitalize;
   white-space: nowrap;
@@ -75,7 +75,7 @@
   width: 26px;
   flex-shrink: 0;
   text-align: right;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--txt2);
   font-variant-numeric: tabular-nums;
 }
@@ -100,7 +100,7 @@
   margin: 8px 0;
   text-align: center;
   font-family: 'Fredoka', sans-serif;
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: var(--txt2);
 }
 

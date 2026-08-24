@@ -33,7 +33,7 @@
 }
 .settings-head h2 {
   font-family: 'Fredoka', sans-serif;
-  font-size: 17px;
+  font-size: 1.0625rem;
   font-weight: 600;
   color: var(--txt1);
 }
@@ -50,7 +50,7 @@
   border-bottom: 2px solid transparent;
   padding: 7px 10px;
   font-family: 'Fredoka', sans-serif;
-  font-size: 12.5px;
+  font-size: 0.7813rem;
   font-weight: 500;
   color: var(--txt2);
   transition: color .15s ease, border-color .15s ease;
@@ -73,7 +73,7 @@
 .field { display: flex; flex-direction: column; gap: 5px; }
 .field label,
 .field-label {
-  font-size: 11px;
+  font-size: 0.6875rem;
   letter-spacing: .8px;
   text-transform: uppercase;
   color: var(--txt2);
@@ -84,7 +84,7 @@
   border-radius: 10px;
   padding: 9px 12px;
   color: var(--txt1);
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-family: inherit;
   outline: none;
   transition: border-color .15s ease;
@@ -97,7 +97,7 @@
 
 .section-title {
   font-family: 'Fredoka', sans-serif;
-  font-size: 13.5px;
+  font-size: 0.8438rem;
   font-weight: 600;
   color: var(--acc1);
   margin-top: 2px;
@@ -118,7 +118,7 @@
   border-radius: 8px;
   padding: 7px 4px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 0.75rem;
   text-transform: capitalize;
   color: var(--txt2);
   transition: background .15s ease, color .15s ease;
@@ -164,7 +164,7 @@
 .toggle-row input:checked + .toggle-track { background: color-mix(in srgb, var(--acc1) 55%, var(--bg4)); }
 .toggle-row input:checked + .toggle-track .toggle-thumb { left: 17px; background: #fff; }
 .toggle-row input:focus-visible + .toggle-track { outline: 2px solid var(--acc1); outline-offset: 2px; }
-.toggle-text { font-size: 13px; color: var(--txt1); }
+.toggle-text { font-size: 0.8125rem; color: var(--txt1); }
 
 .theme-grid {
   display: grid;
@@ -177,7 +177,7 @@
   padding: 26px 0;
   text-align: center;
   font-family: 'Fredoka', sans-serif;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--txt2);
 }
 
@@ -193,7 +193,7 @@
   scrollbar-color: var(--bg4) transparent;
 }
 .mem-empty {
-  font-size: 12.5px;
+  font-size: 0.7813rem;
   font-style: italic;
   color: var(--txt2);
 }
@@ -205,7 +205,7 @@
   border: 1px solid var(--border);
   border-radius: 9px;
   padding: 5px 8px;
-  font-size: 12.5px;
+  font-size: 0.7813rem;
   color: var(--txt1);
 }
 .mem-item-text { flex: 1; word-break: break-word; }
@@ -240,7 +240,7 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 9px 11px;
-  font-size: 12.5px;
+  font-size: 0.7813rem;
   line-height: 1.5;
   color: var(--txt1);
 }
@@ -257,14 +257,14 @@
   scrollbar-width: thin;
   scrollbar-color: var(--bg4) transparent;
 }
-.hist-line { font-size: 12.5px; line-height: 1.5; }
+.hist-line { font-size: 0.7813rem; line-height: 1.5; }
 .hist-role { font-weight: 700; margin-right: 5px; }
 .hist-line.user .hist-role { color: var(--acc1); }
 .hist-line.assistant .hist-role { color: var(--txt2); }
 .hist-text { color: var(--txt1); word-break: break-word; }
 .hist-note {
   list-style: none;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-style: italic;
   color: var(--txt2);
 }
@@ -277,13 +277,32 @@
   background: color-mix(in srgb, var(--bg4) 70%, transparent);
   border-radius: 8px;
   padding: 3px 6px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--txt1);
   font-variant-numeric: tabular-nums;
 }
 
-.btn.small { padding: 6px 14px; font-size: 12px; border-radius: 9px; }
+.btn.small { padding: 6px 14px; font-size: 0.75rem; border-radius: 9px; }
+
+/* ── Danger zone (General tab) ─────────────────────────────────────────────── */
+.danger-title { color: #ff6b6b; }
+.danger-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, #e5484d 40%, transparent);
+  border-radius: 11px;
+  padding: 12px;
+}
+.danger-btn { align-self: flex-start; border-color: color-mix(in srgb, #e5484d 55%, transparent); color: #ff6b6b; }
+.danger-btn:hover:not(:disabled):not(.confirm-armed) { color: #ff8787; border-color: #e5484d; }
+.danger-note {
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  font-style: italic;
+  color: var(--txt2);
+}
 
 .settings-body :focus-visible { outline: 2px solid var(--acc1); outline-offset: 2px; }
 
@@ -299,7 +318,7 @@
   border-radius: 11px;
   padding: 9px 20px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
   transition: filter .15s ease, opacity .15s ease;
 }

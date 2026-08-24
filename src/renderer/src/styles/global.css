@@ -2,6 +2,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Nunito+Sans:wght@300;400;600;700&display=swap');
 
 * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+html { font-size: calc(16px * var(--font-scale, 1)); }
 html, body, #root { height: 100%; background: transparent; overflow: hidden;
   font-family: 'Nunito Sans', sans-serif; }
 
