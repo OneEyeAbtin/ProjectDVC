@@ -152,6 +152,7 @@ function HistoryViewer() {
     try {
       await window.dvc.invoke('history:clear')
       setEntries([])
+      useStore.setState({ historyCount: 0 })
     } catch (err) {
       useStore.getState().setError({ scope: 'history', message: String(err?.message ?? err) })
     }
