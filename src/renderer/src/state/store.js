@@ -36,9 +36,12 @@ export const useStore = create((set, get) => ({
   outfits: [],
   personaGroups: {},
   greetings: {},
+  personaTransforms: {},
+  personaDescriptions: {},
   themes: [],
   transientEmotions: FALLBACK_TRANSIENT_EMOTIONS,
   brainMode: 'online',
+  hintBrainShown: false,
   config: {},
   fontScale: 1,
   historyCount: 0,
@@ -88,11 +91,16 @@ export const useStore = create((set, get) => ({
         outfits: Array.isArray(data.outfitManifest) ? data.outfitManifest : [],
         personaGroups: data.personaGroups && typeof data.personaGroups === 'object' ? data.personaGroups : {},
         greetings: data.greetings && typeof data.greetings === 'object' ? data.greetings : {},
+        personaTransforms:
+          data.personaTransforms && typeof data.personaTransforms === 'object' ? data.personaTransforms : {},
+        personaDescriptions:
+          data.personaDescriptions && typeof data.personaDescriptions === 'object' ? data.personaDescriptions : {},
         themes: Array.isArray(data.themes) ? data.themes : [],
         transientEmotions: Array.isArray(data.transientEmotions) && data.transientEmotions.length
           ? data.transientEmotions
           : FALLBACK_TRANSIENT_EMOTIONS,
         brainMode: save.brain_mode ?? 'online',
+        hintBrainShown: save.hint_brain_shown === true,
         config: data.config && typeof data.config === 'object' ? data.config : {},
         fontScale: Number(save.font_scale) || 1,
         maxHistory: Number(data.config?.max_history) || 20,
@@ -327,7 +335,23 @@ export const useStore = create((set, get) => ({
     if (!next || next === get().persona) return
     const prev = get().persona
     set({ persona: next })
-    window.dvc.invoke('profile:save', { persona: next }).catch((err) => {
+    window.dvc.invoke('profile:save', { persona: next }).then(() => {
+      // Persona-flavored switch reaction through the normal say path;
+      // skipped if a newer switch already superseded this one.
+      if (get().persona !== next) return
+      const template = get().personaTransforms?.[next]
+      if (!template) return
+      let emotion = null
+      const text = String(template)
+        .replace(/\[EMOTION:\s*(\w+)\]/gi, (_, tag) => {
+          emotion = tag.toLowerCase()
+          return ''
+        })
+        .replace(/\{name\}/g, get().userName)
+        .replace(/\{pet\}/g, get().petName)
+        .trim()
+      get().say(text, emotion)
+    }).catch((err) => {
       if (get().persona === next) set({ persona: prev })
       get().setError({ scope: 'profile', message: String(err?.message ?? err) })
     })
@@ -382,6 +406,7 @@ export const useStore = create((set, get) => ({
       heartsVisible: save.hearts_visible !== undefined ? save.hearts_visible !== false : get().heartsVisible,
       theme: save.theme_id ?? get().theme,
       brainMode: save.brain_mode ?? get().brainMode,
+      hintBrainShown: save.hint_brain_shown !== undefined ? save.hint_brain_shown === true : get().hintBrainShown,
       fontScale: save.font_scale !== undefined ? Number(save.font_scale) || 1 : get().fontScale,
       emotion: save.last_emotion ?? get().emotion,
       sessionSummary:

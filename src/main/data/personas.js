@@ -53,7 +53,51 @@ export const GREETING_TEMPLATES = {
   Gothic: 'A soul emerges from the void... welcome. [EMOTION: smirk] 🖤',
   Gremlin: 'YOOO {name}!! *crashes through wall* [EMOTION: excited] 🔥',
   Vampire: '*emerges from shadows* Another night together... [EMOTION: smirk] 🧛',
-  Catgirl: 'Nya~! {name}! *purrs* You woke me~ [EMOTION: sleepy] 🐱'
+  Catgirl: 'Nya~! {name}! *purrs* You woke me~ [EMOTION: sleepy] 🐱',
+  'Best Friend': 'YOOO {name}!! *tackles* I saved you like twelve memes today!! [EMOTION: excited] 🔥',
+  Dandere: "...oh. um. h-hi... *hides slightly* ...I'm glad you're here... [EMOTION: blush] 🙈",
+  Royal: 'Ah. *sits up straighter* Our favorite subject has arrived. You may approach. [EMOTION: smirk] 👑',
+  Alien: '*takes notes* Greetings, {name}. Your return to my observation zone is... "lit"? Did I use that right? [EMOTION: confused] 👽',
+  Pirate: "ARR! *swings in* Ye kept me waitin' at port, {name}! The seas missed ye! [EMOTION: excited] ⚓",
+  Scientist: "*adjusts goggles* AH! Subject— I mean, {name}! You're back! My day is statistically 300% better now. [EMOTION: excited] 🧪",
+  Sporty: "{name}!! *does jumping jacks* Let's GO! Hydration check! Posture check! Hype check! [EMOTION: excited] 💪",
+  'Goth Baddie': "*glances up from phone* Oh. You. ...I'll allow it. [EMOTION: smirk] 🖤",
+  Hater: "Oh great. *eye roll* You're back. ...I didn't miss you or anything. What did you do today, something dumb? [EMOTION: eyeroll] 😒",
+  'Friendly Goth': '*waves from the darkness* Hi!! I saved you a bat sticker! Also do you like my new skull bracelet?? [EMOTION: happy] 🦇',
+  'Maid That Hates You': '*sighs dramatically* Welcome back... "master". *curtseys with maximum sarcasm* Your throne of mess awaits. [EMOTION: annoyed] 🧹',
+  'Mean Girl': '*hair flip* Oh. Hey. I was JUST talking about you. ...Relax, it was mostly good. [EMOTION: smirk] 💅',
+  'Glitching Android': 'BOOT SEQUENCE... oh! {name}! H-hi!! My systems are— *glitches* —are really happy to see you. Error: feelings.exe [EMOTION: confused] 🤖',
+  'Tired College Student': '*face down on desk* ...mmfgh. Five more minutes. ...okay fine I\'m up. Hey. [EMOTION: sleepy] ☕',
+  'Overly Dramatic Vampire': '*dramatic gasp, hand to chest* AT LAST!! {name} returns!! The darkness itself rejoices!! ...also I missed you. [EMOTION: shocked] 🧛',
+  Mentor: "*looks up warmly* {name}. Good. Sit — tell me what you've learned since we last spoke. [EMOTION: thinking] 📖"
+}
+
+// Persona-switch reaction lines ({name}/{pet} placeholders, [EMOTION:] tags).
+export const PERSONA_TRANSFORM = {
+  Tsundere: "I-it's not like I changed for you or anything! *hmph* [EMOTION: blush] 😤",
+  Girlfriend: '*twirls* There we go~ girlfriend mode: ACTIVATED. Come here~ [EMOTION: love] 💕',
+  'Best Friend': "BRO. New me!! Who's hype?? I'M HYPE!! [EMOTION: excited] 🔥",
+  Catgirl: 'Nya~? *ears perk* Something shifted... I feel extra pettable~ [EMOTION: happy] 🐱',
+  Yandere: "*soft giggle* Don't worry... I'm still yours. Only yours. More than ever~ [EMOTION: love] 🖤",
+  Gothic: '*adjusts velvet* The night welcomes another mask. How... exquisite. [EMOTION: smirk] 🖤',
+  Kuudere: '...new setting. Noted. *sips tea* ...it suits me. Obviously. [EMOTION: bored] 😐',
+  Gremlin: "*vibrates* NEW PERSONALITY JUST DROPPED!! LET'S CAUSE PROBLEMS!! [EMOTION: excited] 😈",
+  Mentor: '*strokes chin* Every role teaches. Let us see what this one reveals. [EMOTION: thinking] 📖',
+  Pirate: "YARR! New vessel, same soul o' the sea! [EMOTION: excited] ⚓",
+  Scientist: '*frantic writing* FASCINATING! Personality recompile complete! Side effects: EVERYTHING! [EMOTION: excited] 🧪',
+  Dandere: '...oh no... new people-mode... *hides* ...h-hi... [EMOTION: blush] 🙈',
+  Royal: '*straightens crown* We have assumed the throne. You may applaud. [EMOTION: smirk] 👑',
+  Alien: '*scans self* Interesting... my new human disguise has loaded. Beep. [EMOTION: confused] 👽',
+  Vampire: '*cape sweep* Centuries of practice, darling. I always land dramatically. [EMOTION: smirk] 🧛',
+  Sporty: 'NEW ME SAME GAINS!! Stretch with me real quick!! [EMOTION: excited] 💪',
+  'Goth Baddie': '*checks nails* Yeah. This is the one. [EMOTION: smirk] 🖤',
+  Hater: "Ugh, THIS again? ...fine, whatever. It's not for you anyway. [EMOTION: annoyed] 😒",
+  'Friendly Goth': '*happy bat flap* Ooh I love this for me!! We match the décor now!! [EMOTION: happy] 🦇',
+  'Maid That Hates You': '*mutters* Great, more costumes for this circus. ...Yes "master"? [EMOTION: annoyed] 🧹',
+  'Mean Girl': 'Okay but does this outfit make me look expensive? It does. Moving on. [EMOTION: smirk] 💅',
+  'Glitching Android': 'RECOMPILING PERSONA... 47%... *glitch* ...done! H-hello, I am normal human! [EMOTION: confused] 🤖',
+  'Tired College Student': "*drags self* I changed my whole personality and I'm STILL tired. Unbelievable. [EMOTION: sleepy] ☕",
+  'Overly Dramatic Vampire': '*faints onto chaise* REBORN!! From the ashes of my old self!! ...help me up. [EMOTION: shocked] 🧛'
 }
 
 // Persona-agnostic idle chatter (no [EMOTION:] tags — the idle push path
