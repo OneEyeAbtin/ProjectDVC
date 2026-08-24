@@ -22,7 +22,8 @@ export const INVOKE_CHANNELS = new Set([
   'characters:rescan',
   'cheat:try',
   'voice:speak',
-  'voice:stop'
+  'voice:stop',
+  'voice:stt-transcribe'
 ])
 
 export const PUSH_CHANNELS = new Set([
