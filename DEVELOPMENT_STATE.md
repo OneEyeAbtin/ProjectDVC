@@ -30,6 +30,7 @@ pre-rebuild checkpoint commit `e812075`.
 | Plan 2 ⬜ | **next** | Voice: TTS chain (ElevenLabs→edge-tts→Piper), lip-sync, mic STT (Groq first) |
 | Plan 3 ✅ | **done, on branch** | Depth+QoL: stats dialog, memory viewer + wipes + msg-limit, history channels, regenerate, tray/window persistence/always-on-top, WebAudio sounds, regenerate/copy buttons, shortcuts, font scale, redo-setup + factory reset. Commit range: `32017e0..3f7d315` |
 | Audit ✅ | **done, on branch** | Deep logic audit (1 Critical/3 Important/8 Minor — all fixed) + QoL wave. Commit range: `60df194..0a1454b`. 148/148 tests |
+| Polish C ✅ | **done, on branch** | Session-summary boot greeting, idle chatter (toggle `idle_chat`), memory export/import, bubble text select, shared emotions module, defensive patches. Commit range: `0a1454b..3e41d58`. 164/164 tests |
 | Plan 4 ⬜ | after Plan 2 | Minecraft reattach via `minecraft_v2` slot (drone/ untouched, waiting) |
 
 **Spec:** `docs/superpowers/specs/2026-08-23-electron-rebuild-design.md`
@@ -72,7 +73,7 @@ Known minors introduced by Plan 3 (non-blocking):
 ```bash
 npm install        # once
 npm run dev        # dev launch (Linux: see sandbox note below)
-npm test           # vitest, 148 tests, all green
+npm test           # vitest, 164 tests, all green
 npx electron-vite build   # prod build to out/
 ```
 
