@@ -6,6 +6,7 @@ import Companion from './features/companion/Companion.jsx'
 import ContextMenu from './features/menu/ContextMenu.jsx'
 import SettingsOverlay from './features/settings/SettingsOverlay.jsx'
 import StatsDialog from './features/stats/StatsDialog.jsx'
+import { useVoice } from './features/voice/useVoice.js'
 
 export default function App() {
   useBoot()
@@ -25,6 +26,9 @@ export default function App() {
 
   // UI sound events (reply notify, stat up/down, error); unsubscribes on unmount.
   useEffect(() => wireSfxEvents(), [])
+
+  // TTS push playback + lip-sync state machine; subscribes once for the app.
+  useVoice()
 
   // Ctrl+, toggles settings globally — even while typing in an input.
   useEffect(() => {

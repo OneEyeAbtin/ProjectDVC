@@ -159,7 +159,8 @@ export function registerIpc({ services, getWin, idleRand = Math.random }) {
       personaTransforms: PERSONA_TRANSFORM,
       personaDescriptions: PERSONAS,
       themes: THEME_LIST,
-      transientEmotions: TRANSIENT_EMOTIONS
+      transientEmotions: TRANSIENT_EMOTIONS,
+      piperVoices: services.voice ? services.voice.scanPiperVoices() : []
     }),
 
     'setup:complete': (payload) => {
