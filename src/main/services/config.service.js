@@ -55,16 +55,18 @@ export function createConfigService({ rootDir }) {
     return structuredClone(save)
   }
 
+  // Patches return defensive copies (matching the getters) so callers can
+  // never hold a live reference into internal state.
   function patchConfig(patch) {
     config = deepMerge(config, patch)
     writeJsonAtomic(configPath, config)
-    return config
+    return structuredClone(config)
   }
 
   function patchSave(patch) {
     save = deepMerge(save, patch)
     writeJsonAtomic(savePath, save)
-    return save
+    return structuredClone(save)
   }
 
   function setSaveEntries(entries) {

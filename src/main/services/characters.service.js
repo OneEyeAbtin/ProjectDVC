@@ -1,8 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { TRANSIENT_EMOTIONS } from '../data/emotions.js'
 
 const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp'])
-const TRANSIENT_EMOTIONS = ['talking', 'fullbody']
 
 export function createCharactersService({ outfitsDir, emotions = [] }) {
   const allEmotions = new Set([...emotions, ...TRANSIENT_EMOTIONS].map((e) => String(e).toLowerCase()))

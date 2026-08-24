@@ -4,6 +4,7 @@ import path from 'node:path'
 import { on, emit } from './bus.js'
 import { DEFAULTS, SETTINGS_KEYS, SAVE_KEYS } from './data/defaults.js'
 import { PERSONA_GROUPS, GREETING_TEMPLATES, IDLE_LINES } from './data/personas.js'
+import { TRANSIENT_EMOTIONS, FORCEABLE_EMOTIONS } from './data/emotions.js'
 import { THEME_LIST } from './data/themes.js'
 import { parseTags } from './services/brain.service.js'
 import { createConfigService } from './services/config.service.js'
@@ -17,10 +18,6 @@ const BUS_TO_CHANNEL = {
   'stats:changed': 'stats',
   'traits:changed': 'traits'
 }
-
-const TRANSIENT_EMOTIONS = ['talking', 'fullbody']
-
-const FORCEABLE_EMOTIONS = [...new Set([...DEFAULTS.emotions, ...TRANSIENT_EMOTIONS])]
 
 function isPlainObj(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v)
@@ -140,7 +137,8 @@ export function registerIpc({ services, getWin, idleRand = Math.random }) {
       setupQuestions: DEFAULTS.setup_questions,
       personaGroups: PERSONA_GROUPS,
       greetings: GREETING_TEMPLATES,
-      themes: THEME_LIST
+      themes: THEME_LIST,
+      transientEmotions: TRANSIENT_EMOTIONS
     }),
 
     'setup:complete': (payload) => {
