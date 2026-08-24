@@ -63,11 +63,11 @@ export default function Companion() {
         s.say(`Hey ${s.userName}! I'm ${s.petName}! ✨`, 'happy')
       }
 
-      // One-time brain hint: only when no brain is configured at all.
+      // One-time brain hint: online mode selected but no cloud key configured
+      // (local_api_url ships with a default value, so it is not "unconfigured").
       if (
         s.brainMode === 'online' &&
         !s.config?.online_api_key &&
-        !s.config?.local_api_url &&
         !s.hintBrainShown
       ) {
         hintTimer = setTimeout(() => {
