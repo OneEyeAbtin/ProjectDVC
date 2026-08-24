@@ -43,21 +43,19 @@ app.whenReady().then(() => {
     }
   })
 
+  const services = {
+    config: configSvc,
+    memory: memorySvc,
+    characters: charactersSvc,
+    brain: brainSvc
+  }
+
   createWindow()
-  const windowSvc = createWindowService({ win, config: configSvc })
+  const windowSvc = createWindowService({ win, getConfig: () => services.config })
   windowSvc.applySettings()
   windowSvc.trackPosition()
   win.once('ready-to-show', () => windowSvc.restorePosition())
 
-  registerIpc({
-    services: {
-      config: configSvc,
-      memory: memorySvc,
-      characters: charactersSvc,
-      brain: brainSvc,
-      window: windowSvc
-    },
-    getWin: () => win
-  })
+  registerIpc({ services, getWin: () => win })
 })
 app.on('window-all-closed', () => app.quit())

@@ -255,7 +255,7 @@ describe('profile:factory-reset', () => {
     expect(fresh.setup_answers).toEqual({})
   })
 
-  it('wipes memory files and subsequent handlers use fresh services', async () => {
+  it('wipes memory files, rewrites .migrated marker, fresh handlers used after', async () => {
     const h = makeHarness()
     h.call('setup:complete', { user_name: 'Abtin' })
     h.memory.addTrait('went hiking today')
@@ -264,9 +264,11 @@ describe('profile:factory-reset', () => {
     h.call('profile:factory-reset')
 
     const memDir = path.join(h.root, 'data', 'memory')
-    for (const name of ['session-traits.json', 'permanent-facts.json', 'session-cache.json', '.migrated']) {
+    for (const name of ['session-traits.json', 'permanent-facts.json', 'session-cache.json']) {
       expect(fs.existsSync(path.join(memDir, name))).toBe(false)
     }
+    // Fresh marker must exist so next boot does NOT re-import legacy dvc_profile.json
+    expect(fs.existsSync(path.join(memDir, '.migrated'))).toBe(true)
 
     const boot = h.call('app:init')
     expect(boot.save.setup_complete).toBe(false)
@@ -281,6 +283,22 @@ describe('profile:factory-reset', () => {
     expect(freshSave.setup_complete).toBe(false)
     expect(freshSave.brain_mode).toBe('offline')
     expect(h.sent.some(([c]) => c === 'reply')).toBe(true)
+  })
+
+  it('legacy dvc_profile.json stays suppressed after reset+reboot (no key resurrection)', () => {
+    const h = makeHarness()
+    fs.writeFileSync(
+      path.join(h.root, 'dvc_profile.json'),
+      JSON.stringify({ online_api_key: 'sk-wiped-secret', persona: 'Gothic' })
+    )
+
+    h.call('profile:factory-reset')
+
+    // Simulate reboot: brand-new config service runs migration check
+    const rebooted = createConfigService({ rootDir: h.root })
+    rebooted.migrateLegacyIfNeeded()
+    expect(rebooted.getConfig().online_api_key).toBe('')
+    expect(rebooted.getSave().persona).toBe('Tsundere')
   })
 
   it('leaves legacy root files untouched', () => {
