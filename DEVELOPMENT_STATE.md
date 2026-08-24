@@ -140,7 +140,10 @@ keys). `data/config.json`, `data/save.json`, `data/memory/` also gitignored.**
 6. `default_persona` fallback chain: persona → 'Gothic' → ''.
 7. Sprite serving: dev = vite `/@fs/`, prod = build-copied `out/renderer/sprites/`
    (spec originally said custom `dvc-file://` protocol — deviation, safe).
-8. Voice/Memory settings tabs are placeholders until Plans 2/3.
+8. ~~Voice/Memory settings tabs are placeholders until Plans 2/3.~~ Memory tab is REAL as of Plan 3; only Voice remains a placeholder until Plan 2.
+9. (Plan 3) Message-limit slider bounds are 4..50 — legacy allowed 5..200. Ruled acceptable: >50 history bloats prompts; migrated values >50 stay in config but slider shows clamped. Widen only if Abtin asks.
+10. (Plan 3) Stat up/down sounds now fire on ANY stats change (cheats, [STAT:] tags), not just dialog clicks — legacy only played them in the dialog. Deemed desirable.
+11. (Plan 3) force*/showmehearts cheats got invented display lines ("*strikes a pose*", hearts-toggle line) — legacy showed nothing there. Abtin may reword in src/main/ipc.js displayCheatMessage.
 
 ## 7. Known deferred minors (full list in ledger)
 
@@ -155,7 +158,7 @@ keys). `data/config.json`, `data/save.json`, `data/memory/` also gitignored.**
 ## 8. What Abtin should check in the running app (visual QA)
 
 1. `npm run dev` → window appears: 400×700, rounded, glassy, always-on-top
-2. **Drag** the window by top bar; min/close dots work (close = quits)
+2. **Drag** the window by top bar; min/close dots work (close = **hides to tray** by default — quit via tray icon menu, or toggle "Tray icon"/"Hide to tray" off in Settings → General to make close quit)
 3. If migrated: companion page directly, correct pet name + Darkwave theme
 4. If fresh: 20-question wizard → greeting with persona-specific line
 5. Type a message (offline mode works keyless) → *thinking…* → typewriter
