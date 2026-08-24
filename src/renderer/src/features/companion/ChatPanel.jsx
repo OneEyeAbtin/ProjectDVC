@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Mic, SendHorizontal } from 'lucide-react'
+import { Check, Copy, Mic, RotateCcw, SendHorizontal } from 'lucide-react'
 import { useStore } from '../../state/store.js'
+import { playSfx } from '../../lib/sfx.js'
 import { useTypewriter } from './useTypewriter.js'
 
 // Ported from legacy: *asterisk actions* render as italic muted spans.
@@ -31,15 +32,24 @@ export default function ChatPanel() {
   const historyCount = useStore((s) => s.historyCount)
   const maxHistory = useStore((s) => s.maxHistory)
   const sendMsg = useStore((s) => s.sendMsg)
+  const regenerate = useStore((s) => s.regenerate)
+  const lastUserText = useStore((s) => s.lastUserText)
   const completeType = useStore((s) => s.completeType)
 
   const [draft, setDraft] = useState('')
+  const [copied, setCopied] = useState(false)
+  const copiedTimer = useRef(null)
   const scrollRef = useRef(null)
 
   // Muted bubbles (boot "last response" replay) render statically.
   const { shown, typing: charTyping } = useTypewriter(bubble?.muted ? null : bubble?.text ?? null, {
-    onDone: () => completeType()
+    onDone: () => completeType(),
+    onTick: (i) => {
+      if (i % 3 === 0) playSfx('blip')
+    }
   })
+
+  useEffect(() => () => clearTimeout(copiedTimer.current), [])
 
   const busy = thinking || typing || charTyping
 
@@ -53,6 +63,18 @@ export default function ChatPanel() {
     if (!text || busy) return
     sendMsg(text)
     setDraft('')
+  }
+
+  async function copyReply() {
+    const text = bubble?.text ?? ''
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      clearTimeout(copiedTimer.current)
+      copiedTimer.current = setTimeout(() => setCopied(false), 1200)
+    } catch (err) {
+      useStore.getState().setError({ scope: 'clipboard', message: String(err?.message ?? err) })
+    }
   }
 
   const displayText = bubble?.muted ? bubble.text : shown
@@ -93,6 +115,26 @@ export default function ChatPanel() {
         </button>
         <button type="button" className="send-btn" title="Send" disabled={busy} onClick={submit}>
           <SendHorizontal size={17} />
+        </button>
+        <button
+          type="button"
+          className="chat-mini-btn"
+          title="Regenerate reply"
+          aria-label="Regenerate reply"
+          disabled={busy || !lastUserText}
+          onClick={() => regenerate()}
+        >
+          <RotateCcw size={14} />
+        </button>
+        <button
+          type="button"
+          className="chat-mini-btn"
+          title="Copy reply"
+          aria-label="Copy reply"
+          disabled={!displayText}
+          onClick={copyReply}
+        >
+          {copied ? <Check size={14} /> : <Copy size={14} />}
         </button>
       </div>
     </section>

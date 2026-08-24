@@ -26,7 +26,7 @@
   border-radius: 9px;
   padding: 7px 9px;
   color: var(--txt1);
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-family: inherit;
   text-align: left;
   transition: background .12s ease;
@@ -60,7 +60,7 @@
 .ctx-group-row {
   padding-top: 5px;
   padding-bottom: 5px;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--txt2);
 }
 .ctx-sub {
@@ -83,7 +83,7 @@
   border-radius: 8px;
   padding: 5px 7px;
   color: var(--txt2);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-family: inherit;
   text-align: left;
   transition: background .12s ease, color .12s ease;

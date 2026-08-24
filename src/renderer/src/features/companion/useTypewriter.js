@@ -3,13 +3,16 @@ import { useEffect, useRef, useState } from 'react'
 // Typewriter: appends one char every `speed` ms. `onDone` fires once per text.
 // `onWord` is a Plan-2 placeholder for text lip-sync (alternating talking
 // toggles on word boundaries); it receives true/false per word when provided.
-export function useTypewriter(text, { speed = 18, onDone, onWord } = {}) {
+// `onTick` receives the 1-based char index on every appended char.
+export function useTypewriter(text, { speed = 18, onDone, onWord, onTick } = {}) {
   const [shown, setShown] = useState('')
   const [typing, setTyping] = useState(Boolean(text))
   const doneRef = useRef(onDone)
   const wordRef = useRef(onWord)
+  const tickRef = useRef(onTick)
   doneRef.current = onDone
   wordRef.current = onWord
+  tickRef.current = onTick
 
   useEffect(() => {
     if (!text) {
@@ -25,6 +28,7 @@ export function useTypewriter(text, { speed = 18, onDone, onWord } = {}) {
     const timer = setInterval(() => {
       i += 1
       setShown(text.slice(0, i))
+      tickRef.current?.(i)
       if (text[i - 1] === ' ') {
         words += 1
         wordRef.current?.(words % 2 === 1)

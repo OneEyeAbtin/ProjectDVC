@@ -7,6 +7,8 @@ import './settings.css'
 const TABS = ['General', 'AI/API', 'Voice', 'Memory']
 const BRAIN_MODES = ['local', 'online', 'offline']
 const HISTORY_PAGE = 50
+const FONT_MIN = 0.85
+const FONT_MAX = 1.3
 
 function buildSnapshot(state) {
   const cfg = state.config ?? {}
@@ -22,7 +24,11 @@ function buildSnapshot(state) {
     online_api_model: cfg.online_api_model ?? '',
     local_api_url: cfg.local_api_url ?? '',
     local_api_key: cfg.local_api_key ?? '',
-    local_api_model: cfg.local_api_model ?? ''
+    local_api_model: cfg.local_api_model ?? '',
+    always_on_top: cfg.always_on_top !== false,
+    tray_enabled: cfg.tray_enabled !== false,
+    ui_sounds: cfg.ui_sounds !== false,
+    font_scale: Number(state.fontScale) || 1
   }
 }
 
@@ -230,8 +236,12 @@ export default function SettingsOverlay() {
     window.addEventListener('keydown', onKeyDown)
     return () => {
       window.removeEventListener('keydown', onKeyDown)
-      // Cancel path: revert the live theme preview to whatever was last persisted.
+      // Cancel path: revert the live previews to whatever was last persisted.
       document.documentElement.dataset.theme = persistedTheme.current
+      document.documentElement.style.setProperty(
+        '--font-scale',
+        String(useStore.getState().fontScale)
+      )
       restoreFocus.current?.focus?.()
     }
   }, [open])
@@ -245,6 +255,12 @@ export default function SettingsOverlay() {
   function previewTheme(id) {
     setField('theme_id', id)
     document.documentElement.dataset.theme = id
+  }
+
+  // Live preview while the slider drags; persisted only on Save.
+  function previewFontScale(value) {
+    setField('font_scale', value)
+    document.documentElement.style.setProperty('--font-scale', String(value))
   }
 
   function cancel() {
@@ -344,6 +360,64 @@ export default function SettingsOverlay() {
                 <span className="toggle-text">Show affection hearts</span>
               </label>
 
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={draft.always_on_top}
+                  onChange={(e) => setField('always_on_top', e.target.checked)}
+                />
+                <span className="toggle-track" aria-hidden="true">
+                  <span className="toggle-thumb" />
+                </span>
+                <span className="toggle-text">Always on top</span>
+              </label>
+
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={draft.tray_enabled}
+                  onChange={(e) => setField('tray_enabled', e.target.checked)}
+                />
+                <span className="toggle-track" aria-hidden="true">
+                  <span className="toggle-thumb" />
+                </span>
+                <span className="toggle-text">Tray icon</span>
+              </label>
+
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={draft.ui_sounds}
+                  onChange={(e) => setField('ui_sounds', e.target.checked)}
+                />
+                <span className="toggle-track" aria-hidden="true">
+                  <span className="toggle-thumb" />
+                </span>
+                <span className="toggle-text">UI sounds</span>
+              </label>
+
+              <div className="field">
+                <label htmlFor="font-scale-slider">Text size</label>
+                <div className="limit-row">
+                  <input
+                    id="font-scale-slider"
+                    type="range"
+                    min={FONT_MIN}
+                    max={FONT_MAX}
+                    step={0.05}
+                    value={draft.font_scale}
+                    aria-valuetext={`${draft.font_scale.toFixed(2)} times`}
+                    onChange={(e) => previewFontScale(Number(e.target.value))}
+                  />
+                  <output id="font-scale-value" className="limit-value" htmlFor="font-scale-slider">
+                    {draft.font_scale.toFixed(2)}×
+                  </output>
+                </div>
+              </div>
+
               <div className="field">
                 <span className="field-label">Theme</span>
                 <div className="theme-grid">
@@ -365,6 +439,40 @@ export default function SettingsOverlay() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <h3 className="section-title danger-title">Danger zone</h3>
+              <div className="danger-zone">
+                <ConfirmButton
+                  className="btn ghost small danger-btn"
+                  confirmLabel="Really redo setup?"
+                  ariaLabel="Redo setup wizard"
+                  onConfirm={async () => {
+                    await useStore.getState().redoSetup()
+                    useStore.getState().setSettingsOpen(false)
+                  }}
+                >
+                  Redo setup wizard
+                </ConfirmButton>
+                <ConfirmButton
+                  className="btn ghost small danger-btn"
+                  confirmLabel="Really erase everything?"
+                  ariaLabel="Factory reset"
+                  onConfirm={async () => {
+                    try {
+                      await window.dvc.invoke('profile:factory-reset')
+                      window.location.reload()
+                    } catch (err) {
+                      useStore.getState().setError({ scope: 'profile', message: String(err?.message ?? err) })
+                    }
+                  }}
+                >
+                  Factory reset
+                </ConfirmButton>
+                <p className="danger-note">
+                  Redo restarts the setup wizard. Factory reset erases all data and reloads the app.
+                  Neither can be undone.
+                </p>
               </div>
             </>
           )}

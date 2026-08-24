@@ -32,9 +32,11 @@ export const useStore = create((set, get) => ({
   themes: [],
   brainMode: 'online',
   config: {},
+  fontScale: 1,
   historyCount: 0,
   maxHistory: 20,
   lastResponse: '',
+  lastUserText: '',
   sessionSummary: '',
 
   // ui overlays
@@ -77,6 +79,7 @@ export const useStore = create((set, get) => ({
         themes: Array.isArray(data.themes) ? data.themes : [],
         brainMode: save.brain_mode ?? 'online',
         config: data.config && typeof data.config === 'object' ? data.config : {},
+        fontScale: Number(save.font_scale) || 1,
         maxHistory: Number(data.config?.max_history) || 20,
         setupQuestions: Array.isArray(data.setupQuestions) ? data.setupQuestions : [],
         lastResponse: typeof save.last_response === 'string' ? save.last_response : '',
@@ -153,10 +156,28 @@ export const useStore = create((set, get) => ({
     const text = String(textRaw ?? '').trim()
     const { thinking, typing } = get()
     if (!text || thinking || typing) return
-    set({ thinking: true, bubble: null, typing: false, error: null })
+    set({ thinking: true, bubble: null, typing: false, error: null, lastUserText: text })
     window.dvc.invoke('msg:send', { text }).catch((err) => {
       get().setError({ scope: 'ipc', message: String(err?.message ?? err) })
     })
+  },
+
+  regenerate() {
+    const { thinking, typing, lastUserText } = get()
+    if (thinking || typing || !lastUserText) return
+    set({ thinking: true, bubble: null, error: null })
+    window.dvc.invoke('msg:regenerate').catch((err) => {
+      get().setError({ scope: 'brain', message: String(err?.message ?? err) })
+    })
+  },
+
+  async redoSetup() {
+    try {
+      const save = await window.dvc.invoke('setup:redo')
+      get()._applySave(save)
+    } catch (err) {
+      get().setError({ scope: 'setup', message: String(err?.message ?? err) })
+    }
   },
 
   async completeSetup(answers) {
@@ -284,6 +305,7 @@ export const useStore = create((set, get) => ({
       heartsVisible: save.hearts_visible !== undefined ? save.hearts_visible !== false : get().heartsVisible,
       theme: save.theme_id ?? get().theme,
       brainMode: save.brain_mode ?? get().brainMode,
+      fontScale: save.font_scale !== undefined ? Number(save.font_scale) || 1 : get().fontScale,
       emotion: save.last_emotion ?? get().emotion,
       sessionSummary:
         typeof save.session_summary === 'string' ? save.session_summary : get().sessionSummary

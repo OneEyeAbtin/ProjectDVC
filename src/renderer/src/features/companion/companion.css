@@ -46,7 +46,7 @@
   flex: 1;
   text-align: center;
   font-family: 'Fredoka', sans-serif;
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 600;
   letter-spacing: 2px;
   text-transform: uppercase;
@@ -101,14 +101,14 @@
   align-items: center;
   justify-content: center;
   font-family: 'Fredoka', sans-serif;
-  font-size: 52px;
+  font-size: 3.25rem;
   color: var(--acc1);
 }
 .chip {
   position: absolute;
   bottom: 10px;
   font-family: 'Fredoka', sans-serif;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 500;
   letter-spacing: .6px;
   padding: 3px 11px;
@@ -136,7 +136,7 @@
   scrollbar-color: var(--bg4) transparent;
 }
 .bubble-text {
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 1.55;
   color: var(--txt1);
   word-wrap: break-word;
@@ -161,13 +161,13 @@
   border: 1px solid var(--acc3);
   border-radius: 10px;
   padding: 6px 10px;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--acc3);
   margin-bottom: 8px;
 }
 
 .mem-label {
-  font-size: 10px;
+  font-size: 0.625rem;
   letter-spacing: 1px;
   color: var(--txt2);
   opacity: .75;
@@ -187,7 +187,7 @@
   border-radius: 12px;
   padding: 9px 13px;
   color: var(--txt1);
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-family: inherit;
   outline: none;
   transition: border-color .15s ease;
@@ -218,3 +218,19 @@
   color: #fff;
 }
 .mic-btn:disabled, .send-btn:disabled { cursor: default; opacity: .55; filter: grayscale(.4); }
+
+.chat-mini-btn {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--txt2);
+  transition: color .15s ease, border-color .15s ease, filter .15s ease;
+}
+.chat-mini-btn:hover:not(:disabled) { color: var(--txt1); border-color: var(--acc1); }
+.chat-mini-btn:disabled { cursor: default; opacity: .45; filter: grayscale(.4); }
