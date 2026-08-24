@@ -85,7 +85,8 @@
   text-transform: uppercase;
   color: var(--txt2);
 }
-.field input {
+.field input,
+.field select {
   background: color-mix(in srgb, var(--bg1) 65%, transparent);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -96,7 +97,19 @@
   outline: none;
   transition: border-color .15s ease;
 }
-.field input:focus { border-color: var(--acc1); }
+.field input:focus,
+.field select:focus { border-color: var(--acc1); }
+
+.voice-test-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.voice-hint {
+  font-size: 0.7188rem;
+  font-style: italic;
+  color: var(--txt2);
+}
 
 .secret-field { position: relative; display: flex; align-items: center; }
 .secret-field input { width: 100%; padding-right: 38px; }
