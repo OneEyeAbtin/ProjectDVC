@@ -36,14 +36,16 @@ export default function ContextMenu() {
   const currentPersona = useStore((s) => s.persona)
   const currentTheme = useStore((s) => s.theme)
 
-  // Keep the panel inside the window once its real size is known.
+  // Keep the panel inside the window once its real size is known, and
+  // RE-CLAMP whenever a submenu expands (section/group toggles change the
+  // panel height, which can otherwise push the bottom out of the window).
   useLayoutEffect(() => {
     if (!pos || !panelRef.current) return
     const rect = panelRef.current.getBoundingClientRect()
     const x = Math.min(Math.max(EDGE_PAD, pos.x), window.innerWidth - rect.width - EDGE_PAD)
     const y = Math.min(Math.max(EDGE_PAD, pos.y), window.innerHeight - rect.height - EDGE_PAD)
     if (x !== pos.x || y !== pos.y) setPos({ x, y })
-  }, [pos])
+  }, [pos, section, groupOpen])
 
   useEffect(() => {
     function onContextMenu(event) {
