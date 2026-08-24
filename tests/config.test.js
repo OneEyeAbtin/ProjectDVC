@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { createConfigService } from '../src/main/services/config.service.js'
+import { createConfigService, deepMerge } from '../src/main/services/config.service.js'
 
 let dir
 beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dvc-')) })
@@ -98,5 +98,35 @@ describe('config service', () => {
     fs.writeFileSync(path.join(dir, 'data/config.json'), '{not json')
     const svc = createConfigService({ rootDir: dir })
     expect(svc.getConfig().max_history).toBe(20)
+  })
+})
+
+describe('deepMerge prototype-pollution guard', () => {
+  it('__proto__ key in a patch does not pollute Object.prototype', () => {
+    // JSON.parse creates __proto__ as an own property (unlike object literals).
+    const malicious = JSON.parse('{"__proto__":{"polluted":"yes"},"stats":{"affection":50}}')
+    const out = deepMerge({ stats: { affection: 20 } }, malicious)
+    expect(Object.prototype.polluted).toBeUndefined()
+    expect({}.polluted).toBeUndefined()
+    expect(out.polluted).toBeUndefined()
+    expect(out.stats.affection).toBe(50)
+  })
+
+  it('constructor/prototype keys are skipped; nested payloads never merge into Function.prototype', () => {
+    const patch = JSON.parse(
+      '{"constructor":{"prototype":{"pwned":1}},"prototype":{"x":1}}'
+    )
+    const out = deepMerge({}, patch)
+    expect(Object.hasOwn(out, 'constructor')).toBe(false)
+    expect(Object.hasOwn(out, 'prototype')).toBe(false)
+    expect(Function.prototype.pwned).toBeUndefined()
+    expect(({}).pwned).toBeUndefined()
+  })
+
+  it('legitimate keys still merge deeply', () => {
+    const out = deepMerge({ tts: { enabled: false, engine: 'online' } }, {
+      tts: { enabled: true }
+    })
+    expect(out.tts).toEqual({ enabled: true, engine: 'online' })
   })
 })

@@ -13,6 +13,16 @@ describe('memory', () => {
     s.setSessionTraits(['user likes coffee', 'user enjoys coffee', 'user hates rain'])
     expect(s.getSessionTraits()).toEqual(['user enjoys coffee', 'user hates rain'])
   })
+
+  // Pins the INTENTIONAL divergence from legacy difflib dedup (audit #5):
+  // digit-differing facts stay distinct even though difflib scored them ~0.93.
+  it('keeps digit-differing trait variants side by side', () => {
+    const s = svc()
+    s.addTrait("user's age: 25")
+    s.addTrait("user's age: 30")
+    s.addTrait("user's age: 40")
+    expect(s.getPermanent()).toEqual(["user's age: 25", "user's age: 30", "user's age: 40"])
+  })
   it('classifies identity facts permanent vs session', () => {
     const s = svc()
     expect(s.classifyTrait("user's name is Abtin")).toBe('permanent')

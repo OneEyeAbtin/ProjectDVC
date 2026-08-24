@@ -84,11 +84,26 @@ export function createWindowService({ win, getConfig, onCloseToQuit, getWorkArea
     })
   }
 
+  // Resolves the work area of the display containing (x, y) so multi-monitor
+  // users get their saved placement back (audit #6). Negative coords are
+  // legitimate on monitors left of/above the primary; getDisplayMatching
+  // handles them. Falls back to the primary work area if matching fails.
+  function workAreaFor(x, y) {
+    if (getWorkAreaForPoint) return getWorkAreaForPoint(x, y)
+    try {
+      const display = screen.getDisplayMatching({ x, y, width: 1, height: 1 })
+      if (display?.workArea) return display.workArea
+    } catch {
+      void 0
+    }
+    return screen.getPrimaryDisplay().workArea
+  }
+
   function restorePosition() {
     const save = getConfig().getSave()
     const { win_x: x, win_y: y } = save
-    if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0) return
-    const wa = screen.getPrimaryDisplay().workArea
+    if (!Number.isInteger(x) || !Number.isInteger(y)) return
+    const wa = workAreaFor(x, y)
     const { width, height } = win.getBounds()
     const pos = clampToWorkarea(x, y, width, height, wa)
     win.setPosition(pos.x, pos.y)

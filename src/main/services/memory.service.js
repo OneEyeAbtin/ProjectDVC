@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { stringSimilarity } from 'string-similarity-js'
+import { writeJsonAtomic } from '../lib/atomic.js'
 
 const PERM_PREFIXES = [
   "user's user name",
@@ -54,20 +55,21 @@ function loadJson(file, fallback) {
   }
 }
 
-function atomicWrite(file, data) {
-  const tmp = `${file}.tmp`
-  fs.writeFileSync(tmp, data)
-  fs.renameSync(tmp, file)
-}
-
-function writeJsonAtomic(file, obj) {
-  atomicWrite(file, JSON.stringify(obj, null, 2))
-}
-
 function normalizeDigits(text) {
   return text.toLowerCase().replace(/\d+/g, '#')
 }
 
+// INTENTIONAL divergence from legacy/core/memory.py (audit #5):
+// 1. Digits are kept DISTINCT — when the digit-normalized forms differ
+//    ("user's age: 25" vs "user's age: 30") we return false instead of
+//    merging. Legacy difflib scored such pairs ~0.93 (≥ its 0.82 cutoff) and
+//    collapsed them, silently destroying updated facts. Keeping both lets the
+//    newest value coexist with history; the longest variant still wins on
+//    near-identical strings.
+// 2. Threshold/algorithm swapped by design: bigram similarity at >= 0.75 here
+//    vs difflib SequenceMatcher at >= 0.82 in legacy. The lower cutoff makes
+//    short-trait dedup slightly more aggressive; verified acceptable on real
+//    trait strings (see tests/memory.test.js pinning cases).
 function areDuplicates(a, b) {
   if (a === b) return true
   if (a.toLowerCase() === b.toLowerCase()) return true

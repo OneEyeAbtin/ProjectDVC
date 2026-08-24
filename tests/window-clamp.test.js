@@ -7,12 +7,13 @@ vi.mock('electron', () => ({
   nativeImage: { createFromDataURL: vi.fn() },
   Tray: class {},
   Menu: { buildFromTemplate: vi.fn() },
-  screen: { getPrimaryDisplay: vi.fn() },
+  screen: { getPrimaryDisplay: vi.fn(), getDisplayMatching: vi.fn() },
   app: { on: vi.fn(), quit: vi.fn(), whenReady: () => Promise.resolve() }
 }))
 
 import { clampToWorkarea, createWindowService } from '../src/main/services/window.service.js'
 import { createConfigService } from '../src/main/services/config.service.js'
+import { screen } from 'electron'
 
 const WA = { x: 0, y: 0, width: 1920, height: 1040 }
 
@@ -75,5 +76,87 @@ describe('createWindowService config binding', () => {
     expect(written.win_y).toBe(222)
     expect(written.persona).toBe('Tsundere')
     expect(written.session_summary).toBeUndefined()
+  })
+})
+
+describe('restorePosition multi-monitor handling', () => {
+  function makeWin({ listeners = {}, bounds = { width: 400, height: 700 } } = {}) {
+    const calls = { setPosition: [] }
+    const win = {
+      on: (ev, fn) => {
+        listeners[ev] = fn
+      },
+      isDestroyed: () => false,
+      getPosition: () => [0, 0],
+      getBounds: () => ({ ...bounds }),
+      setPosition: (x, y) => calls.setPosition.push([x, y])
+    }
+    return { win, calls }
+  }
+
+  it('accepts negative coords and clamps against the matched display workArea', () => {
+    const config = createConfigService({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), 'dvc-mm-')) })
+    config.patchSave({ win_x: -1920, win_y: 100 })
+    const leftMonitorWa = { x: -1920, y: 0, width: 1920, height: 1040 }
+    const { win, calls } = makeWin()
+    const svc = createWindowService({
+      win,
+      getConfig: () => config,
+      getWorkAreaForPoint: () => leftMonitorWa
+    })
+    svc.restorePosition()
+    expect(calls.setPosition).toHaveLength(1)
+    expect(calls.setPosition[0]).toEqual([-1920, 100])
+  })
+
+  it('uses getDisplayMatching for the point, not the primary display', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dvc-mm2-'))
+    const config = createConfigService({ rootDir: root })
+    config.patchSave({ win_x: 2500, win_y: 50 })
+    const rightMonitorWa = { x: 1920, y: 0, width: 1920, height: 1040 }
+    screen.getDisplayMatching.mockReturnValue({ workArea: rightMonitorWa })
+    const { win, calls } = makeWin({})
+    const svc = createWindowService({ win, getConfig: () => config })
+    svc.restorePosition()
+    expect(screen.getDisplayMatching).toHaveBeenCalledWith(
+      expect.objectContaining({ x: 2500, y: 50 })
+    )
+    // x=2500 fits inside the right monitor's workArea untouched:
+    expect(calls.setPosition[0]).toEqual([2500, 50])
+  })
+
+  it('falls back to primary workArea when display matching throws', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dvc-mm3-'))
+    const config = createConfigService({ rootDir: root })
+    config.patchSave({ win_x: 5000, win_y: 5000 })
+    screen.getDisplayMatching.mockImplementation(() => {
+      throw new Error('no displays')
+    })
+    screen.getPrimaryDisplay.mockReturnValue({ workArea: WA })
+    const { win, calls } = makeWin({})
+    const svc = createWindowService({ win, getConfig: () => config })
+    svc.restorePosition()
+    // clamped into primary 1920x1040 area
+    expect(calls.setPosition[0]).toEqual([1520, 340])
+  })
+
+  it('rejects non-integer saved positions; sentinel -1 clamps to workArea origin', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dvc-mm4-'))
+    const config = createConfigService({ rootDir: root })
+    screen.getPrimaryDisplay.mockReturnValue({ workArea: WA })
+    const { win, calls } = makeWin({})
+    const svc = createWindowService({
+      win,
+      getConfig: () => config,
+      getWorkAreaForPoint: () => WA
+    })
+    // Fresh save carries the -1/-1 "never moved" sentinel: integers now pass
+    // validation and clamp to the workArea origin (was silently skipped before).
+    svc.restorePosition()
+    expect(calls.setPosition).toEqual([[0, 0]])
+
+    config.patchSave({ win_x: Number.NaN, win_y: 10 })
+    svc.restorePosition()
+    expect(calls.setPosition).toHaveLength(1)
   })
 })
