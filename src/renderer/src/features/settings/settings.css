@@ -181,6 +181,112 @@
   color: var(--txt2);
 }
 
+/* ── Memory tab ──────────────────────────────────────────────────────────── */
+.mem-list {
+  list-style: none;
+  max-height: 118px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg4) transparent;
+}
+.mem-empty {
+  font-size: 12.5px;
+  font-style: italic;
+  color: var(--txt2);
+}
+.mem-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: color-mix(in srgb, var(--bg1) 55%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 5px 8px;
+  font-size: 12.5px;
+  color: var(--txt1);
+}
+.mem-item-text { flex: 1; word-break: break-word; }
+.mem-del {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  padding: 3px;
+  color: var(--txt2);
+  transition: color .15s ease, background .15s ease;
+}
+.mem-del:hover:not(.confirm-armed) {
+  color: #ff6b6b;
+  background: color-mix(in srgb, var(--bg4) 60%, transparent);
+}
+
+.confirm-armed {
+  background: #e5484d !important;
+  border-color: #e5484d !important;
+  color: #fff !important;
+  font-weight: 700;
+}
+
+.summary-text {
+  max-height: 96px;
+  overflow-y: auto;
+  user-select: text;
+  background: color-mix(in srgb, var(--bg1) 55%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 9px 11px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--txt1);
+}
+.summary-empty { font-style: italic; color: var(--txt2); }
+
+.hist-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.hist-lines {
+  list-style: none;
+  max-height: 170px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg4) transparent;
+}
+.hist-line { font-size: 12.5px; line-height: 1.5; }
+.hist-role { font-weight: 700; margin-right: 5px; }
+.hist-line.user .hist-role { color: var(--acc1); }
+.hist-line.assistant .hist-role { color: var(--txt2); }
+.hist-text { color: var(--txt1); word-break: break-word; }
+.hist-note {
+  list-style: none;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--txt2);
+}
+
+.limit-row { display: flex; align-items: center; gap: 10px; }
+.limit-row input[type='range'] { flex: 1; accent-color: var(--acc1); }
+.limit-value {
+  min-width: 28px;
+  text-align: center;
+  background: color-mix(in srgb, var(--bg4) 70%, transparent);
+  border-radius: 8px;
+  padding: 3px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--txt1);
+  font-variant-numeric: tabular-nums;
+}
+
+.btn.small { padding: 6px 14px; font-size: 12px; border-radius: 9px; }
+
+.settings-body :focus-visible { outline: 2px solid var(--acc1); outline-offset: 2px; }
+
 .settings-foot {
   display: flex;
   justify-content: flex-end;

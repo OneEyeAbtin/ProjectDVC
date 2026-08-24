@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, Eye, EyeOff, X } from 'lucide-react'
+import { Check, Eye, EyeOff, Trash2, X } from 'lucide-react'
 import { useStore } from '../../state/store.js'
 import { THEME_META } from '../menu/menuData.js'
 import './settings.css'
 
 const TABS = ['General', 'AI/API', 'Voice', 'Memory']
 const BRAIN_MODES = ['local', 'online', 'offline']
+const HISTORY_PAGE = 50
 
 function buildSnapshot(state) {
   const cfg = state.config ?? {}
@@ -15,6 +16,7 @@ function buildSnapshot(state) {
     brain_mode: state.brainMode ?? 'online',
     hearts_visible: state.heartsVisible !== false,
     theme_id: state.theme ?? 'midnight-sakura',
+    max_history: Number(cfg.max_history) || 20,
     online_api_url: cfg.online_api_url ?? '',
     online_api_key: cfg.online_api_key ?? '',
     online_api_model: cfg.online_api_model ?? '',
@@ -69,8 +71,140 @@ function SecretField({ id, label, value, onChange }) {
   )
 }
 
+function useArmTimeout(ms = 3000) {
+  const [armed, setArmed] = useState(false)
+  const timer = useRef(null)
+  useEffect(() => () => clearTimeout(timer.current), [])
+  function press(onConfirm) {
+    if (!armed) {
+      setArmed(true)
+      clearTimeout(timer.current)
+      timer.current = setTimeout(() => setArmed(false), ms)
+      return
+    }
+    clearTimeout(timer.current)
+    setArmed(false)
+    onConfirm()
+  }
+  return { armed, press }
+}
+
+// Destructive actions need two clicks: the first arms (red "Really?" label,
+// auto-disarms after 3s), the second executes.
+function ConfirmButton({ className = '', confirmLabel = 'Really?', ariaLabel, onConfirm, children }) {
+  const { armed, press } = useArmTimeout()
+  return (
+    <button
+      type="button"
+      className={armed ? `${className} confirm-armed` : className}
+      aria-label={ariaLabel}
+      onClick={() => press(onConfirm)}
+    >
+      {armed ? confirmLabel : children}
+    </button>
+  )
+}
+
+function TraitList({ items, emptyText, deleteAriaPrefix, onDelete }) {
+  if (!items.length) return <p className="mem-empty">{emptyText}</p>
+  return (
+    <ul className="mem-list">
+      {items.map((text) => (
+        <li className="mem-item" key={text}>
+          <span className="mem-item-text">{text}</span>
+          <ConfirmButton
+            className="mem-del"
+            ariaLabel={`${deleteAriaPrefix}: ${text}`}
+            onConfirm={() => onDelete(text)}
+          >
+            <Trash2 size={13} />
+          </ConfirmButton>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function HistoryViewer() {
+  const petName = useStore((s) => s.petName)
+  const [expanded, setExpanded] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [entries, setEntries] = useState([])
+
+  async function toggle() {
+    if (expanded) {
+      setExpanded(false)
+      return
+    }
+    setLoading(true)
+    try {
+      const res = await window.dvc.invoke('history:get')
+      setEntries(Array.isArray(res?.history) ? res.history : [])
+      setExpanded(true)
+    } catch (err) {
+      useStore.getState().setError({ scope: 'history', message: String(err?.message ?? err) })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function clear() {
+    try {
+      await window.dvc.invoke('history:clear')
+      setEntries([])
+    } catch (err) {
+      useStore.getState().setError({ scope: 'history', message: String(err?.message ?? err) })
+    }
+  }
+
+  const shown = entries.slice(-HISTORY_PAGE)
+  const hiddenCount = entries.length - shown.length
+
+  return (
+    <div className="history-viewer">
+      <div className="hist-toggle-row">
+        <button
+          type="button"
+          className="btn ghost small"
+          aria-expanded={expanded}
+          onClick={toggle}
+        >
+          {loading ? 'Loading…' : expanded ? 'Hide history' : 'Show history'}
+        </button>
+        {expanded && (
+          <ConfirmButton className="btn ghost small" ariaLabel="Clear chat history" onConfirm={clear}>
+            Clear history
+          </ConfirmButton>
+        )}
+      </div>
+      {expanded &&
+        (entries.length ? (
+          <ul className="hist-lines">
+            {hiddenCount > 0 && <li className="hist-note">…older hidden</li>}
+            {shown.map((m, i) => (
+              <li
+                className={`hist-line ${m?.role === 'user' ? 'user' : 'assistant'}`}
+                key={i}
+              >
+                <span className="hist-role">
+                  {m?.role === 'user' ? 'You' : petName || 'Assistant'}:
+                </span>
+                <span className="hist-text">{String(m?.content ?? '')}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mem-empty">(none yet)</p>
+        ))}
+    </div>
+  )
+}
+
 export default function SettingsOverlay() {
   const open = useStore((s) => s.settingsOpen)
+  const traits = useStore((s) => s.traits)
+  const permanentFacts = useStore((s) => s.permanentFacts)
+  const sessionSummary = useStore((s) => s.sessionSummary)
   const [tab, setTab] = useState('General')
   const [draft, setDraft] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -283,7 +417,72 @@ export default function SettingsOverlay() {
           )}
 
           {tab === 'Voice' && <p className="tab-placeholder">Voice arrives in Plan 2</p>}
-          {tab === 'Memory' && <p className="tab-placeholder">Memory viewer arrives in Plan 3</p>}
+          {tab === 'Memory' && (
+            <>
+              <h3 className="section-title">Session traits</h3>
+              <TraitList
+                items={traits}
+                emptyText="(none yet)"
+                deleteAriaPrefix="Delete trait"
+                onDelete={(text) => useStore.getState().deleteTrait(text)}
+              />
+              <ConfirmButton
+                className="btn ghost small"
+                ariaLabel="Wipe all session traits"
+                onConfirm={() => useStore.getState().wipeTraits()}
+              >
+                Wipe all
+              </ConfirmButton>
+
+              <h3 className="section-title">Permanent facts</h3>
+              <TraitList
+                items={permanentFacts}
+                emptyText="(none yet)"
+                deleteAriaPrefix="Delete fact"
+                onDelete={(text) => useStore.getState().deletePermanentFact(text)}
+              />
+              <ConfirmButton
+                className="btn ghost small"
+                ariaLabel="Wipe all permanent facts"
+                onConfirm={() => useStore.getState().wipePermanentFacts()}
+              >
+                Wipe all
+              </ConfirmButton>
+
+              <h3 className="section-title">Session summary</h3>
+              <p className={`summary-text${sessionSummary ? '' : ' summary-empty'}`}>
+                {sessionSummary || '(none yet)'}
+              </p>
+              <ConfirmButton
+                className="btn ghost small"
+                ariaLabel="Clear session summary"
+                onConfirm={() => useStore.getState().clearSummary()}
+              >
+                Clear
+              </ConfirmButton>
+
+              <h3 className="section-title">Chat history</h3>
+              <HistoryViewer />
+
+              <div className="field">
+                <label htmlFor="memory-limit-slider">Message limit</label>
+                <div className="limit-row">
+                  <input
+                    id="memory-limit-slider"
+                    type="range"
+                    min={4}
+                    max={50}
+                    step={1}
+                    value={draft.max_history}
+                    onChange={(e) => setField('max_history', Number(e.target.value))}
+                  />
+                  <output id="memory-limit-value" className="limit-value" htmlFor="memory-limit-slider">
+                    {draft.max_history}
+                  </output>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         <footer className="settings-foot">

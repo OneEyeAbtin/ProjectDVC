@@ -35,6 +35,7 @@ export const useStore = create((set, get) => ({
   historyCount: 0,
   maxHistory: 20,
   lastResponse: '',
+  sessionSummary: '',
 
   // ui overlays
   settingsOpen: false,
@@ -78,7 +79,8 @@ export const useStore = create((set, get) => ({
         config: data.config && typeof data.config === 'object' ? data.config : {},
         maxHistory: Number(data.config?.max_history) || 20,
         setupQuestions: Array.isArray(data.setupQuestions) ? data.setupQuestions : [],
-        lastResponse: typeof save.last_response === 'string' ? save.last_response : ''
+        lastResponse: typeof save.last_response === 'string' ? save.last_response : '',
+        sessionSummary: typeof save.session_summary === 'string' ? save.session_summary : ''
       })
     }
     get()._subscribe()
@@ -174,6 +176,53 @@ export const useStore = create((set, get) => ({
     set({ statsOpen: Boolean(open) })
   },
 
+  // Memory mutations; the `traits` push reconciles session traits, the
+  // permanent-facts handlers have no push so their results are applied here.
+  async deleteTrait(text) {
+    try {
+      const traits = await window.dvc.invoke('memory:delete-trait', { text })
+      if (Array.isArray(traits)) set({ traits })
+    } catch (err) {
+      get().setError({ scope: 'memory', message: String(err?.message ?? err) })
+    }
+  },
+
+  async wipeTraits() {
+    try {
+      const traits = await window.dvc.invoke('memory:wipe-traits')
+      set({ traits: Array.isArray(traits) ? traits : [] })
+    } catch (err) {
+      get().setError({ scope: 'memory', message: String(err?.message ?? err) })
+    }
+  },
+
+  async deletePermanentFact(text) {
+    try {
+      const facts = await window.dvc.invoke('memory:delete-permanent', { text })
+      if (Array.isArray(facts)) set({ permanentFacts: facts })
+    } catch (err) {
+      get().setError({ scope: 'memory', message: String(err?.message ?? err) })
+    }
+  },
+
+  async wipePermanentFacts() {
+    try {
+      const facts = await window.dvc.invoke('memory:wipe-permanent')
+      set({ permanentFacts: Array.isArray(facts) ? facts : [] })
+    } catch (err) {
+      get().setError({ scope: 'memory', message: String(err?.message ?? err) })
+    }
+  },
+
+  async clearSummary() {
+    try {
+      const save = await window.dvc.invoke('memory:clear-summary')
+      if (save && typeof save.session_summary === 'string') set({ sessionSummary: save.session_summary })
+    } catch (err) {
+      get().setError({ scope: 'memory', message: String(err?.message ?? err) })
+    }
+  },
+
   // Optimistic profile switches; rolled back if the IPC round-trip fails.
   setTheme(themeId) {
     const next = String(themeId ?? '').trim()
@@ -233,7 +282,9 @@ export const useStore = create((set, get) => ({
       heartsVisible: save.hearts_visible !== undefined ? save.hearts_visible !== false : get().heartsVisible,
       theme: save.theme_id ?? get().theme,
       brainMode: save.brain_mode ?? get().brainMode,
-      emotion: save.last_emotion ?? get().emotion
+      emotion: save.last_emotion ?? get().emotion,
+      sessionSummary:
+        typeof save.session_summary === 'string' ? save.session_summary : get().sessionSummary
     })
   },
 
