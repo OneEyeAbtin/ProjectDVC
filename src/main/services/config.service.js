@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { DEFAULTS, SETTINGS_KEYS, SAVE_KEYS } from '../data/defaults.js'
 import { THEMES_NAME_TO_ID, DEFAULT_THEME_ID } from '../data/themes.js'
+import { atomicWrite, writeJsonAtomic } from '../lib/atomic.js'
 
 const SETTINGS_DEFAULTS = DEFAULTS
 const SAVE_DEFAULTS = Object.fromEntries(SAVE_KEYS.map((k) => [k, structuredClone(DEFAULTS[k])]))
@@ -14,6 +15,9 @@ export function deepMerge(base, patch) {
   if (!isPlainObj(patch)) return patch === undefined ? base : patch
   const out = isPlainObj(base) ? { ...base } : {}
   for (const [key, value] of Object.entries(patch)) {
+    // Prototype-pollution guard: never copy structural keys from untrusted
+    // (IPC-supplied) patches onto fresh objects.
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue
     out[key] = isPlainObj(value) && isPlainObj(out[key]) ? deepMerge(out[key], value) : structuredClone(value)
   }
   return out
@@ -27,16 +31,6 @@ function loadJson(file, fallback) {
   } catch {
     return structuredClone(fallback)
   }
-}
-
-function atomicWrite(file, data) {
-  const tmp = `${file}.tmp`
-  fs.writeFileSync(tmp, data)
-  fs.renameSync(tmp, file)
-}
-
-function writeJsonAtomic(file, obj) {
-  atomicWrite(file, JSON.stringify(obj, null, 2))
 }
 
 export function createConfigService({ rootDir }) {

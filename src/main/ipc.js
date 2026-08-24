@@ -9,6 +9,7 @@ import { parseTags } from './services/brain.service.js'
 import { createConfigService } from './services/config.service.js'
 import { createMemoryService } from './services/memory.service.js'
 import { createBrain } from './services/brain.service.js'
+import { atomicWrite } from './lib/atomic.js'
 
 const BUS_TO_CHANNEL = {
   'emotion:set': 'emotion',
@@ -22,12 +23,6 @@ const FORCEABLE_EMOTIONS = [...new Set([...DEFAULTS.emotions, ...TRANSIENT_EMOTI
 
 function isPlainObj(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v)
-}
-
-function atomicWrite(file, data) {
-  const tmp = `${file}.tmp`
-  fs.writeFileSync(tmp, data)
-  fs.renameSync(tmp, file)
 }
 
 export function registerIpc({ services, getWin }) {
