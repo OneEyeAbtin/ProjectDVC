@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
-const INVOKE_CHANNELS = new Set([
+export const INVOKE_CHANNELS = new Set([
   'app:init',
   'setup:complete',
   'msg:send',
@@ -22,7 +22,7 @@ const INVOKE_CHANNELS = new Set([
   'voice:stop'
 ])
 
-const PUSH_CHANNELS = new Set([
+export const PUSH_CHANNELS = new Set([
   'reply',
   'emotion',
   'stats',

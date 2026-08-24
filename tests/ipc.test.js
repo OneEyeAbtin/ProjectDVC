@@ -11,7 +11,7 @@ vi.mock('electron', () => ({
 
 import { ipcMain, contextBridge } from 'electron'
 import { registerIpc } from '../src/main/ipc.js'
-import '../src/preload/api.js'
+import { INVOKE_CHANNELS } from '../src/preload/api.js'
 import { createConfigService } from '../src/main/services/config.service.js'
 import { createMemoryService } from '../src/main/services/memory.service.js'
 import { createCharactersService } from '../src/main/services/characters.service.js'
@@ -143,8 +143,23 @@ describe('ipc msg:send cheat codes', () => {
     expect(channels).toContain('reply')
     expect(channels).toContain('stats')
     expect(channels).toContain('emotion')
+    const reply = h.sent.find(([c]) => c === 'reply')?.[1]
+    expect(reply.text).toContain('*sparkles* MAX LOVE~')
+    expect(reply.emotion).toBe('love')
     expect(h.config.getSave().last_emotion).toBe('love')
     expect(h.brain.history).toHaveLength(0)
+  })
+
+  it('every cheat acked from msg:send pushes a reply so thinking clears', () => {
+    for (const phrase of ['forcehappy', 'forcetalking', 'showmehearts', 'rosebud', 'iddqd', 'upupdowndown', 'amnesia']) {
+      const h = makeHarness()
+      const ack = h.call('msg:send', { text: phrase })
+      expect(ack).toEqual({ cheated: true })
+      const replies = h.sent.filter(([c]) => c === 'reply')
+      expect(replies, `cheat ${phrase} must push a reply`).toHaveLength(1)
+      expect(replies[0][1]).toHaveProperty('text')
+      expect(replies[0][1]).toHaveProperty('emotion')
+    }
   })
 
   it('motherlode aliases rosebud', () => {
@@ -153,11 +168,14 @@ describe('ipc msg:send cheat codes', () => {
     expect(h.config.getSave().stats.affection).toBe(100)
   })
 
-  it('iddqd maxes all stats', () => {
+  it('iddqd maxes all stats and pushes its display reply', () => {
     const h = makeHarness()
-    h.call('cheat:try', { text: 'IDDQD' })
+    expect(h.call('cheat:try', { text: 'IDDQD' })).toEqual({ cheated: true })
     const stats = h.config.getSave().stats
     expect(Object.values(stats).every((v) => v === 100)).toBe(true)
+    const reply = h.sent.find(([c]) => c === 'reply')?.[1]
+    expect(reply.text).toContain('*POWER OVERWHELMING*')
+    expect(reply.emotion).toBe('excited')
   })
 
   it('upupdowndown switches persona to Girlfriend', () => {
@@ -182,6 +200,10 @@ describe('ipc msg:send cheat codes', () => {
     expect(h.call('msg:send', { text: 'forcetalking' })).toEqual({ cheated: true })
     expect(h.config.getSave().last_emotion).toBe('neutral')
     expect(h.sent.some(([c, p]) => c === 'emotion' && p === 'talking')).toBe(true)
+    // Reply still pushed (clears thinking) but carries the transient emotion
+    // without persisting it.
+    const reply = h.sent.find(([c]) => c === 'reply')?.[1]
+    expect(reply.emotion).toBe('talking')
 
     h.sent.length = 0
     expect(h.call('msg:send', { text: 'forcebanana' })).toEqual({ queued: true })
@@ -340,6 +362,17 @@ describe('ipc voice stubs', () => {
 })
 
 describe('preload allowlist', () => {
+  it('every allowlisted invoke channel has a registered ipcMain handler and vice versa', () => {
+    makeHarness()
+    const registered = new Set(ipcMain.handle.mock.calls.map(([ch]) => ch))
+    for (const ch of INVOKE_CHANNELS) {
+      expect(registered.has(ch), `allowlisted channel ${ch} has no ipcMain handler`).toBe(true)
+    }
+    for (const ch of registered) {
+      expect(INVOKE_CHANNELS.has(ch), `handler ${ch} is missing from the preload allowlist`).toBe(true)
+    }
+  })
+
   it('exposes dvc api with channel allowlists', async () => {
     const { ipcRenderer } = await import('electron')
     const api = contextBridge.exposeInMainWorld.mock.calls.at(-1)[1]
