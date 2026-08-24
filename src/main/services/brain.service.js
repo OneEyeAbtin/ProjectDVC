@@ -224,12 +224,30 @@ export function createBrain({
     }
   }
 
+  async function regenerate() {
+    const last = hist[hist.length - 1]
+    if (!last || last.role !== 'assistant') return null
+    let userIdx = -1
+    for (let i = hist.length - 2; i >= 0; i--) {
+      if (hist[i].role === 'user') {
+        userIdx = i
+        break
+      }
+    }
+    if (userIdx === -1) return null
+    const text = hist[userIdx].content
+    hist.pop()
+    hist.splice(userIdx, 1)
+    return send(text)
+  }
+
   function clearHistory() {
     hist.length = 0
   }
 
   return {
     send,
+    regenerate,
     sysPrompt,
     clearHistory,
     get history() {

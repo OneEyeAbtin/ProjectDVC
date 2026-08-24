@@ -93,9 +93,17 @@ export const DEFAULTS = {
   setup_complete: false,
   setup_answers: {},
   last_emotion: 'neutral',
-  theme_id: 'midnight-sakura'
+  theme_id: 'midnight-sakura',
+
+  always_on_top: true,
+  tray_enabled: true,
+  ui_sounds: true,
+  hide_to_tray: true,
+  win_x: -1,
+  win_y: -1,
+  font_scale: 1.0
 }
 
 export const SETTINGS_KEYS = Object.keys(DEFAULTS)
 
-export const SAVE_KEYS = ['user_name', 'pet_name', 'persona', 'outfit', 'brain_mode', 'stats', 'tts_enabled', 'tts_engine', 'lip_sync_tts', 'lip_sync_text', 'selected_offline_voice', 'hearts_visible', 'setup_complete', 'setup_answers', 'last_emotion', 'theme_id']
+export const SAVE_KEYS = ['user_name', 'pet_name', 'persona', 'outfit', 'brain_mode', 'stats', 'tts_enabled', 'tts_engine', 'lip_sync_tts', 'lip_sync_text', 'selected_offline_voice', 'hearts_visible', 'setup_complete', 'setup_answers', 'last_emotion', 'theme_id', 'win_x', 'win_y', 'font_scale']

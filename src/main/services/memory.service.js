@@ -126,6 +126,16 @@ export function createMemoryService({ rootDir }) {
     return getSessionTraits()
   }
 
+  function removeSessionTrait(text) {
+    const target = String(text ?? '')
+    const idx = sessionTraits.indexOf(target)
+    if (idx !== -1) {
+      sessionTraits.splice(idx, 1)
+      persistSessionTraits()
+    }
+    return getSessionTraits()
+  }
+
   function classifyTrait(trait) {
     if (typeof trait !== 'string' || !trait.trim()) return 'session'
     const tl = trait.toLowerCase()
@@ -145,6 +155,22 @@ export function createMemoryService({ rootDir }) {
       persistSessionTraits()
     }
     return tier
+  }
+
+  function deletePermanent(text) {
+    const target = String(text ?? '')
+    const idx = permanent.indexOf(target)
+    if (idx !== -1) {
+      permanent.splice(idx, 1)
+      persistPermanent()
+    }
+    return getPermanent()
+  }
+
+  function wipePermanent() {
+    permanent = []
+    persistPermanent()
+    return getPermanent()
   }
 
   function rotateAndSave() {
@@ -236,6 +262,9 @@ export function createMemoryService({ rootDir }) {
     getSessionTraits,
     addTrait,
     setSessionTraits,
+    removeSessionTrait,
+    deletePermanent,
+    wipePermanent,
     rotateAndSave,
     buildMemoryPrompt,
     classifyTrait,
