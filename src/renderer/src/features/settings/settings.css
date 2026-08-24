@@ -2,6 +2,9 @@
   position: absolute;
   inset: 0;
   z-index: 40;
+  /* Match the shell's rounding: backdrop-filter can escape the ancestor's
+     overflow clip, so the overlay carries its own radius. */
+  border-radius: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -69,6 +72,10 @@
   scrollbar-width: thin;
   scrollbar-color: var(--bg4) transparent;
 }
+/* The body is the scroller: children must keep their natural height instead
+   of flex-shrinking (which collapsed the traits list to a few px and clipped
+   the summary box) and let the body scroll instead. */
+.settings-body > * { flex-shrink: 0; }
 
 .field { display: flex; flex-direction: column; gap: 5px; }
 .field label,
@@ -194,6 +201,7 @@
 /* ── Memory tab ──────────────────────────────────────────────────────────── */
 .mem-list {
   list-style: none;
+  min-height: 34px;
   max-height: 118px;
   overflow-y: auto;
   display: flex;
@@ -243,6 +251,7 @@
 }
 
 .summary-text {
+  min-height: 40px;
   max-height: 96px;
   overflow-y: auto;
   user-select: text;
