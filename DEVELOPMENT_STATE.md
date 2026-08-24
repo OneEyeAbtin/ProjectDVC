@@ -27,7 +27,7 @@ pre-rebuild checkpoint commit `e812075`.
 | Phase | Status | Contents |
 |---|---|---|
 | Plan 1 ✅ | **done, on branch** | Scaffold, themes, config+migration, memory, characters, brain, IPC, wizard, companion UI, context menu, settings shell |
-| Plan 2 ✅ | **done, on branch** | Voice: TTS chain (ElevenLabs→edge-tts→Piper) + arbitration + auto-speak, lip-sync state machine, voice settings tab, mic STT via Groq Whisper + VU meter + auto-send. Commit range: `5a2da0a..b46d6a0`. Local Whisper STT **deferred** (Groq-only for now). |
+| Plan 2 ✅ | **done, on branch** | Voice: TTS chain (ElevenLabs→edge-tts→Piper) + arbitration + auto-speak, lip-sync state machine, voice settings tab, mic STT via Groq Whisper + VU meter + auto-send. Commit range: `5a2da0a..14fa94c`. Local Whisper STT **deferred** (Groq-only for now). |
 | Plan 3 ✅ | **done, on branch** | Depth+QoL: stats dialog, memory viewer + wipes + msg-limit, history channels, regenerate, tray/window persistence/always-on-top, WebAudio sounds, regenerate/copy buttons, shortcuts, font scale, redo-setup + factory reset. Commit range: `32017e0..3f7d315` |
 | Audit ✅ | **done, on branch** | Deep logic audit (1 Critical/3 Important/8 Minor — all fixed) + QoL wave. Commit range: `60df194..0a1454b`. 148/148 tests |
 | Polish C ✅ | **done, on branch** | Session-summary boot greeting, idle chatter (toggle `idle_chat`), memory export/import, bubble text select, shared emotions module, defensive patches. Commit range: `0a1454b..3e41d58`. 170/170 tests |
