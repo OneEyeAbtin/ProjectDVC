@@ -290,6 +290,15 @@ export function registerIpc({ services, getWin }) {
       return services.config.getSave()
     },
 
+    // Legacy parity (legacy/core/main.py outfit|__rescan__): re-read the outfits
+    // directory so sprites dropped in at runtime appear without an app restart.
+    'characters:rescan': () => {
+      services.characters.scan()
+      const manifest = services.characters.manifest()
+      push('outfits', manifest)
+      return manifest
+    },
+
     'cheat:try': (payload) => {
       const text = typeof payload === 'string' ? payload : payload?.text
       return { cheated: runCheat(text) }

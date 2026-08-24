@@ -28,24 +28,39 @@ export function createWindowService({ win, getConfig, onCloseToQuit, getWorkArea
   let moveTimer = null
   let quitting = false
 
-  function ensureTray() {
-    if (tray || trayFailed) return
+  // QoL-7: the tray's first row always reflects current visibility —
+  // "Hide DVC" while the window shows, "Show DVC" while hidden — and the menu
+  // is rebuilt on every visibility change (win 'show'/'hide' events).
+  function rebuildTrayMenu() {
+    if (!tray || trayFailed) return
     try {
-      tray = new Tray(trayIcon())
-      tray.setToolTip('Desktop Virtual Companion')
       tray.setContextMenu(
         Menu.buildFromTemplate([
           {
-            label: 'Show DVC',
+            label: win.isVisible() ? 'Hide DVC' : 'Show DVC',
             click: () => {
-              win.show()
-              win.focus()
+              if (win.isVisible()) win.hide()
+              else {
+                win.show()
+                win.focus()
+              }
             }
           },
           { type: 'separator' },
           { label: 'Quit', click: () => app.quit() }
         ])
       )
+    } catch (err) {
+      console.warn('[dvc] tray menu rebuild failed:', String(err?.message ?? err))
+    }
+  }
+
+  function ensureTray() {
+    if (tray || trayFailed) return
+    try {
+      tray = new Tray(trayIcon())
+      tray.setToolTip('Desktop Virtual Companion')
+      rebuildTrayMenu()
     } catch (err) {
       console.warn('[dvc] tray unavailable, continuing without it:', String(err?.message ?? err))
       trayFailed = true
@@ -112,6 +127,9 @@ export function createWindowService({ win, getConfig, onCloseToQuit, getWorkArea
   app.on('before-quit', () => {
     quitting = true
   })
+
+  win.on('show', rebuildTrayMenu)
+  win.on('hide', rebuildTrayMenu)
 
   win.on('close', (event) => {
     if (quitting) return
