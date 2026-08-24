@@ -3,6 +3,20 @@ import { Minus, Plus, X } from 'lucide-react'
 import { useStore } from '../../state/store.js'
 import './stats.css'
 
+// Hover descriptions for each stat row (native title tooltip).
+const STAT_DESCRIPTIONS = {
+  affection: 'How much she loves you',
+  rizz: 'Smooth-talking charm',
+  nerdiness: 'Geeky enthusiasm',
+  sass: 'Attitude level',
+  chaos: 'Unpredictable gremlin energy',
+  loyalty: 'Ride-or-die commitment',
+  creativity: 'Imagination & artistry',
+  wisdom: 'Good advice supply',
+  humor: 'Comedy skills',
+  romance: 'Sappy gesture frequency'
+}
+
 export function barColor(value) {
   if (value >= 70) return '#ffd700'
   if (value >= 30) return 'var(--acc1)'
@@ -62,8 +76,8 @@ export default function StatsDialog() {
             const name = String(key).replace(/_/g, ' ')
             const label = name.charAt(0).toUpperCase() + name.slice(1)
             return (
-              <div className="stat-row" key={key}>
-                <span className="stat-name" title={label}>{label}</span>
+              <div className="stat-row" key={key} title={STAT_DESCRIPTIONS[key] ?? label}>
+                <span className="stat-name" title={STAT_DESCRIPTIONS[key] ?? label}>{label}</span>
                 <div className="stat-track" aria-hidden="true">
                   <div
                     className="stat-fill"

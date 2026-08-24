@@ -90,6 +90,7 @@ export const DEFAULTS = {
   lip_sync_text: false,
   selected_offline_voice: '',
   hearts_visible: true,
+  hint_brain_shown: false,
   setup_complete: false,
   setup_answers: {},
   last_emotion: 'neutral',
@@ -107,4 +108,4 @@ export const DEFAULTS = {
 
 export const SETTINGS_KEYS = Object.keys(DEFAULTS)
 
-export const SAVE_KEYS = ['user_name', 'pet_name', 'persona', 'outfit', 'brain_mode', 'stats', 'tts_enabled', 'tts_engine', 'lip_sync_tts', 'lip_sync_text', 'selected_offline_voice', 'hearts_visible', 'setup_complete', 'setup_answers', 'last_emotion', 'theme_id', 'win_x', 'win_y', 'font_scale']
+export const SAVE_KEYS = ['user_name', 'pet_name', 'persona', 'outfit', 'brain_mode', 'stats', 'tts_enabled', 'tts_engine', 'lip_sync_tts', 'lip_sync_text', 'selected_offline_voice', 'hearts_visible', 'hint_brain_shown', 'setup_complete', 'setup_answers', 'last_emotion', 'theme_id', 'win_x', 'win_y', 'font_scale']
