@@ -55,6 +55,8 @@ app.whenReady().then(() => {
   windowSvc.applySettings()
   windowSvc.trackPosition()
   win.once('ready-to-show', () => windowSvc.restorePosition())
+  // Register the window service so profile:save can apply always_on_top/tray_enabled live.
+  services.window = windowSvc
 
   registerIpc({ services, getWin: () => win })
 })

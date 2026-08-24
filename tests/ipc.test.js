@@ -29,7 +29,7 @@ function makeOutfitsDir(root) {
   return dir
 }
 
-function makeHarness({ callLLM } = {}) {
+function makeHarness({ callLLM, windowService } = {}) {
   const root = makeRoot()
   const config = createConfigService({ rootDir: root })
   const memory = createMemoryService({ rootDir: root })
@@ -48,7 +48,7 @@ function makeHarness({ callLLM } = {}) {
     webContents: { send: (channel, payload) => sent.push([channel, payload]) }
   })
   registerIpc({
-    services: { config, memory, characters, brain },
+    services: { config, memory, characters, brain, ...(windowService ? { window: windowService } : {}) },
     getWin
   })
   const handlers = new Map(ipcMain.handle.mock.calls.map(([ch, fn]) => [ch, fn]))
@@ -58,6 +58,7 @@ function makeHarness({ callLLM } = {}) {
     config,
     memory,
     brain,
+    windowService,
     call: (channel, payload) => handlers.get(channel)(null, payload),
     flush: () => new Promise((resolve) => setTimeout(resolve, 0))
   }
@@ -285,6 +286,28 @@ describe('ipc profile:save', () => {
   it('throws on non-object patch', () => {
     const h = makeHarness()
     expect(() => h.call('profile:save', 'nope')).toThrow(/expects an object/)
+  })
+
+  it('regression: window setting patch invokes window service applySettings live', () => {
+    const windowService = { applySettings: vi.fn() }
+    const h = makeHarness({ windowService })
+
+    h.call('profile:save', { always_on_top: false })
+    expect(windowService.applySettings).toHaveBeenCalledTimes(1)
+    expect(h.config.getConfig().always_on_top).toBe(false)
+
+    h.call('profile:save', { tray_enabled: false, pet_name: 'Nova' })
+    expect(windowService.applySettings).toHaveBeenCalledTimes(2)
+    expect(h.config.getConfig().tray_enabled).toBe(false)
+    expect(h.config.getSave().pet_name).toBe('Nova')
+  })
+
+  it('save-only patches do not touch the window service', () => {
+    const windowService = { applySettings: vi.fn() }
+    const h = makeHarness({ windowService })
+
+    h.call('profile:save', { pet_name: 'Nova' })
+    expect(windowService.applySettings).not.toHaveBeenCalled()
   })
 })
 
