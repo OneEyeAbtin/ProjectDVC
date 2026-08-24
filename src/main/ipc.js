@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain, dialog as electronDialog } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import { on, emit } from './bus.js'
@@ -10,7 +10,7 @@ import { createConfigService } from './services/config.service.js'
 import { createMemoryService } from './services/memory.service.js'
 import { createBrain } from './services/brain.service.js'
 import { createIdleService, pickIdleLine } from './services/idle.service.js'
-import { atomicWrite } from './lib/atomic.js'
+import { atomicWrite, writeJsonAtomic } from './lib/atomic.js'
 
 const BUS_TO_CHANNEL = {
   'emotion:set': 'emotion',
@@ -226,6 +226,86 @@ export function registerIpc({ services, getWin, idleRand = Math.random }) {
     'memory:wipe-permanent': () => services.memory.wipePermanent(),
 
     'memory:clear-summary': () => services.config.patchSave({ session_summary: '' }),
+
+    // Memory portability: export writes {traits, permanentFacts,
+    // sessionSummary, setupAnswers} to a user-chosen JSON file; import
+    // validates the same shape and merges without clobbering existing data.
+    'memory:export': async () => {
+      const dialog = services.dialog ?? electronDialog
+      const save = services.config.getSave()
+      const payload = {
+        traits: services.memory.getSessionTraits(),
+        permanentFacts: services.memory.getPermanent(),
+        sessionSummary: typeof save.session_summary === 'string' ? save.session_summary : '',
+        setupAnswers: isPlainObj(save.setup_answers) ? structuredClone(save.setup_answers) : {}
+      }
+      const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+      const res = await dialog.showSaveDialog({
+        defaultPath: `dvc-memories-${stamp}.json`,
+        filters: [{ name: 'JSON', extensions: ['json'] }]
+      })
+      if (!res || res.canceled || !res.filePath) return { saved: false }
+      writeJsonAtomic(res.filePath, payload)
+      return { saved: true, path: res.filePath }
+    },
+
+    'memory:import': async () => {
+      const dialog = services.dialog ?? electronDialog
+      const res = await dialog.showOpenDialog({
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+        properties: ['openFile']
+      })
+      if (!res || res.canceled || !Array.isArray(res.filePaths) || res.filePaths.length === 0) {
+        return { imported: false }
+      }
+      let data
+      try {
+        data = JSON.parse(fs.readFileSync(res.filePaths[0], 'utf8'))
+      } catch {
+        throw new Error('Import failed: file is not valid JSON')
+      }
+      if (
+        !isPlainObj(data) ||
+        !Array.isArray(data.traits) ||
+        !Array.isArray(data.permanentFacts) ||
+        typeof data.sessionSummary !== 'string' ||
+        !isPlainObj(data.setupAnswers)
+      ) {
+        throw new Error('Import failed: unexpected memory file shape')
+      }
+
+      const traits = services.memory.setSessionTraits([
+        ...services.memory.getSessionTraits(),
+        ...data.traits.filter((t) => typeof t === 'string')
+      ])
+      const permanentFacts = services.memory.addPermanentFacts(
+        data.permanentFacts.filter((f) => typeof f === 'string')
+      )
+
+      const before = services.config.getSave()
+      const patch = { setup_answers: { ...(isPlainObj(before.setup_answers) ? before.setup_answers : {}) } }
+      if (!before.session_summary && data.sessionSummary.trim()) {
+        patch.session_summary = data.sessionSummary
+      }
+      // Fill in answers that are missing/empty locally; local values always win.
+      for (const [key, value] of Object.entries(data.setupAnswers)) {
+        const current = patch.setup_answers[key]
+        if (current === undefined || current === null || current === '') {
+          patch.setup_answers[key] = value
+        }
+      }
+      services.config.patchSave(patch)
+
+      const save = services.config.getSave()
+      push('traits', traits)
+      push('profile', { config: services.config.getConfig(), save })
+      return {
+        imported: true,
+        traits,
+        permanentFacts,
+        sessionSummary: typeof save.session_summary === 'string' ? save.session_summary : ''
+      }
+    },
 
     'history:get': () => ({ history: services.brain.history }),
 

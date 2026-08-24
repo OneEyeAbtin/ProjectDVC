@@ -14,6 +14,8 @@ export const INVOKE_CHANNELS = new Set([
   'memory:delete-permanent',
   'memory:wipe-permanent',
   'memory:clear-summary',
+  'memory:export',
+  'memory:import',
   'history:get',
   'history:clear',
   'outfit:switch',
