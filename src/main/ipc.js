@@ -248,6 +248,15 @@ export function registerIpc({ services, getWin }) {
           if (summary) services.config.patchSave({ session_summary: summary })
         }
       })
+      // Rewrite the migration marker: the wipe above deleted it, and without a fresh
+      // one the next boot would re-import legacy dvc_profile.json (resurrecting the
+      // just-wiped API keys). Must NOT call migrateLegacyIfNeeded() here — that would
+      // import the legacy profile immediately.
+      try {
+        fs.writeFileSync(path.join(memoryDir, '.migrated'), new Date().toISOString())
+      } catch {
+        void 0
+      }
       return services.config.getSave()
     },
 

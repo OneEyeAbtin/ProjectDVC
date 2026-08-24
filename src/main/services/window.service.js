@@ -19,7 +19,10 @@ export function clampToWorkarea(x, y, w, h, wa) {
   }
 }
 
-export function createWindowService({ win, config }) {
+// getConfig must be a lazy accessor (e.g. () => services.config) so the service
+// always reads the CURRENT config instance — factory reset replaces services.config,
+// and a captured stale instance would resurrect pre-reset save.json on window move.
+export function createWindowService({ win, getConfig }) {
   let tray = null
   let trayFailed = false
   let moveTimer = null
@@ -61,7 +64,7 @@ export function createWindowService({ win, config }) {
   }
 
   function applySettings() {
-    const cfg = config.getConfig()
+    const cfg = getConfig().getConfig()
     if (!win.isDestroyed()) win.setAlwaysOnTop(Boolean(cfg.always_on_top))
     if (cfg.tray_enabled) ensureTray()
     else destroyTray()
@@ -73,6 +76,7 @@ export function createWindowService({ win, config }) {
       moveTimer = setTimeout(() => {
         if (win.isDestroyed()) return
         const [x, y] = win.getPosition()
+        const config = getConfig()
         const save = config.getSave()
         if (save.win_x === x && save.win_y === y) return
         config.patchSave({ win_x: x, win_y: y })
@@ -81,7 +85,7 @@ export function createWindowService({ win, config }) {
   }
 
   function restorePosition() {
-    const save = config.getSave()
+    const save = getConfig().getSave()
     const { win_x: x, win_y: y } = save
     if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0) return
     const wa = screen.getPrimaryDisplay().workArea
@@ -96,7 +100,7 @@ export function createWindowService({ win, config }) {
 
   win.on('close', (event) => {
     if (quitting) return
-    const cfg = config.getConfig()
+    const cfg = getConfig().getConfig()
     if (cfg.hide_to_tray && cfg.tray_enabled && tray) {
       event.preventDefault()
       win.hide()
