@@ -16,7 +16,9 @@ import { atomicWrite, writeJsonAtomic } from './lib/atomic.js'
 const BUS_TO_CHANNEL = {
   'emotion:set': 'emotion',
   'stats:changed': 'stats',
-  'traits:changed': 'traits'
+  'traits:changed': 'traits',
+  'tts:ready': 'tts',
+  'tts': 'tts'
 }
 
 function isPlainObj(v) {
@@ -27,6 +29,23 @@ export function registerIpc({ services, getWin, idleRand = Math.random }) {
   function push(channel, payload) {
     const win = getWin()
     if (win && !win.isDestroyed()) win.webContents.send(channel, payload)
+    // Auto-speak: the single call site for spoken replies. Every reply push —
+    // normal flow, cheat messages, idle chatter — routes through here
+    // (legacy parity: everything the companion "says" gets spoken).
+    if (channel === 'reply') autoSpeak(payload)
+  }
+
+  function autoSpeak(payload) {
+    try {
+      const voice = services.voice
+      if (!voice) return
+      const ttsConfig = services.config.getConfig().tts_config ?? {}
+      if (!ttsConfig.enabled) return
+      const text = typeof payload?.text === 'string' ? payload.text : ''
+      void voice.speak({ text, emotion: payload?.emotion ?? null })
+    } catch {
+      // Speech must never break the reply flow.
+    }
   }
 
   // Idle chatter: timestamp refreshed on every user message; the timer resets
@@ -403,12 +422,23 @@ export function registerIpc({ services, getWin, idleRand = Math.random }) {
       return { cheated: runCheat(text) }
     },
 
-    'voice:speak': () => {
-      push('tts', { unsupported: true })
-      return { unsupported: true }
+    'voice:speak': (payload) => {
+      const voice = services.voice
+      if (!voice) {
+        push('tts', { unsupported: true })
+        return { unsupported: true }
+      }
+      void voice.speak({
+        text: typeof payload === 'string' ? payload : payload?.text,
+        emotion: payload?.emotion ?? null
+      })
+      return { queued: true }
     },
 
-    'voice:stop': () => ({ stopped: true })
+    'voice:stop': () => {
+      services.voice?.stop?.()
+      return { stopped: true }
+    }
   }
 
   for (const [channel, handler] of Object.entries(handlers)) {
