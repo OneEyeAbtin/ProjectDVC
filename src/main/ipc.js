@@ -13,8 +13,7 @@ import { createBrain } from './services/brain.service.js'
 const BUS_TO_CHANNEL = {
   'emotion:set': 'emotion',
   'stats:changed': 'stats',
-  'traits:changed': 'traits',
-  'reply:ready': 'reply'
+  'traits:changed': 'traits'
 }
 
 const TRANSIENT_EMOTIONS = ['talking', 'fullbody']
@@ -44,7 +43,7 @@ export function registerIpc({ services, getWin }) {
   function displayCheatMessage(raw) {
     const parsed = parseTags(raw)
     services.config.patchSave({ last_emotion: parsed.emotion })
-    emit('reply:ready', { text: parsed.clean, emotion: parsed.emotion })
+    push('reply', { text: parsed.clean, emotion: parsed.emotion })
     emit('emotion:set', parsed.emotion)
   }
 
@@ -71,6 +70,8 @@ export function registerIpc({ services, getWin }) {
       if (!FORCEABLE_EMOTIONS.includes(emo)) return false
       if (!TRANSIENT_EMOTIONS.includes(emo)) services.config.patchSave({ last_emotion: emo })
       emit('emotion:set', emo)
+      // Reply push so the renderer clears its thinking state via the normal flow.
+      push('reply', { text: '*strikes a pose*', emotion: emo })
       return true
     }
 
@@ -78,6 +79,7 @@ export function registerIpc({ services, getWin }) {
       const next = !services.config.getSave().hearts_visible
       services.config.patchSave({ hearts_visible: next })
       push('profile', { hearts_visible: next })
+      push('reply', { text: next ? '*hearts everywhere!* 💞' : '*tucks the hearts away* 🙈', emotion: null })
       return true
     }
 
