@@ -347,6 +347,31 @@ describe('characters:rescan', () => {
   })
 })
 
+describe('profile:save appearance keys', () => {
+  it('custom_gradient round-trips through profile:save and persists to disk', () => {
+    const h = makeHarness()
+    const gradient = { enabled: true, from: '#112233', to: '#000000', angle: 90 }
+    h.call('profile:save', { custom_gradient: gradient })
+
+    expect(h.config.getConfig().custom_gradient).toEqual(gradient)
+    const onDisk = JSON.parse(fs.readFileSync(path.join(h.root, 'data', 'config.json'), 'utf8'))
+    expect(onDisk.custom_gradient).toEqual(gradient)
+    // Renderer learns about it via the `profile` push.
+    const push = h.sent.filter(([c]) => c === 'profile').at(-1)[1]
+    expect(push.config.custom_gradient).toEqual(gradient)
+  })
+
+  it('custom_gradient partial patch deep-merges over the defaults', () => {
+    const h = makeHarness()
+    h.call('profile:save', { custom_gradient: { enabled: true } })
+    const saved = h.config.getConfig().custom_gradient
+    expect(saved.enabled).toBe(true)
+    expect(saved.from).toBe('#1a1025') // default survives
+    expect(saved.to).toBe('#0d0816')
+    expect(saved.angle).toBe(135)
+  })
+})
+
 describe('preload allowlist extensions', () => {
   it('accepts each new invoke channel and still rejects unknown ones', async () => {
     const { ipcRenderer } = await import('electron')

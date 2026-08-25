@@ -45,6 +45,35 @@ describe('settings draft snapshot', () => {
     snap.tts_config.enabled = false
     expect(cfg.tts_config.enabled).toBe(true)
   })
+
+  describe('custom background gradient', () => {
+    it('applies gradient defaults when the config is empty', () => {
+      const snap = buildSnapshot({ config: {} })
+      expect(snap.custom_gradient).toEqual({
+        enabled: false,
+        from: '#1a1025',
+        to: '#0d0816',
+        angle: 135
+      })
+    })
+
+    it('carries saved values and merges a partial object over defaults', () => {
+      const snap = buildSnapshot({ config: { custom_gradient: { enabled: true, from: '#112233' } } })
+      expect(snap.custom_gradient.enabled).toBe(true)
+      expect(snap.custom_gradient.from).toBe('#112233')
+      expect(snap.custom_gradient.to).toBe('#0d0816') // default survives
+      expect(snap.custom_gradient.angle).toBe(135) // default survives
+    })
+
+    it('sends custom_gradient whole when any subfield changes, omits it untouched', () => {
+      const base = buildSnapshot({ config: {} })
+      expect('custom_gradient' in diffPatch({ ...base }, base)).toBe(false)
+
+      const draft = { ...base, custom_gradient: { ...base.custom_gradient, angle: 90 } }
+      const patch = diffPatch(draft, base)
+      expect(patch.custom_gradient).toEqual({ ...base.custom_gradient, angle: 90 })
+    })
+  })
 })
 
 describe('draft diff (whole-object replace strategy)', () => {
