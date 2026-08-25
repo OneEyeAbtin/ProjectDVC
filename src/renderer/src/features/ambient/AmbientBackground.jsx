@@ -21,6 +21,11 @@ export default function AmbientBackground() {
   // Selected in Settings → General → Background; persisted via draft→Save,
   // delivered here through config pushes. Unknown/garbage falls back to stars.
   const particleTheme = sanitizeParticleTheme(useStore((s) => s.config?.particle_theme))
+  // Latest blocked state for the animation effect below: a theme switch must
+  // consult it at setup time without adding uiBlocked to that effect's deps
+  // (block/unblock is owned by the pause/resume effect, not a restart trigger).
+  const blockedRef = useRef(uiBlocked)
+  blockedRef.current = uiBlocked
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -106,7 +111,16 @@ export default function AmbientBackground() {
 
     function onVisibility() {
       if (document.hidden) stop()
-      else start()
+      else if (!blockedRef.current) start()
+    }
+
+    if (particleTheme === 'none') {
+      // 'None' = no particles under ANY motion preference: leave the canvas
+      // cleared and skip both the loop and the static reduced-motion frame.
+      ctx.clearRect(0, 0, width, height)
+      return () => {
+        disposed = true
+      }
     }
 
     if (reduceMotion) {
@@ -117,17 +131,12 @@ export default function AmbientBackground() {
       }
     }
 
-    if (particleTheme === 'none') {
-      // 'None' = no particles: leave the canvas cleared and skip the loop.
-      ctx.clearRect(0, 0, width, height)
-      return () => {
-        disposed = true
-      }
-    }
-
-    start()
     document.addEventListener('visibilitychange', onVisibility)
     controlsRef.current = { start, stop }
+    // A theme switch landing while an overlay covers the shell (settings/
+    // stats/context menu open) must NOT kick the loop — the unblock path
+    // resumes it via controls.start() when the last blocker closes.
+    if (!blockedRef.current && !document.hidden) start()
 
     const ro = new ResizeObserver(() => {
       readColors()
