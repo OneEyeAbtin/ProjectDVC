@@ -29,7 +29,16 @@ function copySprites() {
 }
 
 export default defineConfig({
-  main: {},
+  main: {
+    build: {
+      rollupOptions: {
+        // ws is a transitive dep (via msedge-tts) whose optional native
+        // modules (bufferutil, utf-8-validate) can't be bundled — keep it
+        // external so ws's own runtime fallback handling applies.
+        external: ['ws', 'bufferutil', 'utf-8-validate']
+      }
+    }
+  },
   preload: {
     build: { rollupOptions: { input: { api: r('src/preload/api.js') } } }
   },
