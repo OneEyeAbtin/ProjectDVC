@@ -54,6 +54,7 @@ export function buildSnapshot(state) {
     tray_enabled: cfg.tray_enabled !== false,
     ui_sounds: cfg.ui_sounds !== false,
     idle_chat: cfg.idle_chat !== false,
+    ambient_effects: cfg.ambient_effects !== false,
     font_scale: Number(state.fontScale) || 1,
     lip_sync_tts: state.lipSyncTts !== false,
     lip_sync_text: state.lipSyncText === true,
