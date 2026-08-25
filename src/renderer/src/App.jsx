@@ -3,6 +3,7 @@ import { useStore, useBoot } from './state/store.js'
 import { wireSfxEvents } from './lib/sfx.js'
 import SetupWizard from './features/setup/SetupWizard.jsx'
 import Companion from './features/companion/Companion.jsx'
+import AmbientBackground from './features/ambient/AmbientBackground.jsx'
 import ContextMenu from './features/menu/ContextMenu.jsx'
 import SettingsOverlay from './features/settings/SettingsOverlay.jsx'
 import StatsDialog from './features/stats/StatsDialog.jsx'
@@ -14,6 +15,9 @@ export default function App() {
   const setupComplete = useStore((s) => s.setupComplete)
   const theme = useStore((s) => s.theme)
   const fontScale = useStore((s) => s.fontScale)
+  // Ambient effects gate (config-backed, default on). When off, both layers
+  // unmount — the canvas rAF loop dies with the component.
+  const ambientEffects = useStore((s) => s.config?.ambient_effects !== false)
   const bootError = useStore((s) => (s.error?.scope === 'boot' ? s.error : null))
 
   useEffect(() => {
@@ -45,6 +49,7 @@ export default function App() {
 
   return (
     <div className="shell">
+      {ambientEffects && <AmbientBackground />}
       {!booted ? (
         <div className="boot-splash">
           <span className="boot-dot" />

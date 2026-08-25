@@ -107,6 +107,7 @@ export const DEFAULTS = {
   tray_enabled: true,
   ui_sounds: true,
   idle_chat: true,
+  ambient_effects: true,
   hide_to_tray: true,
   win_x: -1,
   win_y: -1,

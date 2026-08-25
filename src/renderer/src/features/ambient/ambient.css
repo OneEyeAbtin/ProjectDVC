@@ -1,0 +1,81 @@
+/* Ambient animation layer — sits under all shell content (z-index 0),
+   purely decorative, pointer-transparent. Every animation here is
+   transform/opacity only and is killed by the global
+   prefers-reduced-motion rule in global.css. */
+
+.ambient {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* Content above the ambient layer: the shell's real children must paint on
+   top. Overlays (settings/stats/context menu) already carry their own
+   z-index ≥ 40. */
+.shell > .companion,
+.shell > .wizard,
+.shell > .boot-splash {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Layer A: aurora orbs ────────────────────────────────────────────────── */
+/* Soft edges come from the radial-gradient falloff alone — no filter:blur. */
+.aurora { position: absolute; inset: 0; }
+
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform;
+}
+
+.orb-a {
+  width: 380px;
+  height: 380px;
+  top: -100px;
+  left: -110px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--acc1) 22%, transparent) 0%, transparent 70%);
+  animation: orb-drift-a 26s ease-in-out infinite alternate;
+}
+.orb-b {
+  width: 420px;
+  height: 420px;
+  top: 30%;
+  right: -160px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--acc2) 22%, transparent) 0%, transparent 70%);
+  animation: orb-drift-b 34s ease-in-out infinite alternate;
+  animation-delay: -8s;
+}
+.orb-c {
+  width: 300px;
+  height: 300px;
+  bottom: -80px;
+  left: 18%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--acc3) 22%, transparent) 0%, transparent 70%);
+  animation: orb-drift-c 42s ease-in-out infinite alternate;
+  animation-delay: -16s;
+}
+
+@keyframes orb-drift-a {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(64px, 46px) scale(1.14); }
+}
+@keyframes orb-drift-b {
+  from { transform: translate(0, 0) scale(1.08); }
+  to { transform: translate(-70px, -54px) scale(1); }
+}
+@keyframes orb-drift-c {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(52px, -40px) scale(1.18); }
+}
+
+/* ── Layer B: star particles ─────────────────────────────────────────────── */
+.starfield {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
