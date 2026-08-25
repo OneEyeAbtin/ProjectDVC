@@ -118,6 +118,15 @@
   color: var(--txt2);
 }
 
+/* Background section: live source label under the custom-gradient toggle
+   ("Following theme: X" vs "Custom override"). */
+.gradient-src {
+  margin: -4px 0 10px;
+  font-size: 0.7188rem;
+  font-style: italic;
+  color: var(--txt2);
+}
+
 .secret-field { position: relative; display: flex; align-items: center; }
 .secret-field input { width: 100%; padding-right: 38px; }
 .reveal-btn { position: absolute; right: 6px; color: var(--txt2); }

@@ -1,10 +1,14 @@
-// Custom shell background gradient — CSS-var bridge between the saved config
-// and the .shell background rule in global.css:
+// Shell background authority — CSS-var bridge between store state and the
+// .shell background rule in global.css:
 //   linear-gradient(var(--shell-grad-angle,135deg),
 //                   var(--shell-grad-from,var(--bg2)), var(--shell-grad-to,var(--bg1)))
-// Applied live from the settings draft (Cancel re-applies the persisted
-// values) and on boot/config-push by App.jsx. Mirrors DEFAULTS.custom_gradient
-// in src/main/data/defaults.js.
+// Each preset theme owns a built-in gradient (THEME_GRADIENTS in
+// src/main/data/themes.js): selecting a theme applies it. A custom gradient
+// (Settings → General → Background) overrides while enabled; turning it off
+// returns to the theme's gradient. Mirrors DEFAULTS.custom_gradient in
+// src/main/data/defaults.js.
+
+import { DEFAULT_THEME_ID, THEME_GRADIENTS } from '../../../../main/data/themes.js'
 
 export const DEFAULT_GRADIENT = { enabled: false, from: '#1a1025', to: '#0d0816', angle: 135 }
 
@@ -38,15 +42,21 @@ export function sanitizeGradient(value) {
   }
 }
 
-export function applyGradient(gradient) {
+// Effective gradient for the current shell state: the custom override wins
+// while enabled, otherwise the selected theme's built-in gradient. Unknown
+// theme ids fall back to the default theme so the shell always has colors.
+export function resolveBackground({ themeId, customGradient } = {}) {
+  const custom = sanitizeGradient(customGradient)
+  if (custom.enabled) return custom
+  const theme = THEME_GRADIENTS[themeId] ?? THEME_GRADIENTS[DEFAULT_THEME_ID]
+  return { enabled: true, from: theme.from, to: theme.to, angle: clampAngle(theme.angle) }
+}
+
+// Writes the effective gradient onto <html>; the store re-runs this whenever
+// theme or config.custom_gradient changes.
+export function applyBackground(options) {
+  const g = resolveBackground(options)
   const root = document.documentElement
-  const g = sanitizeGradient(gradient)
-  if (!g.enabled) {
-    root.style.removeProperty('--shell-grad-from')
-    root.style.removeProperty('--shell-grad-to')
-    root.style.removeProperty('--shell-grad-angle')
-    return
-  }
   root.style.setProperty('--shell-grad-from', g.from)
   root.style.setProperty('--shell-grad-to', g.to)
   root.style.setProperty('--shell-grad-angle', `${g.angle}deg`)

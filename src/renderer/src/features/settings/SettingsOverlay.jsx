@@ -565,6 +565,15 @@ export default function SettingsOverlay() {
                 <span className="toggle-text">Custom background gradient</span>
                 <SavedFlash seq={savedSeq.custom_gradient} />
               </label>
+              {/* Live source readout: which gradient the shell is actually
+                  wearing right now (theme-built-in vs custom override). */}
+              <p className="gradient-src" role="note">
+                {gradient.enabled
+                  ? 'Custom override'
+                  : `Following theme: ${
+                      THEME_META.find((t) => t.id === liveTheme)?.name ?? liveTheme
+                    }`}
+              </p>
 
               <div className="gradient-row">
                 <div className="field">
