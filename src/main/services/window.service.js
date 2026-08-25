@@ -143,6 +143,9 @@ export function createWindowService({ win, getConfig, onCloseToQuit, getWorkArea
     // summarization via the shared flusher with 'before-quit'; double writes
     // are guarded inside the flusher itself.
     onCloseToQuit?.()
+    // Explicit quit — never leave the app alive after an explicit close.
+    const { app } = require('electron')
+    app.quit()
   })
 
   return { applySettings, trackPosition, restorePosition }
