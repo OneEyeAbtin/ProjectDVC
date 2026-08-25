@@ -9,6 +9,7 @@ import { createCharactersService } from './services/characters.service.js'
 import { createBrain } from './services/brain.service.js'
 import { createWindowService } from './services/window.service.js'
 import { createVoiceService } from './services/voice.service.js'
+import { createMinecraftService } from './services/minecraft.service.js'
 import { registerMediaProtocol } from './media-protocol.js'
 import { createQuitFlush } from './lib/session-cache.js'
 
@@ -27,6 +28,9 @@ let win
 // listener below reads through it so registration order never matters.
 let flushSessionCacheRef = null
 let ipcDisposeRef = null
+// Assigned once the minecraft service exists inside whenReady; the module-level
+// before-quit listener reads through it so teardown never races registration.
+let mcDisconnectRef = null
 
 function createWindow() {
   win = new BrowserWindow({
@@ -77,6 +81,15 @@ app.whenReady().then(() => {
     rootDir,
     getConfig: () => services.config.getConfig()
   })
+
+  // Reads config through a live closure so the factory-reset config swap in
+  // ipc.js can never strand it with a stale settings reference.
+  services.minecraft = createMinecraftService({
+    rootDir,
+    config: { getConfig: () => services.config.getConfig(), getSave: () => services.config.getSave() },
+    getWin: () => win
+  })
+  mcDisconnectRef = () => services.minecraft?.disconnect()
   registerMediaProtocol({
     getRoots: () => [
       { mount: 'tts-cache', root: path.join(rootDir, 'data', 'tts-cache') },
@@ -112,6 +125,12 @@ app.on('before-quit', () => {
   // Stop the idle-chatter timer so no reply push fires during teardown.
   ipcDisposeRef?.()
   ipcDisposeRef = null
+  // Tear down the Minecraft drone child + WS so nothing outlives the app.
+  try {
+    mcDisconnectRef?.()
+  } catch {
+    void 0
+  }
 })
 
 app.on('window-all-closed', () => app.quit())

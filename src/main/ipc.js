@@ -21,6 +21,14 @@ const BUS_TO_CHANNEL = {
   'tts': 'tts'
 }
 
+// Minecraft drone bridges. mc:say is bubble+TTS-worthy, so it also routes
+// through autoSpeak like the normal reply flow.
+const MC_BUS_PUSH = {
+  'mc:connected': () => ({ connected: true }),
+  'mc:disconnected': () => ({ connected: false }),
+  'mc:error': (p) => ({ connected: false, error: p?.message ?? '' })
+}
+
 function isPlainObj(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v)
 }
@@ -66,6 +74,24 @@ export function registerIpc({ services, getWin, idleRand = Math.random }) {
 
   for (const [topic, channel] of Object.entries(BUS_TO_CHANNEL)) {
     on(topic, (payload) => push(channel, payload))
+  }
+
+  // MC bridges: lifecycle → mc-status, log lines → console panel,
+  // spoken lines → bubble + TTS, telemetry → their renderer panels.
+  const mcDisposers = [
+    on('mc:log', (p) => push('mc-log', p)),
+    on('mc:say', (p) => { push('mc-say', p); autoSpeak(p) }),
+    on('mc:radar', (p) => push('mc-radar', p)),
+    on('mc:inventory', (p) => push('mc-inventory', p)),
+    on('mc:bot-status', (p) => push('mc-bot-status', p)),
+    on('mc:task', (p) => push('mc-task', p))
+  ]
+  for (const [topic, build] of Object.entries(MC_BUS_PUSH)) {
+    mcDisposers.push(on(topic, (p) => {
+      const payload = build(p)
+      push('mc-status', payload)
+      if (p?.message) push('mc-log', { line: `[MC] ${p.message}` })
+    }))
   }
 
   function displayCheatMessage(raw) {
@@ -468,12 +494,26 @@ export function registerIpc({ services, getWin, idleRand = Math.random }) {
       } catch (err) {
         return { error: String(err?.message ?? err) }
       }
-    }
+    },
+
+    // ── Minecraft drone ──────────────────────────────────────────────────────
+    'mc:connect': () => services.minecraft?.connect() ?? { enabled: false, connected: false, childRunning: false },
+    'mc:disconnect': () => {
+      services.minecraft?.disconnect()
+      return {}
+    },
+    'mc:send-raw': (payload) => ({ sent: !!services.minecraft?.sendRaw(payload?.text ?? '') }),
+    'mc:send-cmd': (payload) => ({ sent: !!services.minecraft?.sendCmd(payload?.cmd ?? '', payload?.args ?? {}) })
   }
 
   for (const [channel, handler] of Object.entries(handlers)) {
     ipcMain.handle(channel, (_event, payload) => handler(payload))
   }
 
-  return { dispose: () => idleSvc.stop() }
+  return {
+    dispose: () => {
+      idleSvc.stop()
+      for (const off of mcDisposers) off()
+    }
+  }
 }
