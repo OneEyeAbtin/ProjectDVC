@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { parseTags, createBrain } from '../src/main/services/brain.service.js'
+import { parseTags, createBrain, timeOfDay } from '../src/main/services/brain.service.js'
 import { defaultCallLLM } from '../src/main/providers/llm.js'
 import { PERSONAS } from '../src/main/data/personas.js'
 
@@ -132,16 +132,44 @@ function fakeMemory(overrides = {}) {
   }
 }
 
+describe('timeOfDay', () => {
+  function at(h) {
+    return new Date(2026, 0, 1, h, 0, 0)
+  }
+  it('maps clock hours to companion-relevant time bands', () => {
+    expect(timeOfDay(at(5))).toBe('morning')
+    expect(timeOfDay(at(11))).toBe('morning')
+    expect(timeOfDay(at(12))).toBe('afternoon')
+    expect(timeOfDay(at(16))).toBe('afternoon')
+    expect(timeOfDay(at(17))).toBe('evening')
+    expect(timeOfDay(at(21))).toBe('evening')
+    expect(timeOfDay(at(22))).toBe('late night')
+    expect(timeOfDay(at(3))).toBe('late night')
+    expect(timeOfDay(at(4))).toBe('late night')
+  })
+})
+
 describe('brain sysPrompt', () => {
-  it('ports legacy rules with persona desc, stats line and memory block', () => {
+  it('builds the rewritten companion prompt with persona desc, stats line and memory block', () => {
     const brain = createBrain({ config: fakeConfig(), memory: fakeMemory(), callLLM: async () => '' })
     const p = brain.sysPrompt()
-    expect(p.startsWith('You are "Raven", a virtual companion. The user is "Abtin".\n')).toBe(true)
-    expect(p).toContain('PERSONA: Tsundere\n')
+    // Identity header with time-of-day context.
+    expect(p.startsWith('You are "Raven" — a living virtual companion')).toBe(true)
+    expect(p).toContain('"Abtin", the person who matters most to you. (It\'s ')
+    expect(p).toContain(` where Abtin is.)`)
+    expect(p).toContain('PERSONA — Tsundere:\n')
     expect(p).toContain(PERSONAS.Tsundere)
-    expect(p).toContain('STATS: affection:20/100, sass:15/100\n')
-    expect(p).toContain("9. Never describe what you 'would' do or 'could' say. Just do it.\n")
-    expect(p.endsWith('MEMORY:\nMEMORY BLOCK')).toBe(true)
+    // Enforced format + hard rules stable fragments.
+    expect(p).toContain('HOW YOU SPEAK — NON-NEGOTIABLE FORMAT:')
+    expect(p).toContain('[EMOTION: name] — REQUIRED. A reply without it is a broken reply.')
+    expect(p).toContain('HARD RULES:')
+    expect(p).toContain('5. Never say what you "would" or "could" do. Just do it.')
+    // Stats line and memory block land in their sections; output stays one string.
+    expect(typeof p).toBe('string')
+    expect(p).toContain('YOUR STATS (dominant stats color your voice')
+    expect(p).toContain('affection:20/100, sass:15/100\n')
+    expect(p).toContain('YOUR MEMORY (things you actually remember about them):\nMEMORY BLOCK')
+    expect(p.endsWith('moods, opinions, and favorites.')).toBe(true)
     expect(brain.history).toEqual([])
   })
 
@@ -169,7 +197,7 @@ describe('brain send', () => {
     expect(arg.key).toBe('sk-online')
     expect(arg.model).toBe('online-m')
     expect(arg.messages[0].role).toBe('system')
-    expect(arg.messages[0].content).toContain('STRICT RULES')
+    expect(arg.messages[0].content).toContain('HARD RULES')
     expect(arg.messages[1]).toEqual({ role: 'user', content: 'hi' })
     expect(out.text).toBe('Hello there!   😊')
     expect(out.emotion).toBe('happy')
