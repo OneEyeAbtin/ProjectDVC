@@ -13,6 +13,20 @@ const SUMMARY_TIMEOUT_MS = 15000
 const CHAT_TIMEOUT_MS = 30000
 const SUMMARY_HISTORY_LIMIT = 20
 const SUMMARY_SNIPPET_CHARS = 120
+// Reasoning models burn tokens thinking first; 120 truncated them mid-thought
+// and leaked the raw channel text into the saved summary.
+const SUMMARY_MAX_TOKENS = 300
+
+// Post-strip safety net: a summary that still carries harmony/special tokens
+// or opens like chain-of-thought is garbage — callers must not persist it.
+const REASONING_OPENERS = /^(?:okay|ok|alright|well|hmm|let's|let’s|first|thinking process|i need to|i should|step 1|1[.)])/i
+
+export function looksLikeReasoning(text) {
+  const s = String(text ?? '').trim()
+  if (!s) return true
+  if (s.includes('<|')) return true
+  return REASONING_OPENERS.test(s)
+}
 
 function deepScan(text) {
   const lo = text.toLowerCase()
@@ -208,9 +222,13 @@ HARD RULES:
           messages: [{ role: 'user', content: prompt }],
           timeoutMs: SUMMARY_TIMEOUT_MS,
           temperature: 0.4,
-          maxTokens: 120
+          maxTokens: SUMMARY_MAX_TOKENS
         })
-        onSummary(String(summary).trim())
+        const cleaned = String(summary).trim()
+        // Reasoning garbage → discard instead of saving; the pending history is
+        // treated as consumed so a bad model can't retry-loop every turn.
+        if (looksLikeReasoning(cleaned)) return
+        onSummary(cleaned)
       } catch {
         memory.restorePendingSummary(raw)
       }
