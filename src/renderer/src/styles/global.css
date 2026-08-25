@@ -9,11 +9,13 @@ html, body, #root { height: 100%; background: transparent; overflow: hidden;
 .shell { position: relative; height: 100%; display: flex; flex-direction: column; border-radius: 18px;
   overflow: hidden; color: var(--txt1);
   /* Shell background (single authority): features/settings/background.js
-     always sets --shell-grad-from/to/angle inline on <html> — either the
-     active theme's built-in gradient or the custom override. Unset vars
-     still fall back to the theme two-tone as a pre-boot safety net. */
-  background: linear-gradient(var(--shell-grad-angle, 135deg),
-    var(--shell-grad-from, var(--bg2)), var(--shell-grad-to, var(--bg1)));
+     always sets --shell-grad-image inline on <html> — a full gradient built
+     from the active theme (or custom override) plus the selected gradient
+     STYLE (diagonal/vertical/horizontal/diagonal-alt/radial). The legacy
+     --shell-grad-from/to/angle vars remain published and power the fallback
+     below as a pre-boot safety net. */
+  background: var(--shell-grad-image, linear-gradient(var(--shell-grad-angle, 135deg),
+    var(--shell-grad-from, var(--bg2)), var(--shell-grad-to, var(--bg1))));
   border: 1px solid var(--border);
   /* Static window aura — a constant soft glow, no animation (cheap). */
   box-shadow: 0 0 42px -8px color-mix(in srgb, var(--acc1) 30%, transparent);

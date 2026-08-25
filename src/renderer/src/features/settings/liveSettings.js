@@ -13,6 +13,7 @@ export const AUTO_SAVE_KEYS = [
   'animation_speed',
   'particle_theme',
   'custom_gradient',
+  'gradient_style',
   'ui_sounds',
   'always_on_top',
   'tray_enabled',

@@ -121,6 +121,7 @@ export const DEFAULTS = {
   ambient_effects: true,
   animation_speed: 1,
   custom_gradient: { enabled: false, from: '#1a1025', to: '#0d0816', angle: 135 },
+  gradient_style: 'diagonal',
   particle_theme: 'stars',
   hide_to_tray: true,
   win_x: -1,

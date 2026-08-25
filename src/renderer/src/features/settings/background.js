@@ -12,6 +12,34 @@ import { DEFAULT_THEME_ID, THEME_GRADIENTS } from '../../../../main/data/themes.
 
 export const DEFAULT_GRADIENT = { enabled: false, from: '#1a1025', to: '#0d0816', angle: 135 }
 
+// Gradient SHAPES (Settings → General → Background): linear presets carry a
+// fixed angle; radial ignores angles entirely. Works for both theme-built-in
+// gradients and the custom override.
+export const GRADIENT_STYLE_OPTIONS = [
+  { id: 'diagonal', label: 'Diagonal', angle: 135 },
+  { id: 'vertical', label: 'Vertical', angle: 180 },
+  { id: 'horizontal', label: 'Horizontal', angle: 90 },
+  { id: 'diagonal-alt', label: 'Diagonal ↗', angle: 45 },
+  { id: 'radial', label: 'Radial' }
+]
+
+const GRADIENT_STYLE_IDS = GRADIENT_STYLE_OPTIONS.map((s) => s.id)
+
+export function sanitizeGradientStyle(value) {
+  return GRADIENT_STYLE_IDS.includes(value) ? value : 'diagonal'
+}
+
+// Style → CSS background image. Linear styles use `angle` (custom-gradient
+// slider overrides it; theme gradients supply their own); radial is
+// angle-free by definition, so any angle passed in is ignored there.
+export function buildGradientCss({ from, to, angle, style } = {}) {
+  if (sanitizeGradientStyle(style) === 'radial') {
+    return `radial-gradient(circle at 50% 40%, ${from}, ${to})`
+  }
+  const opt = GRADIENT_STYLE_OPTIONS.find((s) => s.id === style)
+  return `linear-gradient(${clampAngle(angle ?? opt?.angle ?? 135)}deg, ${from}, ${to})`
+}
+
 // One-click presets shown in Settings → General → Background. Applying one
 // also enables the gradient so the click gives instant feedback.
 export const GRADIENT_PRESETS = [
@@ -43,21 +71,34 @@ export function sanitizeGradient(value) {
 }
 
 // Effective gradient for the current shell state: the custom override wins
-// while enabled, otherwise the selected theme's built-in gradient. Unknown
+// while enabled, otherwise the selected theme's built-in colors. Unknown
 // theme ids fall back to the default theme so the shell always has colors.
-export function resolveBackground({ themeId, customGradient } = {}) {
+// The chosen STYLE owns the linear angle in both modes (radial is angle-free);
+// a custom-gradient slider value still overrides it — that IS its angle field.
+export function resolveBackground({ themeId, customGradient, gradientStyle } = {}) {
+  const style = sanitizeGradientStyle(gradientStyle)
+  const styleOpt = GRADIENT_STYLE_OPTIONS.find((s) => s.id === style)
   const custom = sanitizeGradient(customGradient)
-  if (custom.enabled) return custom
+  if (custom.enabled) return { ...custom, style }
   const theme = THEME_GRADIENTS[themeId] ?? THEME_GRADIENTS[DEFAULT_THEME_ID]
-  return { enabled: true, from: theme.from, to: theme.to, angle: clampAngle(theme.angle) }
+  return {
+    enabled: true,
+    from: theme.from,
+    to: theme.to,
+    angle: clampAngle(styleOpt?.angle ?? theme.angle),
+    style
+  }
 }
 
 // Writes the effective gradient onto <html>; the store re-runs this whenever
-// theme or config.custom_gradient changes.
+// theme / config.custom_gradient / config.gradient_style changes. The full
+// image lands in --shell-grad-image; from/to/angle stay published as legacy
+// fallback vars.
 export function applyBackground(options) {
   const g = resolveBackground(options)
   const root = document.documentElement
   root.style.setProperty('--shell-grad-from', g.from)
   root.style.setProperty('--shell-grad-to', g.to)
   root.style.setProperty('--shell-grad-angle', `${g.angle}deg`)
+  root.style.setProperty('--shell-grad-image', buildGradientCss(g))
 }
