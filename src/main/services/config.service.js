@@ -3,9 +3,24 @@ import path from 'node:path'
 import { DEFAULTS, SETTINGS_KEYS, SAVE_KEYS } from '../data/defaults.js'
 import { THEMES_NAME_TO_ID, DEFAULT_THEME_ID } from '../data/themes.js'
 import { atomicWrite, writeJsonAtomic } from '../lib/atomic.js'
+import { stripReasoning } from '../providers/llm.js'
 
 const SETTINGS_DEFAULTS = DEFAULTS
 const SAVE_DEFAULTS = Object.fromEntries(SAVE_KEYS.map((k) => [k, structuredClone(DEFAULTS[k])]))
+
+// Boot repair for the reasoning-token leak (bug wave): a session_summary saved
+// before stripReasoning existed can carry raw model reasoning channels. Strip;
+// if nothing sane remains, clear it. A harmony payload with NO final channel
+// means the visible text IS the thinking — clear that too. Returns the
+// cleaned value.
+export function sanitizeStoredSummary(value) {
+  if (typeof value !== 'string') return ''
+  const hadHarmony = value.includes('<|channel|>')
+  const cleaned = stripReasoning(value)
+  if (!cleaned || cleaned.includes('<|')) return ''
+  if (hadHarmony && !value.includes('<|channel|>final<|message|>')) return ''
+  return cleaned
+}
 
 function isPlainObj(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v)
@@ -43,6 +58,17 @@ export function createConfigService({ rootDir }) {
 
   let config = deepMerge(SETTINGS_DEFAULTS, loadJson(configPath, {}))
   let save = deepMerge(SAVE_DEFAULTS, loadJson(savePath, {}))
+
+  // One-time sanitize of a stored summary on every service construction
+  // (= app boot and factory reset). Persist only when it actually changed so
+  // healthy saves never rewrite the file.
+  if (typeof save.session_summary === 'string') {
+    const cleaned = sanitizeStoredSummary(save.session_summary)
+    if (cleaned !== save.session_summary) {
+      save.session_summary = cleaned
+      writeJsonAtomic(savePath, save)
+    }
+  }
 
   if (!fs.existsSync(configPath)) writeJsonAtomic(configPath, config)
   if (!fs.existsSync(savePath)) writeJsonAtomic(savePath, save)

@@ -5,6 +5,7 @@ import WebSocket from 'ws'
 import { emit } from '../bus.js'
 import { DEFAULTS } from '../data/defaults.js'
 import { PERSONAS } from '../data/personas.js'
+import { stripReasoning } from '../providers/llm.js'
 
 const WS_OPEN_DELAY_MS = 1500
 const RECONNECT_DELAY_MS = 3000
@@ -716,7 +717,7 @@ export function createMinecraftService({
         throw Object.assign(new Error(errMsg), { httpError: true })
       }
       const data = await res.json()
-      const raw = String(data?.choices?.[0]?.message?.content ?? '').trim()
+      const raw = stripReasoning(String(data?.choices?.[0]?.message?.content ?? ''))
       pushHist('assistant', raw)
       const decision = extractDecision(raw)
       if (decision) return decision

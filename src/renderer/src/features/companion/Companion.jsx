@@ -3,6 +3,7 @@ import { useStore } from '../../state/store.js'
 import TopBar from './TopBar.jsx'
 import Portrait from './Portrait.jsx'
 import ChatPanel from './ChatPanel.jsx'
+import { truncateAtWord } from './greetingText.js'
 import './companion.css'
 import '../minecraft/minecraft.css'
 
@@ -53,7 +54,7 @@ export default function Companion() {
       const summary = typeof s.sessionSummary === 'string' ? s.sessionSummary.trim() : ''
       let template
       if (summary) {
-        template = SESSION_SUMMARY_GREETING.replace('{summary}', summary.slice(0, 80))
+        template = SESSION_SUMMARY_GREETING.replace('{summary}', truncateAtWord(summary, 80))
       } else {
         template = s.greetings?.[s.persona]
       }
