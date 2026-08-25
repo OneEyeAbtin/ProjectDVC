@@ -1,19 +1,14 @@
 import { useStore } from '../../state/store.js'
+import { visibleMcTabs } from './minecraftLogic.js'
 
-// Bottom segmented tab row above the chat input (legacy parity: Chat /
-// Console / Radar / Inv). Tab 0 is the normal chat bubble view.
-const TABS = [
-  { id: 0, label: '💬 Chat', name: 'Chat' },
-  { id: 1, label: '📟 Console', name: 'Console' },
-  { id: 2, label: '🛰 Radar', name: 'Radar' },
-  { id: 3, label: '🎒 Inv', name: 'Inventory' }
-]
-
+// Tab row renders Chat always; the drone views only while connected (the
+// store also auto-switches to Chat on disconnect so `active` stays in range).
 export default function McTabs() {
   const active = useStore((s) => s.mcTab)
+  const connected = useStore((s) => s.mcConnected)
   return (
     <nav className="mc-tabs" role="tablist" aria-label="Minecraft panels">
-      {TABS.map((tab) => (
+      {visibleMcTabs(connected).map((tab) => (
         <button
           key={tab.id}
           type="button"
