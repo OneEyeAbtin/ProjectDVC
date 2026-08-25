@@ -169,6 +169,16 @@
   font-style: italic;
   color: var(--txt2);
 }
+.bubble-src {
+  display: inline-block;
+  margin-right: 6px;
+  font-size: 0.6875rem;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: #4ade80;
+  vertical-align: 2px;
+}
 
 /* Thinking indicator: italic label + staggered bouncing dots. */
 .thinking-indicator {

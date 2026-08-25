@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useStore } from '../src/renderer/src/state/store.js'
 import {
+  buildSnapshot,
+  diffPatch
+} from '../src/renderer/src/features/settings/settingsDraft.js'
+import {
   MC_CONSOLE_CAP,
   MC_HISTORY_CAP,
   classifyMcLine,
@@ -264,6 +268,93 @@ describe('minecraft renderer UI', () => {
       expect(useStore.getState().mcBotStatus).toEqual(data)
       handlers['mc-bot-status']({ data: 'junk' })
       expect(useStore.getState().mcBotStatus).toEqual(data) // unchanged
+    })
+  })
+
+  describe('mc-say routing through the say pipeline', () => {
+    it('drone lines become tagged bubbles with the payload emotion', () => {
+      useStore.setState({ thinking: true })
+      handlers['mc-say']({ text: 'DIAMONDS!! YES!!', emotion: 'excited' })
+
+      const s = useStore.getState()
+      expect(s.bubble.text).toBe('DIAMONDS!! YES!!')
+      expect(s.bubble.source).toBe('mc')
+      expect(s.bubble.muted).toBe(false)
+      expect(s.pendingEmotion).toBe('excited')
+      expect(s.typing).toBe(true)
+      expect(s.thinking).toBe(false)
+      // Not a companion conversation turn — MEM stays put.
+      expect(s.historyCount).toBe(0)
+
+      // Completes like any other bubble.
+      s.completeType()
+      expect(useStore.getState().typing).toBe(false)
+      expect(useStore.getState().emotion).toBe('excited')
+    })
+
+    it('empty mc-say payloads never touch the bubble', () => {
+      useStore.setState({ bubble: { text: 'keep me', muted: false, source: null } })
+      handlers['mc-say']({})
+      handlers['mc-say']({ text: '   ' })
+      expect(useStore.getState().bubble.text).toBe('keep me')
+      expect(useStore.getState().typing).toBe(false)
+    })
+
+    it('tagged lines do not become the boot "last response" replay', () => {
+      useStore.setState({ lastResponse: '' })
+      const s = useStore.getState()
+      s.say('Drone reaction~', 'happy', 'mc')
+      s.completeType()
+      expect(useStore.getState().lastResponse).toBe('')
+
+      // Companion replies still persist.
+      s.say('My own words', null, null)
+      s.completeType()
+      expect(useStore.getState().lastResponse).toBe('My own words')
+    })
+  })
+
+  describe('MC settings draft (minecraft_v2 whole-object replace)', () => {
+    it('applies minecraft_v2 defaults when the config is empty', () => {
+      const snap = buildSnapshot({ config: {} })
+      expect(snap.minecraft_v2).toEqual({
+        host: 'localhost',
+        port: 25565,
+        username: 'RavenBot',
+        version: '1.21',
+        auth: 'offline',
+        ws_port: 8765,
+        brain_url: '',
+        brain_key: '',
+        brain_model: '',
+        ai_features: { ai_hash_chat: true, ai_advancements: false, ai_task_done: false, ai_events: false }
+      })
+    })
+
+    it('carries saved values and merges partial ai_features over defaults', () => {
+      const snap = buildSnapshot({
+        config: {
+          minecraft_v2: {
+            host: 'mc.example.com',
+            auth: 'microsoft',
+            ai_features: { ai_advancements: true }
+          }
+        }
+      })
+      expect(snap.minecraft_v2.host).toBe('mc.example.com')
+      expect(snap.minecraft_v2.auth).toBe('microsoft')
+      expect(snap.minecraft_v2.port).toBe(25565) // default survives
+      expect(snap.minecraft_v2.ai_features.ai_advancements).toBe(true)
+      expect(snap.minecraft_v2.ai_features.ai_hash_chat).toBe(true) // default survives
+    })
+
+    it('sends minecraft_v2 in full when any subfield changes, omits it untouched', () => {
+      const base = buildSnapshot({ config: {} })
+      expect('minecraft_v2' in diffPatch({ ...base }, base)).toBe(false)
+
+      const draft = { ...base, minecraft_v2: { ...base.minecraft_v2, host: '10.0.0.5' } }
+      const patch = diffPatch(draft, base)
+      expect(patch.minecraft_v2).toEqual({ ...base.minecraft_v2, host: '10.0.0.5' })
     })
   })
 })
