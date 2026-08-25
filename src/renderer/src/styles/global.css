@@ -16,6 +16,17 @@ html, body, #root { height: 100%; background: transparent; overflow: hidden;
 .glass { background: color-mix(in srgb, var(--bg3) 72%, transparent);
   backdrop-filter: blur(15px); border: 1px solid var(--border);
   transition: background-color .45s ease, border-color .45s ease, color .3s ease; }
+/* Menus and popover panels must feel INSTANT — they opt out of the theme
+   transition wave entirely (the 450ms fade made opening them feel sluggish).
+   Only the big main surfaces (.shell, .glass chrome) keep the fade. */
+.ctx-menu,
+.ctx-sub,
+.ctx-row,
+.swatch-cell,
+.settings-panel,
+.stats-panel {
+  transition: none;
+}
 button { cursor: pointer; font-family: inherit; }
 input { user-select: text; }
 

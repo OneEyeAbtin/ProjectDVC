@@ -12,6 +12,11 @@
   scrollbar-width: thin;
   scrollbar-color: var(--bg4) transparent;
   animation: ctx-pop .12s ease;
+  /* Opaque menu background: readable over any scene and cheap — no
+     backdrop-filter recompositing while the ambient layer animates behind.
+     Blur stays on the big settings/stats overlays only. */
+  background: color-mix(in srgb, var(--bg2) 92%, transparent);
+  backdrop-filter: none;
 }
 @keyframes ctx-pop {
   from { opacity: 0; transform: scale(.96); }
@@ -31,7 +36,6 @@
   font-size: 0.8125rem;
   font-family: inherit;
   text-align: left;
-  transition: background .12s ease;
 }
 .ctx-row:hover,
 .swatch-cell:hover { background: color-mix(in srgb, var(--bg4) 70%, transparent); }
@@ -91,7 +95,6 @@
   font-size: 0.6875rem;
   font-family: inherit;
   text-align: left;
-  transition: background .12s ease, color .12s ease;
 }
 .swatch-cell.active { color: var(--txt1); background: color-mix(in srgb, var(--acc1) 14%, transparent); }
 .swatch-dot {

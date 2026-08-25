@@ -59,6 +59,9 @@ export const useStore = create((set, get) => ({
   // ui overlays
   settingsOpen: false,
   statsOpen: false,
+  // True while the right-click context menu is on screen — part of the
+  // uiBlocking signal that pauses the ambient animation (see AmbientBackground).
+  contextMenuOpen: false,
 
   // setup + errors
   setupQuestions: [],
@@ -266,6 +269,10 @@ export const useStore = create((set, get) => ({
 
   setStatsOpen(open) {
     set({ statsOpen: Boolean(open) })
+  },
+
+  setContextMenuOpen(open) {
+    set({ contextMenuOpen: Boolean(open) })
   },
 
   // Memory mutations; the `traits` push reconciles session traits, the

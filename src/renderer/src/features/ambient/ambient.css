@@ -72,6 +72,13 @@
   to { transform: translate(52px, -40px) scale(1.18); }
 }
 
+/* ── Overlay pause ───────────────────────────────────────────────────────── */
+/* While settings/stats/context menu blocks the UI (uiBlocking), the orb
+   keyframes freeze here; AmbientBackground also stops its starfield rAF loop.
+   Rationale: glass backdrop-filter re-composites per frame against a moving
+   background — pausing the source makes open overlays cheap. */
+.ambient-paused .orb { animation-play-state: paused; }
+
 /* ── Layer B: star particles ─────────────────────────────────────────────── */
 .starfield {
   position: absolute;

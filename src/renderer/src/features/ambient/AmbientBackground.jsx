@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useStore } from '../../state/store.js'
 import './ambient.css'
 
 const STAR_COUNT = 28
@@ -23,6 +24,13 @@ function createStars(width, height) {
 
 export default function AmbientBackground() {
   const canvasRef = useRef(null)
+  // start/stop handles published by the animation effect below, so the
+  // uiBlocking effect can pause/resume the starfield rAF loop.
+  const controlsRef = useRef(null)
+  // While any overlay/menu is open the ambient animation pauses entirely:
+  // glass backdrop-filter would otherwise re-composite its blur every frame
+  // against a moving background (expensive, and pointless while covered).
+  const uiBlocked = useStore((s) => s.settingsOpen || s.statsOpen || s.contextMenuOpen)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -128,6 +136,7 @@ export default function AmbientBackground() {
 
     start()
     document.addEventListener('visibilitychange', onVisibility)
+    controlsRef.current = { start, stop }
 
     const ro = new ResizeObserver(() => {
       readColors()
@@ -138,10 +147,28 @@ export default function AmbientBackground() {
     return () => {
       disposed = true
       stop()
+      controlsRef.current = null
       document.removeEventListener('visibilitychange', onVisibility)
       ro.disconnect()
     }
   }, [])
+
+  // Pause/resume on overlay open/close: freeze the orb keyframes via CSS and
+  // halt the starfield rAF loop via the controls above. The document-hidden
+  // handler stays authoritative for tab visibility; start() is a no-op while
+  // running, so resume only re-kicks the loop when it was actually stopped.
+  useEffect(() => {
+    const controls = controlsRef.current
+    if (!controls) return
+    const layer = canvasRef.current?.parentElement
+    if (uiBlocked) {
+      controls.stop()
+      layer?.classList.add('ambient-paused')
+    } else {
+      layer?.classList.remove('ambient-paused')
+      if (!document.hidden) controls.start()
+    }
+  }, [uiBlocked])
 
   return (
     <div className="ambient" aria-hidden="true">
