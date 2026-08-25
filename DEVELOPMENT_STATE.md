@@ -105,7 +105,7 @@ Known minors introduced by Plan 3 (non-blocking):
 ```bash
 npm install        # once
 npm run dev        # dev launch (Linux: see sandbox note below)
-npm test           # vitest, 250 tests, all green (+animation wave)
+npm test           # vitest, 253 tests, all green
 npx electron-vite build   # prod build to out/
 ```
 
