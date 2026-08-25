@@ -19,7 +19,18 @@ export const DEFAULTS = {
   elevenlabs: { api_key: '', voice_id: '', model_id: 'eleven_flash_v2_5' },
   stt: { engine: 'groq', groq_model: '', local_model: 'base', mic_gain: 4.0 },
 
-  minecraft_v2: null,
+  minecraft_v2: {
+    host: 'localhost',
+    port: 25565,
+    username: 'RavenBot',
+    version: '1.21',
+    auth: 'offline',
+    ws_port: 8765,
+    brain_url: '',
+    brain_key: '',
+    brain_model: '',
+    ai_features: { ai_hash_chat: true, ai_advancements: false, ai_task_done: false, ai_events: false }
+  },
 
   setup_questions: [
     { q: 'What should I call you?', key: 'user_name', emoji: '👋' },

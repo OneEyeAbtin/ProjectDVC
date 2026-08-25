@@ -24,7 +24,11 @@ export const INVOKE_CHANNELS = new Set([
   'voice:speak',
   'voice:stop',
   'voice:stt-transcribe',
-  'win:hide'
+  'win:hide',
+  'mc:connect',
+  'mc:disconnect',
+  'mc:send-raw',
+  'mc:send-cmd'
 ])
 
 export const PUSH_CHANNELS = new Set([
@@ -36,7 +40,14 @@ export const PUSH_CHANNELS = new Set([
   'error',
   'tts',
   'profile',
-  'outfits'
+  'outfits',
+  'mc-log',
+  'mc-status',
+  'mc-say',
+  'mc-radar',
+  'mc-inventory',
+  'mc-bot-status',
+  'mc-task'
 ])
 
 contextBridge.exposeInMainWorld('dvc', {
