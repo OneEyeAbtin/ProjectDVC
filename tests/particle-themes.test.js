@@ -14,27 +14,50 @@ const H = 600
 const EDGE_MARGIN = 12
 
 describe('particle theme registry', () => {
-  it('exposes the seven selectable themes including None', () => {
+  it('exposes the twelve selectable themes plus None', () => {
     expect(PARTICLE_THEME_IDS).toEqual([
-      'stars', 'embers', 'snow', 'bubbles', 'sakura', 'fireflies', 'none'
+      'stars', 'embers', 'snow', 'bubbles', 'sakura', 'fireflies',
+      'matrix', 'rain', 'hearts', 'fireworks', 'sparkles', 'confetti',
+      'none'
     ])
     expect(PARTICLE_THEME_META.map((t) => t.id)).toEqual(PARTICLE_THEME_IDS)
+    // Every chip reads as emoji + label.
+    for (const t of PARTICLE_THEME_META) {
+      expect(t.label.length, t.id).toBeGreaterThan(1)
+    }
     // 'none' is UI-only: it suppresses the loop, so no behavior entry exists.
     expect('none' in PARTICLE_THEMES).toBe(false)
+    expect(Object.keys(PARTICLE_THEMES)).toHaveLength(12)
   })
 
   it('sanitize falls back to stars for unknown/garbage values', () => {
     expect(sanitizeParticleTheme('snow')).toBe('snow')
     expect(sanitizeParticleTheme('Sakura')).toBe('stars') // case-sensitive ids
-    expect(sanitizeParticleTheme('confetti')).toBe('stars')
+    expect(sanitizeParticleTheme('matrix')).toBe('matrix')
+    expect(sanitizeParticleTheme('confetti')).toBe('confetti')
+    expect(sanitizeParticleTheme('junk-theme')).toBe('stars')
     expect(sanitizeParticleTheme(undefined)).toBe(DEFAULT_PARTICLE_THEME)
-    expect(resolveParticleTheme('junk')).toBe(PARTICLE_THEMES.stars)
+    expect(resolveParticleTheme('nope')).toBe(PARTICLE_THEMES.stars)
   })
 
   it('keeps every theme inside the spec particle budget of 28-40', () => {
     for (const [id, def] of Object.entries(PARTICLE_THEMES)) {
+      if (id === 'fireworks') continue // exempt: count IS the burst cap
       expect(def.count, id).toBeGreaterThanOrEqual(28)
       expect(def.count, id).toBeLessThanOrEqual(40)
+    }
+  })
+
+  it('fireworks: bursts capped at 3 concurrent with 20-26 sparks each', () => {
+    expect(PARTICLE_THEMES.fireworks.count).toBe(3)
+    const burst = PARTICLE_THEMES.fireworks.spawn(W, H)
+    expect(burst.sparks.length).toBeGreaterThanOrEqual(20)
+    expect(burst.sparks.length).toBeLessThanOrEqual(26)
+    // Regenerated spark sets stay in the same band across many draws.
+    for (let i = 0; i < 50; i++) {
+      const sparks = PARTICLE_THEMES.fireworks.makeSparks()
+      expect(sparks.length).toBeGreaterThanOrEqual(20)
+      expect(sparks.length).toBeLessThanOrEqual(26)
     }
   })
 
@@ -94,5 +117,43 @@ describe('particle theme registry', () => {
     const startHeading = fly.heading
     for (let i = 0; i < 60; i++) PARTICLE_THEMES.fireflies.step(fly, 1 / 60, W, H)
     expect(fly.heading).not.toBeCloseTo(startHeading, 5)
+
+    const glyphs = PARTICLE_THEMES.matrix.spawn(W, H)
+    const yGlyphs = glyphs.y
+    PARTICLE_THEMES.matrix.step(glyphs, dt, W, H)
+    expect(glyphs.y).toBeGreaterThan(yGlyphs) // matrix columns fall
+
+    const drop = PARTICLE_THEMES.rain.spawn(W, H)
+    const [xRain, yRain] = [drop.x, drop.y]
+    PARTICLE_THEMES.rain.step(drop, dt, W, H)
+    expect(drop.y).toBeGreaterThan(yRain) // rain falls…
+    expect(drop.y - yRain).toBeGreaterThan(drop.x - xRain) // …much faster than the wind drifts
+
+    const heart = PARTICLE_THEMES.hearts.spawn(W, H)
+    const yHeart = heart.y
+    PARTICLE_THEMES.hearts.step(heart, dt, W, H)
+    expect(heart.y).toBeLessThan(yHeart) // hearts rise
+
+    const sparkle = PARTICLE_THEMES.sparkles.spawn(W, H)
+    const [xSparkle, ySparkle, rotSparkle] = [sparkle.x, sparkle.y, sparkle.rot]
+    PARTICLE_THEMES.sparkles.step(sparkle, dt, W, H)
+    expect(sparkle.x).toBe(xSparkle) // sparkles twinkle IN PLACE…
+    expect(sparkle.y).toBe(ySparkle)
+    expect(sparkle.rot).not.toBe(rotSparkle) // …with only a tiny spin
+
+    const piece = PARTICLE_THEMES.confetti.spawn(W, H)
+    const [yPiece, rotPiece] = [piece.y, piece.rot]
+    PARTICLE_THEMES.confetti.step(piece, dt, W, H)
+    expect(piece.y).toBeGreaterThan(yPiece) // confetti falls…
+    expect(piece.rot).not.toBe(rotPiece) // …while tumbling
+
+    const burst = PARTICLE_THEMES.fireworks.spawn(W, H)
+    burst.delay = 0
+    PARTICLE_THEMES.fireworks.step(burst, dt, W, H)
+    expect(burst.age).toBeGreaterThan(0) // bursts burn through a life cycle
+    const ageBeforeReset = burst.age
+    burst.age = burst.duration
+    PARTICLE_THEMES.fireworks.step(burst, dt, W, H)
+    expect(burst.age).toBeLessThan(ageBeforeReset) // …then respawn at age 0
   })
 })
