@@ -84,5 +84,7 @@ export default function SpriteImage({ prefix = '', sprites, emotion = 'neutral',
       </div>
     )
   }
-  return <img className="sprite" src={url ?? undefined} alt={alt} draggable={false} />
+  // Keyed by resolved src: an emotion swap remounts the img, which replays
+  // the sprite-in pop animation (see companion.css).
+  return <img key={url ?? file} className="sprite" src={url ?? undefined} alt={alt} draggable={false} />
 }

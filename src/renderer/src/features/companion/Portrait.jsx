@@ -15,12 +15,16 @@ export default function Portrait() {
 
   return (
     <section className="portrait">
-      <SpriteImage
-        prefix={entry?.prefix ?? ''}
-        sprites={entry?.sprites}
-        emotion={shownEmotion}
-        alt={petName}
-      />
+      {/* Breathing lives on this container (slow scale); the emotion swap pop
+          animates the img itself — the two never fight over one element. */}
+      <div className="sprite-stage">
+        <SpriteImage
+          prefix={entry?.prefix ?? ''}
+          sprites={entry?.sprites}
+          emotion={shownEmotion}
+          alt={petName}
+        />
+      </div>
       <span className="glass chip badge-outfit">{entry?.name ?? outfit}</span>
       <span className="glass chip badge-emotion">{shownEmotion}</span>
     </section>

@@ -28,6 +28,69 @@ function HeartUnit({ fraction, fill, empty }) {
   )
 }
 
+let chipSeq = 0
+const CHIP_LIFETIME = 900 // ms, matches the chip-float keyframe
+const CHIP_CAP = 5
+
+// Ephemeral "+N" / "-N" floaters spawned when a stats push changes values.
+// Purely visual: the statUp/statDown sfx is wired once in lib/sfx.js — no
+// sound here, so nothing can double-fire.
+function StatChips({ stats }) {
+  const [chips, setChips] = useState([])
+  const prevRef = useRef(null)
+  const timersRef = useRef(new Set())
+
+  useEffect(
+    () => () => {
+      for (const timer of timersRef.current) clearTimeout(timer)
+    },
+    []
+  )
+
+  useEffect(() => {
+    const prev = prevRef.current
+    prevRef.current = stats
+    if (!prev || !stats || prev === stats) return undefined
+    // Biggest 1-3 absolute deltas per push.
+    const deltas = Object.keys(stats)
+      .map((key) => ({ delta: (Number(stats[key]) || 0) - (Number(prev[key]) || 0) }))
+      .filter((entry) => Number.isFinite(entry.delta) && entry.delta !== 0)
+      .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+      .slice(0, 3)
+    if (!deltas.length) return undefined
+    const spawned = deltas.map(({ delta }, i) => {
+      const id = ++chipSeq
+      const timer = setTimeout(() => {
+        timersRef.current.delete(timer)
+        setChips((list) => list.filter((chip) => chip.id !== id))
+      }, CHIP_LIFETIME)
+      timersRef.current.add(timer)
+      return {
+        id,
+        text: `${delta > 0 ? '+' : ''}${delta}`,
+        up: delta > 0,
+        offset: i * 16 + Math.round(Math.random() * 10)
+      }
+    })
+    setChips((list) => [...list, ...spawned].slice(-CHIP_CAP))
+    return undefined
+  }, [stats])
+
+  return (
+    <span className="stat-chips" aria-hidden="true">
+      {chips.map((chip) => (
+        <span
+          key={chip.id}
+          className={`stat-chip ${chip.up ? 'up' : 'down'}`}
+          style={{ marginLeft: `${chip.offset}px` }}
+        >
+          {chip.text}
+        </span>
+      ))}
+    </span>
+  )
+}
+
 export default function TopBar() {
   const petName = useStore((s) => s.petName)
   const stats = useStore((s) => s.stats)
@@ -62,6 +125,7 @@ export default function TopBar() {
               empty={empty}
             />
           ))}
+        <StatChips stats={stats} />
       </div>
       <h1 className="pet-name">{petName}</h1>
       <div className="topbar-actions">
