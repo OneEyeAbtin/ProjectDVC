@@ -1,36 +1,26 @@
 import { useEffect, useRef } from 'react'
 import { useStore } from '../../state/store.js'
+import {
+  resolveParticleTheme,
+  sanitizeParticleTheme
+} from './particleThemes.js'
 import './ambient.css'
 
-const STAR_COUNT = 28
-// Every Nth star tints with var(--acc1); the rest stay white.
+// Every Nth star tints with var(--acc1); the rest stay white (stars theme).
 const ACCENT_EVERY = 4
-
-function createStars(width, height) {
-  return Array.from({ length: STAR_COUNT }, (_, i) => ({
-    baseX: Math.random() * width,
-    y: Math.random() * height,
-    // 0.5-1px radius → 1-2px diameter dots.
-    r: 0.5 + Math.random(),
-    vy: 3 + Math.random() * 7, // px/s upward drift
-    wobbleAmp: 2 + Math.random() * 6,
-    wobbleFreq: 0.4 + Math.random() * 0.8, // Hz-ish
-    phase: Math.random() * Math.PI * 2,
-    twinkleSpeed: 0.6 + Math.random() * 1.4,
-    twinklePhase: Math.random() * Math.PI * 2,
-    accent: i % ACCENT_EVERY === 0
-  }))
-}
 
 export default function AmbientBackground() {
   const canvasRef = useRef(null)
   // start/stop handles published by the animation effect below, so the
-  // uiBlocking effect can pause/resume the starfield rAF loop.
+  // uiBlocking effect can pause/resume the particle rAF loop.
   const controlsRef = useRef(null)
   // While any overlay/menu is open the ambient animation pauses entirely:
   // glass backdrop-filter would otherwise re-composite its blur every frame
   // against a moving background (expensive, and pointless while covered).
   const uiBlocked = useStore((s) => s.settingsOpen || s.statsOpen || s.contextMenuOpen)
+  // Selected in Settings → General → Background; persisted via draft→Save,
+  // delivered here through config pushes. Unknown/garbage falls back to stars.
+  const particleTheme = sanitizeParticleTheme(useStore((s) => s.config?.particle_theme))
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -39,7 +29,8 @@ export default function AmbientBackground() {
     const ctx = canvas.getContext('2d')
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-    let stars = []
+    const def = resolveParticleTheme(particleTheme)
+    let particles = []
     let width = 1
     let height = 1
     let raf = 0
@@ -52,6 +43,12 @@ export default function AmbientBackground() {
       accent = getComputedStyle(shell).getPropertyValue('--acc1').trim() || accent
     }
 
+    function spawnAll() {
+      particles = Array.from({ length: def.count }, () =>
+        def.spawn(width, height)
+      )
+    }
+
     function resize() {
       const rect = shell.getBoundingClientRect()
       // Cap DPR at 2 — beyond that the fill cost outweighs visual gain.
@@ -61,27 +58,20 @@ export default function AmbientBackground() {
       canvas.width = Math.round(width * dpr)
       canvas.height = Math.round(height * dpr)
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      if (!stars.length) stars = createStars(width, height)
-      for (const s of stars) {
-        if (s.baseX > width) s.baseX = Math.random() * width
-        if (s.y > height) s.y = Math.random() * height
+      if (!particles.length) spawnAll()
+      for (const p of particles) {
+        if (p.x > width) p.x = Math.random() * width
+        if (p.y > height) p.y = Math.random() * height
       }
     }
 
-    // `animate=false` paints one static frame (reduced motion); otherwise the
-    // stars' live positions/phases are used with a twinkle alpha.
+    // `animate=false` paints one static frame (reduced motion); each theme's
+    // draw picks a mid alpha instead of its live pulse/twinkle value.
     function paint(now, animate) {
       ctx.clearRect(0, 0, width, height)
       const t = now / 1000
-      for (const s of stars) {
-        const x = s.baseX + Math.sin(s.phase) * s.wobbleAmp
-        ctx.globalAlpha = animate
-          ? 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(t * s.twinkleSpeed * Math.PI * 2 + s.twinklePhase))
-          : 0.55
-        ctx.fillStyle = s.accent ? accent : '#ffffff'
-        ctx.beginPath()
-        ctx.arc(x, s.y, s.r, 0, Math.PI * 2)
-        ctx.fill()
+      for (let i = 0; i < particles.length; i++) {
+        def.draw(ctx, particles[i], t, animate, accent, i % ACCENT_EVERY === 0)
       }
       ctx.globalAlpha = 1
     }
@@ -92,19 +82,12 @@ export default function AmbientBackground() {
       if (!last) last = now
       const dt = Math.min((now - last) / 1000, 0.05)
       last = now
-      for (const s of stars) {
-        s.y -= s.vy * dt
-        s.phase += s.wobbleFreq * dt * Math.PI * 2
-        if (s.y < -2) {
-          s.y = height + 2
-          s.baseX = Math.random() * width
-        }
-      }
+      for (const p of particles) def.step(p, dt, width, height)
       paint(now, true)
     }
 
     function start() {
-      if (running || reduceMotion) return
+      if (running || reduceMotion || particleTheme === 'none') return
       running = true
       last = 0
       if (!raf) raf = requestAnimationFrame(frame)
@@ -127,8 +110,16 @@ export default function AmbientBackground() {
     }
 
     if (reduceMotion) {
-      // Static single paint: stars visible, zero per-frame work.
+      // Static single paint: particles visible, zero per-frame work.
       paint(0, false)
+      return () => {
+        disposed = true
+      }
+    }
+
+    if (particleTheme === 'none') {
+      // 'None' = no particles: leave the canvas cleared and skip the loop.
+      ctx.clearRect(0, 0, width, height)
       return () => {
         disposed = true
       }
@@ -151,10 +142,12 @@ export default function AmbientBackground() {
       document.removeEventListener('visibilitychange', onVisibility)
       ro.disconnect()
     }
-  }, [])
+    // Theme switch = clean restart: the whole system (particles + loop +
+    // listeners) rebuilds for the new behavior set.
+  }, [particleTheme])
 
   // Pause/resume on overlay open/close: freeze the orb keyframes via CSS and
-  // halt the starfield rAF loop via the controls above. The document-hidden
+  // halt the particle rAF loop via the controls above. The document-hidden
   // handler stays authoritative for tab visibility; start() is a no-op while
   // running, so resume only re-kicks the loop when it was actually stopped.
   useEffect(() => {

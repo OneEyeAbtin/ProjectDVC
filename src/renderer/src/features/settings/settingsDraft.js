@@ -1,4 +1,5 @@
 import { DEFAULT_GRADIENT } from './background.js'
+import { sanitizeParticleTheme } from '../ambient/particleThemes.js'
 
 export const TTS_ENGINES = ['elevenlabs', 'edge', 'piper']
 
@@ -80,6 +81,7 @@ export function buildSnapshot(state) {
     idle_chat: cfg.idle_chat !== false,
     ambient_effects: cfg.ambient_effects !== false,
     custom_gradient: pick(cfg.custom_gradient, DEFAULT_GRADIENT),
+    particle_theme: sanitizeParticleTheme(cfg.particle_theme),
     font_scale: Number(state.fontScale) || 1,
     lip_sync_tts: state.lipSyncTts !== false,
     lip_sync_text: state.lipSyncText === true,

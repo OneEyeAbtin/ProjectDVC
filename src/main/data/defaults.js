@@ -120,6 +120,7 @@ export const DEFAULTS = {
   idle_chat: true,
   ambient_effects: true,
   custom_gradient: { enabled: false, from: '#1a1025', to: '#0d0816', angle: 135 },
+  particle_theme: 'stars',
   hide_to_tray: true,
   win_x: -1,
   win_y: -1,

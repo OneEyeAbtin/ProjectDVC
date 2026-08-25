@@ -370,6 +370,16 @@ describe('profile:save appearance keys', () => {
     expect(saved.to).toBe('#0d0816')
     expect(saved.angle).toBe(135)
   })
+
+  it('particle_theme round-trips through profile:save and persists to disk', () => {
+    const h = makeHarness()
+    h.call('profile:save', { particle_theme: 'sakura' })
+    expect(h.config.getConfig().particle_theme).toBe('sakura')
+    const onDisk = JSON.parse(fs.readFileSync(path.join(h.root, 'data', 'config.json'), 'utf8'))
+    expect(onDisk.particle_theme).toBe('sakura')
+    const push = h.sent.filter(([c]) => c === 'profile').at(-1)[1]
+    expect(push.config.particle_theme).toBe('sakura')
+  })
 })
 
 describe('preload allowlist extensions', () => {

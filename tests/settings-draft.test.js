@@ -74,6 +74,22 @@ describe('settings draft snapshot', () => {
       expect(patch.custom_gradient).toEqual({ ...base.custom_gradient, angle: 90 })
     })
   })
+
+  describe('particle theme', () => {
+    it('defaults to stars and carries the saved selection', () => {
+      expect(buildSnapshot({ config: {} }).particle_theme).toBe('stars')
+      expect(buildSnapshot({ config: { particle_theme: 'sakura' } }).particle_theme).toBe('sakura')
+      // Unknown values sanitize to stars so a hand-edited config can't break boot.
+      expect(buildSnapshot({ config: { particle_theme: 'confetti' } }).particle_theme).toBe('stars')
+    })
+
+    it('round-trips through diffPatch only when changed', () => {
+      const base = buildSnapshot({ config: {} })
+      expect('particle_theme' in diffPatch({ ...base }, base)).toBe(false)
+      const patch = diffPatch({ ...base, particle_theme: 'fireflies' }, base)
+      expect(patch.particle_theme).toBe('fireflies')
+    })
+  })
 })
 
 describe('draft diff (whole-object replace strategy)', () => {
