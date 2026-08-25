@@ -7,6 +7,21 @@ export const MC_HISTORY_CAP = 20
 export const RADAR_WORLD_RADIUS = 32
 export const RADAR_MIN_INTERVAL_MS = 2000
 
+// Bottom segmented tab row above the chat input (legacy parity: Chat /
+// Console / Radar / Inv). Console/Radar/Inv are live drone views — they make
+// sense only with an active MC connection, so they are gated behind one;
+// Chat is always available. Tab 0 is the normal chat bubble view.
+export const MC_TABS = [
+  { id: 0, label: '💬 Chat', name: 'Chat', always: true },
+  { id: 1, label: '📟 Console', name: 'Console' },
+  { id: 2, label: '🛰 Radar', name: 'Radar' },
+  { id: 3, label: '🎒 Inv', name: 'Inventory' }
+]
+
+export function visibleMcTabs(mcConnected) {
+  return MC_TABS.filter((t) => t.always || Boolean(mcConnected))
+}
+
 // Console line classification → CSS tone class suffix ('' = default txt2).
 // Order matters: error patterns win over success ones ("Connection refused").
 export function classifyMcLine(line) {

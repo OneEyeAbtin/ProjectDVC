@@ -7,12 +7,14 @@ import {
 import {
   MC_CONSOLE_CAP,
   MC_HISTORY_CAP,
+  MC_TABS,
   classifyMcLine,
   mapMcError,
   itemIcon,
   botStatusLine,
   projectBlips,
-  shouldAcceptRadar
+  shouldAcceptRadar,
+  visibleMcTabs
 } from '../src/renderer/src/features/minecraft/minecraftLogic.js'
 
 // Store reads window.dvc lazily inside actions; this stub captures push
@@ -81,6 +83,46 @@ describe('minecraft renderer UI', () => {
   afterEach(() => {
     useStore.getState()._teardown()
     vi.useRealTimers()
+  })
+
+  describe('tab visibility gating (connection-aware tab row)', () => {
+    it('disconnected shows only Chat; connected shows all four drone tabs', () => {
+      expect(visibleMcTabs(false).map((t) => t.id)).toEqual([0])
+      expect(visibleMcTabs(true).map((t) => t.id)).toEqual([0, 1, 2, 3])
+      // Chat is the only unconditional tab.
+      expect(MC_TABS.filter((t) => t.always).map((t) => t.id)).toEqual([0])
+      // Garbage connection state still leaves Chat usable.
+      expect(visibleMcTabs(undefined).map((t) => t.id)).toEqual([0])
+    })
+
+    it('auto-switches to Chat when a pushed disconnect lands on a drone tab', () => {
+      useStore.setState({ mcConnected: true })
+      useStore.getState().setMcTab(2) // Radar
+      handlers['mc-status']({ connected: false })
+      const s = useStore.getState()
+      expect(s.mcConnected).toBe(false)
+      expect(s.mcTab).toBe(0)
+    })
+
+    it('stays on Chat when disconnected while already chatting', () => {
+      useStore.setState({ mcConnected: true, mcTab: 0 })
+      handlers['mc-status']({ connected: false })
+      expect(useStore.getState().mcTab).toBe(0)
+    })
+
+    it('optimistic local disconnect also rescues a parked drone-tab user', () => {
+      useStore.setState({ mcConnected: true })
+      useStore.getState().setMcTab(3) // Inventory
+      useStore.getState().mcDisconnect()
+      expect(useStore.getState().mcTab).toBe(0)
+      expect(pendingInvoke('mc:disconnect')?.channel).toBe('mc:disconnect')
+    })
+
+    it('connecting does not disturb the tab row', () => {
+      useStore.getState().mcConnect()
+      handlers['mc-status']({ connected: true })
+      expect(useStore.getState().mcTab).toBe(0)
+    })
   })
 
   describe('tab switching', () => {

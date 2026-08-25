@@ -330,7 +330,7 @@ export const useStore = create((set, get) => ({
   // Optimistic off: main confirms with its own {connected:false} push.
   mcDisconnect() {
     clearTimeout(get()._mcConnectTimer)
-    set({ mcConnected: false, mcConnecting: false })
+    get()._setMcDisconnected()
     window.dvc.invoke('mc:disconnect').catch((err) => {
       get().setError({ scope: 'minecraft', message: String(err?.message ?? err) })
     })
@@ -350,13 +350,22 @@ export const useStore = create((set, get) => ({
     })
   },
 
+  // Shared disconnect landing: Console/Radar/Inv tabs render only while
+  // connected, so a user parked on one is moved back to Chat (always visible)
+  // whenever the connection drops — optimistic or pushed.
+  _setMcDisconnected() {
+    const patch = { mcConnected: false, mcConnecting: false }
+    if (get().mcTab !== 0) patch.mcTab = 0
+    set(patch)
+  },
+
   _onMcStatus(payload) {
     clearTimeout(get()._mcConnectTimer)
     if (payload?.connected === true) {
       set({ mcConnected: true, mcConnecting: false })
       return
     }
-    set({ mcConnected: false, mcConnecting: false })
+    get()._setMcDisconnected()
     if (payload?.error) {
       get().setError({ scope: 'minecraft', message: mapMcError(payload.error) })
     }
