@@ -8,6 +8,7 @@ import {
   shouldAcceptRadar
 } from '../features/minecraft/minecraftLogic.js'
 import { AUTO_SAVE_DEBOUNCE_MS, readLiveSetting } from '../features/settings/liveSettings.js'
+import { applyBackground } from '../features/settings/background.js'
 
 // Fallback until app:init delivers the authoritative list from main
 // (src/main/data/emotions.js is the single source).
@@ -94,6 +95,7 @@ export const useStore = create((set, get) => ({
   error: null,
 
   _unsubs: [],
+  _bgUnsub: null,
   _errorTimer: null,
   _transientTimer: null,
   _mcConnectTimer: null,
@@ -164,6 +166,25 @@ export const useStore = create((set, get) => ({
         .catch(() => {})
     }
     get()._subscribe()
+    get()._watchBackground()
+  },
+
+  // Single background authority (theme ↔ gradient unification): one zustand
+  // subscription watches theme + config.custom_gradient and re-applies the
+  // shell vars whenever either changes. Armed once at boot; also applies
+  // immediately so the persisted state colors the window before any push.
+  _watchBackground() {
+    if (get()._bgUnsub || typeof document === 'undefined') return
+    let last = null
+    const sync = (state) => {
+      const custom = state.config?.custom_gradient
+      const key = `${state.theme}|${JSON.stringify(custom ?? null)}`
+      if (key === last) return
+      last = key
+      applyBackground({ themeId: state.theme, customGradient: custom })
+    }
+    sync(get())
+    set({ _bgUnsub: useStore.subscribe(sync) })
   },
 
   _subscribe() {
@@ -191,6 +212,7 @@ export const useStore = create((set, get) => ({
 
   _teardown() {
     for (const unsub of get()._unsubs) unsub()
+    get()._bgUnsub?.()
     clearTimeout(get()._errorTimer)
     clearTimeout(get()._transientTimer)
     clearTimeout(get()._mcConnectTimer)
@@ -199,6 +221,7 @@ export const useStore = create((set, get) => ({
     for (const timer of Object.values(get()._liveTimers)) clearTimeout(timer)
     set({
       _unsubs: [],
+      _bgUnsub: null,
       _errorTimer: null,
       _transientTimer: null,
       _mcConnectTimer: null,
