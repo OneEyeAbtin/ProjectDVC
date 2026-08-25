@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Check, ChevronRight } from 'lucide-react'
 import { useStore } from '../../state/store.js'
-import { INTERACT_MENU, INTERACTIONS, THEME_META, UTILITY_ENTRIES } from './menuData.js'
+import { INTERACT_MENU, INTERACTIONS, UTILITY_ENTRIES } from './menuData.js'
 import './context-menu.css'
 
 const EDGE_PAD = 8
@@ -35,7 +35,6 @@ export default function ContextMenu() {
   const personaDescriptions = useStore((s) => s.personaDescriptions)
   const currentOutfit = useStore((s) => s.outfit)
   const currentPersona = useStore((s) => s.persona)
-  const currentTheme = useStore((s) => s.theme)
 
   // Keep the panel inside the window once its real size is known, and
   // RE-CLAMP whenever a submenu expands (section/group toggles change the
@@ -110,10 +109,6 @@ export default function ContextMenu() {
     useStore.getState().setPersona(name)
   }
 
-  function pickTheme(id) {
-    useStore.getState().setTheme(id)
-  }
-
   function pickInteraction(id) {
     close()
     const text = INTERACTIONS[id] ?? `*I ${String(id).replace(/_/g, ' ')} you.*`
@@ -170,32 +165,6 @@ export default function ContextMenu() {
                 ))}
           </div>
         ))}
-
-      <div className="ctx-sep" />
-
-      <SectionRow label="🎨 Themes" open={section === 'themes'} onToggle={() => toggleSection('themes')} />
-      {section === 'themes' && (
-        <div className="ctx-theme-grid">
-          {THEME_META.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className={`swatch-cell${t.id === currentTheme ? ' active' : ''}`}
-              aria-pressed={t.id === currentTheme}
-              title={t.name}
-              onClick={() => pickTheme(t.id)}
-            >
-              <span
-                className="swatch-dot"
-                style={{ background: `linear-gradient(135deg, ${t.dot[0]}, ${t.dot[1]})` }}
-                aria-hidden="true"
-              />
-              <span className="swatch-name">{t.name}</span>
-              {t.id === currentTheme && <Check size={12} className="ctx-check" aria-hidden="true" />}
-            </button>
-          ))}
-        </div>
-      )}
 
       <div className="ctx-sep" />
 
