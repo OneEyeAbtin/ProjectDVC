@@ -86,8 +86,14 @@
   text-transform: uppercase;
   color: var(--txt2);
 }
+/* Overflow contract: every field control fills its grid cell and opts out of
+   the intrinsic min-width so long values can never push a column past the
+   dialog edge (the MC-version input bug). Grid tracks pair this with
+   minmax(0, 1fr) — see .theme-grid / .mc-field-pair / .gradient-colors. */
 .field input,
 .field select {
+  width: 100%;
+  min-width: 0;
   background: color-mix(in srgb, var(--bg1) 65%, transparent);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -144,6 +150,7 @@
 }
 .seg {
   flex: 1;
+  min-width: 0;
   background: none;
   border: none;
   border-radius: 8px;
@@ -199,7 +206,7 @@
 
 .theme-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 3px;
 }
 
@@ -303,7 +310,7 @@
 }
 
 .limit-row { display: flex; align-items: center; gap: 10px; }
-.limit-row input[type='range'] { flex: 1; accent-color: var(--acc1); }
+.limit-row input[type='range'] { flex: 1; min-width: 0; accent-color: var(--acc1); }
 .limit-value {
   min-width: 28px;
   text-align: center;
@@ -384,6 +391,8 @@
 }
 .mc-field-pair {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0,1fr): lets the Port/Version inputs shrink below their intrinsic
+     width instead of overflowing the dialog at narrow widths. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
