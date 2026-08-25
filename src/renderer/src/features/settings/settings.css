@@ -428,3 +428,24 @@
   border-color: var(--acc1);
   box-shadow: 0 0 0 1px var(--acc1);
 }
+.chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip {
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg1) 55%, transparent);
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-family: inherit;
+  font-size: 0.7188rem;
+  color: var(--txt2);
+  transition: color .15s ease, border-color .15s ease, background .15s ease;
+}
+.chip:hover { color: var(--txt1); }
+.chip.active {
+  color: var(--txt1);
+  border-color: var(--acc1);
+  background: color-mix(in srgb, var(--acc1) 14%, transparent);
+}

@@ -12,6 +12,7 @@ import {
 } from './settingsDraft.js'
 import './settings.css'
 import { applyGradient, GRADIENT_PRESETS } from './background.js'
+import { PARTICLE_THEME_META } from '../ambient/particleThemes.js'
 
 const TABS = ['General', 'AI/API', 'Voice', '⛏ MC', 'Memory']
 const BRAIN_MODES = ['local', 'online', 'offline']
@@ -610,6 +611,23 @@ export default function SettingsOverlay() {
                     onClick={() => applyPreset(preset)}
                   />
                 ))}
+              </div>
+
+              <div className="field">
+                <span className="field-label" id="particle-theme-label">Particles</span>
+                <div className="chip-grid" role="group" aria-labelledby="particle-theme-label">
+                  {PARTICLE_THEME_META.map((theme) => (
+                    <button
+                      key={theme.id}
+                      type="button"
+                      className={'chip' + (draft.particle_theme === theme.id ? ' active' : '')}
+                      aria-pressed={draft.particle_theme === theme.id}
+                      onClick={() => setField('particle_theme', theme.id)}
+                    >
+                      {theme.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <h3 className="section-title danger-title">Danger zone</h3>
