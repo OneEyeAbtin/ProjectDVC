@@ -11,8 +11,8 @@ import {
   TTS_ENGINES
 } from './settingsDraft.js'
 import './settings.css'
-import { applyGradient, GRADIENT_PRESETS } from './background.js'
-import { PARTICLE_THEME_META } from '../ambient/particleThemes.js'
+import { GRADIENT_PRESETS, sanitizeGradient } from './background.js'
+import { PARTICLE_THEME_META, sanitizeParticleTheme } from '../ambient/particleThemes.js'
 
 const TABS = ['General', 'AI/API', 'Voice', '⛏ MC', 'Memory']
 const BRAIN_MODES = ['local', 'online', 'offline']
@@ -123,6 +123,18 @@ function ConfirmButton({ className = '', confirmLabel = 'Really?', ariaLabel, on
   )
 }
 
+// Tiny "✓ saved" flicker for auto-saved rows: rendered once a save for the
+// key has resolved; the internal key remounts the span on every bump so the
+// CSS animation replays (no component-side timers).
+function SavedFlash({ seq }) {
+  if (!seq) return null
+  return (
+    <span key={seq} className="save-flash" aria-hidden="true">
+      ✓ saved
+    </span>
+  )
+}
+
 function TraitList({ items, emptyText, deleteAriaPrefix, onDelete }) {
   if (!items.length) return <p className="mem-empty">{emptyText}</p>
   return (
@@ -226,20 +238,31 @@ export default function SettingsOverlay() {
   const permanentFacts = useStore((s) => s.permanentFacts)
   const sessionSummary = useStore((s) => s.sessionSummary)
   const piperVoices = useStore((s) => s.piperVoices)
+  // Live appearance/behavior values: auto-save controls render straight from
+  // the store (never the draft) and persist immediately on change.
+  const savedSeq = useStore((s) => s.liveSavedSeq)
+  const liveTheme = useStore((s) => s.theme)
+  const liveFontScale = useStore((s) => s.fontScale)
+  const liveHeartsVisible = useStore((s) => s.heartsVisible !== false)
+  const liveUiSounds = useStore((s) => s.config?.ui_sounds !== false)
+  const liveAlwaysOnTop = useStore((s) => s.config?.always_on_top !== false)
+  const liveTrayEnabled = useStore((s) => s.config?.tray_enabled !== false)
+  const liveIdleChat = useStore((s) => s.config?.idle_chat !== false)
+  const liveAmbientEffects = useStore((s) => s.config?.ambient_effects !== false)
+  const liveParticleTheme = useStore((s) => sanitizeParticleTheme(s.config?.particle_theme))
+  const liveGradientCfg = useStore((s) => s.config?.custom_gradient)
   const [tab, setTab] = useState('General')
   const [draft, setDraft] = useState(null)
   const [saving, setSaving] = useState(false)
   const [testEmotion, setTestEmotion] = useState('neutral')
   const [testing, setTesting] = useState(false)
   const snapshot = useRef(null)
-  const persistedTheme = useRef('')
   const restoreFocus = useRef(null)
   const dialogRef = useRef(null)
 
   useEffect(() => {
     if (!open) return undefined
     snapshot.current = buildSnapshot(useStore.getState())
-    persistedTheme.current = snapshot.current.theme_id
     setDraft(snapshot.current)
     setTab('General')
     setSaving(false)
@@ -252,13 +275,10 @@ export default function SettingsOverlay() {
     window.addEventListener('keydown', onKeyDown)
     return () => {
       window.removeEventListener('keydown', onKeyDown)
-      // Cancel path: revert the live previews to whatever was last persisted.
-      document.documentElement.dataset.theme = persistedTheme.current
-      document.documentElement.style.setProperty(
-        '--font-scale',
-        String(useStore.getState().fontScale)
-      )
-      applyGradient(useStore.getState().config?.custom_gradient)
+      // Close path (Save, Cancel, ✕, Escape): settle any pending auto-saves
+      // so an applied value is never stranded unpersisted. No preview revert
+      // here — every live setting already IS the persisted store state.
+      useStore.getState().flushLiveSaves()
       restoreFocus.current?.focus?.()
     }
   }, [open])
@@ -267,10 +287,23 @@ export default function SettingsOverlay() {
 
   // Test voice uses the SAVED config; any unsaved draft edit means the sample
   // would not reflect what the user sees, so the button waits for a Save.
+  // Auto-saved keys are excluded by diffPatch — they are already saved.
   const draftDirty = Object.keys(diffPatch(draft, snapshot.current)).length > 0
+
+  // Normalized once per render: config may hold a partial gradient, but the
+  // whole-object auto-save always sends a complete one.
+  const gradient = sanitizeGradient(liveGradientCfg)
 
   function setField(key, value) {
     setDraft((d) => ({ ...d, [key]: value }))
+  }
+
+  function saveLive(key, value) {
+    useStore.getState().saveLiveSetting(key, value)
+  }
+
+  function saveGradient(patch) {
+    saveLive('custom_gradient', { ...gradient, ...patch })
   }
 
   // Nested objects are replaced whole: any subfield edit produces a new
@@ -295,34 +328,6 @@ export default function SettingsOverlay() {
     }))
   }
 
-  function previewTheme(id) {
-    setField('theme_id', id)
-    document.documentElement.dataset.theme = id
-  }
-
-  // Live preview while the slider drags; persisted only on Save.
-  function previewFontScale(value) {
-    setField('font_scale', value)
-    document.documentElement.style.setProperty('--font-scale', String(value))
-  }
-
-  // custom_gradient edits preview instantly via the --shell-grad-* CSS vars
-  // (same draft→Save contract as the theme/font previews; Cancel reverts in
-  // the open effect cleanup above, Save persists through profile:save).
-  // Computed from the closure draft so the preview always matches what is
-  // stored — updater callbacks must stay side-effect free.
-  function setGradField(key, value) {
-    const next = { ...draft.custom_gradient, [key]: value }
-    setField('custom_gradient', next)
-    applyGradient(next)
-  }
-
-  function applyPreset(preset) {
-    const next = { ...draft.custom_gradient, enabled: true, from: preset.from, to: preset.to }
-    setField('custom_gradient', next)
-    applyGradient(next)
-  }
-
   function cancel() {
     useStore.getState().setSettingsOpen(false)
   }
@@ -341,15 +346,16 @@ export default function SettingsOverlay() {
 
   async function save() {
     if (!draft || !snapshot.current || saving) return
-    const patch = diffPatch(draft, snapshot.current)
-    if (!Object.keys(patch).length) {
-      cancel()
-      return
-    }
     setSaving(true)
     try {
-      await window.dvc.invoke('profile:save', patch)
-      if ('theme_id' in patch) persistedTheme.current = patch.theme_id
+      // Settle pending auto-saves first: the flush cancels their debounce
+      // timers, so they can never double-fire after this manual Save closes
+      // the overlay. Auto keys themselves are excluded from the diff below.
+      await useStore.getState().flushLiveSaves()
+      const patch = diffPatch(draft, snapshot.current)
+      if (Object.keys(patch).length) {
+        await window.dvc.invoke('profile:save', patch)
+      }
       useStore.getState().setSettingsOpen(false)
     } catch (err) {
       useStore.getState().setError({ scope: 'profile', message: String(err?.message ?? err) })
@@ -420,78 +426,84 @@ export default function SettingsOverlay() {
                 <input
                   type="checkbox"
                   role="switch"
-                  checked={draft.hearts_visible}
-                  onChange={(e) => setField('hearts_visible', e.target.checked)}
+                  checked={liveHeartsVisible}
+                  onChange={(e) => saveLive('hearts_visible', e.target.checked)}
                 />
                 <span className="toggle-track" aria-hidden="true">
                   <span className="toggle-thumb" />
                 </span>
                 <span className="toggle-text">Show affection hearts</span>
+                <SavedFlash seq={savedSeq.hearts_visible} />
               </label>
 
               <label className="toggle-row">
                 <input
                   type="checkbox"
                   role="switch"
-                  checked={draft.always_on_top}
-                  onChange={(e) => setField('always_on_top', e.target.checked)}
+                  checked={liveAlwaysOnTop}
+                  onChange={(e) => saveLive('always_on_top', e.target.checked)}
                 />
                 <span className="toggle-track" aria-hidden="true">
                   <span className="toggle-thumb" />
                 </span>
                 <span className="toggle-text">Always on top</span>
+                <SavedFlash seq={savedSeq.always_on_top} />
               </label>
 
               <label className="toggle-row">
                 <input
                   type="checkbox"
                   role="switch"
-                  checked={draft.tray_enabled}
-                  onChange={(e) => setField('tray_enabled', e.target.checked)}
+                  checked={liveTrayEnabled}
+                  onChange={(e) => saveLive('tray_enabled', e.target.checked)}
                 />
                 <span className="toggle-track" aria-hidden="true">
                   <span className="toggle-thumb" />
                 </span>
                 <span className="toggle-text">Tray icon</span>
+                <SavedFlash seq={savedSeq.tray_enabled} />
               </label>
 
               <label className="toggle-row">
                 <input
                   type="checkbox"
                   role="switch"
-                  checked={draft.ui_sounds}
-                  onChange={(e) => setField('ui_sounds', e.target.checked)}
+                  checked={liveUiSounds}
+                  onChange={(e) => saveLive('ui_sounds', e.target.checked)}
                 />
                 <span className="toggle-track" aria-hidden="true">
                   <span className="toggle-thumb" />
                 </span>
                 <span className="toggle-text">UI sounds</span>
+                <SavedFlash seq={savedSeq.ui_sounds} />
               </label>
 
               <label className="toggle-row">
                 <input
                   type="checkbox"
                   role="switch"
-                  checked={draft.idle_chat}
-                  onChange={(e) => setField('idle_chat', e.target.checked)}
+                  checked={liveIdleChat}
+                  onChange={(e) => saveLive('idle_chat', e.target.checked)}
                 />
                 <span className="toggle-track" aria-hidden="true">
                   <span className="toggle-thumb" />
                 </span>
                 <span className="toggle-text">Idle chatter</span>
+                <SavedFlash seq={savedSeq.idle_chat} />
               </label>
 
               <label className="toggle-row">
                 <input
                   type="checkbox"
                   role="switch"
-                  checked={draft.ambient_effects}
-                  onChange={(e) => setField('ambient_effects', e.target.checked)}
+                  checked={liveAmbientEffects}
+                  onChange={(e) => saveLive('ambient_effects', e.target.checked)}
                 />
                 <span className="toggle-track" aria-hidden="true">
                   <span className="toggle-thumb" />
                 </span>
                 <span className="toggle-text">Ambient effects</span>
+                <SavedFlash seq={savedSeq.ambient_effects} />
               </label>
 
               <div className="field">
@@ -503,14 +515,15 @@ export default function SettingsOverlay() {
                     min={FONT_MIN}
                     max={FONT_MAX}
                     step={0.05}
-                    value={draft.font_scale}
-                    aria-valuetext={`${draft.font_scale.toFixed(2)} times`}
-                    onChange={(e) => previewFontScale(Number(e.target.value))}
+                    value={liveFontScale}
+                    aria-valuetext={`${liveFontScale.toFixed(2)} times`}
+                    onChange={(e) => saveLive('font_scale', Number(e.target.value))}
                   />
                   <output id="font-scale-value" className="limit-value" htmlFor="font-scale-slider">
-                    {draft.font_scale.toFixed(2)}×
+                    {liveFontScale.toFixed(2)}×
                   </output>
                 </div>
+                <SavedFlash seq={savedSeq.font_scale} />
               </div>
 
               <div className="field">
@@ -520,9 +533,9 @@ export default function SettingsOverlay() {
                     <button
                       key={t.id}
                       type="button"
-                      className={`swatch-cell${draft.theme_id === t.id ? ' active' : ''}`}
-                      aria-pressed={draft.theme_id === t.id}
-                      onClick={() => previewTheme(t.id)}
+                      className={`swatch-cell${liveTheme === t.id ? ' active' : ''}`}
+                      aria-pressed={liveTheme === t.id}
+                      onClick={() => saveLive('theme_id', t.id)}
                     >
                       <span
                         className="swatch-dot"
@@ -530,10 +543,11 @@ export default function SettingsOverlay() {
                         aria-hidden="true"
                       />
                       <span className="swatch-name">{t.name}</span>
-                      {draft.theme_id === t.id && <Check size={12} className="ctx-check" aria-hidden="true" />}
+                      {liveTheme === t.id && <Check size={12} className="ctx-check" aria-hidden="true" />}
                     </button>
                   ))}
                 </div>
+                <SavedFlash seq={savedSeq.theme_id} />
               </div>
 
               <h3 className="section-title">Background</h3>
@@ -541,14 +555,15 @@ export default function SettingsOverlay() {
                 <input
                   type="checkbox"
                   role="switch"
-                  checked={draft.custom_gradient.enabled}
+                  checked={gradient.enabled}
                   aria-label="Custom background gradient"
-                  onChange={(e) => setGradField('enabled', e.target.checked)}
+                  onChange={(e) => saveGradient({ enabled: e.target.checked })}
                 />
                 <span className="toggle-track" aria-hidden="true">
                   <span className="toggle-thumb" />
                 </span>
                 <span className="toggle-text">Custom background gradient</span>
+                <SavedFlash seq={savedSeq.custom_gradient} />
               </label>
 
               <div className="gradient-row">
@@ -557,9 +572,9 @@ export default function SettingsOverlay() {
                   <input
                     id="grad-from"
                     type="color"
-                    value={draft.custom_gradient.from}
+                    value={gradient.from}
                     aria-label="Gradient start color"
-                    onChange={(e) => setGradField('from', e.target.value)}
+                    onChange={(e) => saveGradient({ from: e.target.value })}
                   />
                 </div>
                 <div className="field">
@@ -567,9 +582,9 @@ export default function SettingsOverlay() {
                   <input
                     id="grad-to"
                     type="color"
-                    value={draft.custom_gradient.to}
+                    value={gradient.to}
                     aria-label="Gradient end color"
-                    onChange={(e) => setGradField('to', e.target.value)}
+                    onChange={(e) => saveGradient({ to: e.target.value })}
                   />
                 </div>
               </div>
@@ -583,12 +598,12 @@ export default function SettingsOverlay() {
                     min={0}
                     max={360}
                     step={1}
-                    value={draft.custom_gradient.angle}
-                    aria-valuetext={`${draft.custom_gradient.angle} degrees`}
-                    onChange={(e) => setGradField('angle', Number(e.target.value))}
+                    value={gradient.angle}
+                    aria-valuetext={`${gradient.angle} degrees`}
+                    onChange={(e) => saveGradient({ angle: Number(e.target.value) })}
                   />
                   <output id="grad-angle-value" className="limit-value" htmlFor="grad-angle-slider">
-                    {draft.custom_gradient.angle}°
+                    {gradient.angle}°
                   </output>
                 </div>
               </div>
@@ -600,15 +615,19 @@ export default function SettingsOverlay() {
                     type="button"
                     className={
                       'preset-swatch' +
-                      (draft.custom_gradient.from === preset.from &&
-                      draft.custom_gradient.to === preset.to
-                        ? ' active'
-                        : '')
+                      (gradient.from === preset.from && gradient.to === preset.to ? ' active' : '')
                     }
                     style={{ background: `linear-gradient(135deg, ${preset.from}, ${preset.to})` }}
                     title={preset.name}
                     aria-label={`${preset.name} gradient preset`}
-                    onClick={() => applyPreset(preset)}
+                    onClick={() =>
+                      saveLive('custom_gradient', {
+                        ...gradient,
+                        enabled: true,
+                        from: preset.from,
+                        to: preset.to
+                      })
+                    }
                   />
                 ))}
               </div>
@@ -620,14 +639,15 @@ export default function SettingsOverlay() {
                     <button
                       key={theme.id}
                       type="button"
-                      className={'chip' + (draft.particle_theme === theme.id ? ' active' : '')}
-                      aria-pressed={draft.particle_theme === theme.id}
-                      onClick={() => setField('particle_theme', theme.id)}
+                      className={'chip' + (liveParticleTheme === theme.id ? ' active' : '')}
+                      aria-pressed={liveParticleTheme === theme.id}
+                      onClick={() => saveLive('particle_theme', theme.id)}
                     >
                       {theme.label}
                     </button>
                   ))}
                 </div>
+                <SavedFlash seq={savedSeq.particle_theme} />
               </div>
 
               <h3 className="section-title danger-title">Danger zone</h3>
