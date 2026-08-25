@@ -23,7 +23,9 @@
 }
 
 /* ── Layer A: aurora orbs ────────────────────────────────────────────────── */
-/* Soft edges come from the radial-gradient falloff alone — no filter:blur. */
+/* Soft edges come from the radial-gradient falloff alone — no filter:blur.
+   Durations divide the base by --ambient-speed (0.25×–3×, set inline on
+   .ambient by AmbientBackground) so the slider speeds/slows the drift. */
 .aurora { position: absolute; inset: 0; }
 
 .orb {
@@ -38,7 +40,7 @@
   top: -100px;
   left: -110px;
   background: radial-gradient(circle, color-mix(in srgb, var(--acc1) 22%, transparent) 0%, transparent 70%);
-  animation: orb-drift-a 26s ease-in-out infinite alternate;
+  animation: orb-drift-a calc(26s / var(--ambient-speed, 1)) ease-in-out infinite alternate;
 }
 .orb-b {
   width: 420px;
@@ -46,7 +48,7 @@
   top: 30%;
   right: -160px;
   background: radial-gradient(circle, color-mix(in srgb, var(--acc2) 22%, transparent) 0%, transparent 70%);
-  animation: orb-drift-b 34s ease-in-out infinite alternate;
+  animation: orb-drift-b calc(34s / var(--ambient-speed, 1)) ease-in-out infinite alternate;
   animation-delay: -8s;
 }
 .orb-c {
@@ -55,7 +57,7 @@
   bottom: -80px;
   left: 18%;
   background: radial-gradient(circle, color-mix(in srgb, var(--acc3) 22%, transparent) 0%, transparent 70%);
-  animation: orb-drift-c 42s ease-in-out infinite alternate;
+  animation: orb-drift-c calc(42s / var(--ambient-speed, 1)) ease-in-out infinite alternate;
   animation-delay: -16s;
 }
 

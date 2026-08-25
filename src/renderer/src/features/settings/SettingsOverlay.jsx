@@ -13,6 +13,12 @@ import {
 import './settings.css'
 import { GRADIENT_PRESETS, sanitizeGradient } from './background.js'
 import { PARTICLE_THEME_META, sanitizeParticleTheme } from '../ambient/particleThemes.js'
+import {
+  ANIMATION_SPEED_MAX,
+  ANIMATION_SPEED_MIN,
+  ANIMATION_SPEED_STEP,
+  sanitizeAnimationSpeed
+} from '../ambient/animationSpeed.js'
 
 const TABS = ['General', 'AI/API', 'Voice', '⛏ MC', 'Memory']
 const BRAIN_MODES = ['local', 'online', 'offline']
@@ -249,6 +255,7 @@ export default function SettingsOverlay() {
   const liveTrayEnabled = useStore((s) => s.config?.tray_enabled !== false)
   const liveIdleChat = useStore((s) => s.config?.idle_chat !== false)
   const liveAmbientEffects = useStore((s) => s.config?.ambient_effects !== false)
+  const liveAnimationSpeed = useStore((s) => sanitizeAnimationSpeed(s.config?.animation_speed))
   const liveParticleTheme = useStore((s) => sanitizeParticleTheme(s.config?.particle_theme))
   const liveGradientCfg = useStore((s) => s.config?.custom_gradient)
   const [tab, setTab] = useState('General')
@@ -642,6 +649,27 @@ export default function SettingsOverlay() {
                     />
                   ))}
                 </div>
+              </div>
+
+              <div className="field">
+                <span className="field-label">Animation speed</span>
+                <div className="limit-row">
+                  <input
+                    id="anim-speed-slider"
+                    type="range"
+                    min={ANIMATION_SPEED_MIN}
+                    max={ANIMATION_SPEED_MAX}
+                    step={ANIMATION_SPEED_STEP}
+                    value={liveAnimationSpeed}
+                    aria-valuetext={`${liveAnimationSpeed} times`}
+                    aria-label="Ambient animation speed"
+                    onChange={(e) => saveLive('animation_speed', Number(e.target.value))}
+                  />
+                  <output id="anim-speed-value" className="limit-value" htmlFor="anim-speed-slider">
+                    {liveAnimationSpeed}×
+                  </output>
+                </div>
+                <SavedFlash seq={savedSeq.animation_speed} />
               </div>
 
               <div className="field">
