@@ -375,6 +375,42 @@ describe('ipc voice stubs', () => {
   })
 })
 
+describe('ipc win:hide', () => {
+  function harnessWithWin(winOverrides) {
+    const root = makeRoot()
+    const config = createConfigService({ rootDir: root })
+    const memory = createMemoryService({ rootDir: root })
+    const characters = createCharactersService({
+      outfitsDir: makeOutfitsDir(root),
+      emotions: ['neutral']
+    })
+    const brain = createBrain({ config, memory, callLLM: async () => 'ok' })
+    registerIpc({
+      services: { config, memory, characters, brain },
+      getWin: () => ({
+        isDestroyed: () => false,
+        webContents: { send: () => {} },
+        ...winOverrides
+      })
+    })
+    return new Map(ipcMain.handle.mock.calls.map(([ch, fn]) => [ch, fn]))
+  }
+
+  it('hides the window so the tray can restore it', () => {
+    const hide = vi.fn()
+    const handlers = harnessWithWin({ hide })
+    expect(handlers.get('win:hide')(null)).toEqual({ hidden: true })
+    expect(hide).toHaveBeenCalledTimes(1)
+  })
+
+  it('tolerates a destroyed window or one without a hide method', () => {
+    let handlers = harnessWithWin({ isDestroyed: () => true, hide: vi.fn() })
+    expect(handlers.get('win:hide')(null)).toEqual({ hidden: true })
+    handlers = harnessWithWin({})
+    expect(handlers.get('win:hide')(null)).toEqual({ hidden: true })
+  })
+})
+
 describe('preload allowlist', () => {
   it('every allowlisted invoke channel has a registered ipcMain handler and vice versa', () => {
     makeHarness()
