@@ -9,9 +9,13 @@ html, body, #root { height: 100%; background: transparent; overflow: hidden;
 .shell { position: relative; height: 100%; display: flex; flex-direction: column; border-radius: 18px;
   overflow: hidden; color: var(--txt1);
   background: linear-gradient(170deg, var(--bg2), var(--bg1));
-  border: 1px solid var(--border); }
+  border: 1px solid var(--border);
+  /* Static window aura — a constant soft glow, no animation (cheap). */
+  box-shadow: 0 0 42px -8px color-mix(in srgb, var(--acc1) 30%, transparent);
+  transition: border-color .45s ease, color .3s ease; }
 .glass { background: color-mix(in srgb, var(--bg3) 72%, transparent);
-  backdrop-filter: blur(15px); border: 1px solid var(--border); }
+  backdrop-filter: blur(15px); border: 1px solid var(--border);
+  transition: background-color .45s ease, border-color .45s ease, color .3s ease; }
 button { cursor: pointer; font-family: inherit; }
 input { user-select: text; }
 

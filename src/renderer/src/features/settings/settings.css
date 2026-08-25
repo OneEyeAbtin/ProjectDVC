@@ -12,6 +12,7 @@
   background: color-mix(in srgb, var(--bg1) 62%, transparent);
   backdrop-filter: blur(4px);
   outline: none;
+  transition: background-color .45s ease;
 }
 
 .settings-panel {
@@ -352,7 +353,7 @@
   font-family: inherit;
   font-size: 0.8125rem;
   font-weight: 600;
-  transition: filter .15s ease, opacity .15s ease;
+  transition: filter .15s ease, opacity .15s ease, background-color .45s ease, border-color .45s ease, color .3s ease;
 }
 .btn.primary {
   background: linear-gradient(135deg, var(--acc1), var(--acc2));

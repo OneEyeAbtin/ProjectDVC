@@ -442,6 +442,19 @@ export default function SettingsOverlay() {
                 <span className="toggle-text">Idle chatter</span>
               </label>
 
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={draft.ambient_effects}
+                  onChange={(e) => setField('ambient_effects', e.target.checked)}
+                />
+                <span className="toggle-track" aria-hidden="true">
+                  <span className="toggle-thumb" />
+                </span>
+                <span className="toggle-text">Ambient effects</span>
+              </label>
+
               <div className="field">
                 <label htmlFor="font-scale-slider">Text size</label>
                 <div className="limit-row">
