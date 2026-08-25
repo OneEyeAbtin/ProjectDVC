@@ -59,7 +59,7 @@ process.on('unhandledRejection', reason=>{
 function safeInt(val,def=1){ const n=parseInt(val); return Number.isFinite(n)&&n>0?n:def; }
 
 // ── WebSocket bridge ──────────────────────────────────────────────────────────
-const wss = new WebSocket.Server({ port:WS_PORT });
+const wss = new WebSocket.Server({ port:WS_PORT, host:'127.0.0.1' }); // localhost-only — never expose the bot bridge
 let ws = null;
 wss.on('connection', sock=>{
   ws=sock; console.log('[BOT] Python connected ✓'); send({ type:'mode_info', mode:MODE });
