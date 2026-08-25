@@ -7,6 +7,7 @@ import {
   mapMcError,
   shouldAcceptRadar
 } from '../features/minecraft/minecraftLogic.js'
+import { AUTO_SAVE_DEBOUNCE_MS, readLiveSetting } from '../features/settings/liveSettings.js'
 
 // Fallback until app:init delivers the authoritative list from main
 // (src/main/data/emotions.js is the single source).
@@ -79,6 +80,14 @@ export const useStore = create((set, get) => ({
   // True while the right-click context menu is on screen — part of the
   // uiBlocking signal that pauses the ambient animation (see AmbientBackground).
   contextMenuOpen: false,
+
+  // Live settings auto-save (Settings → General appearance/behavior keys):
+  // per-key trailing debounce timers, last-write-wins payloads, pre-edit
+  // origins for guarded rollback, and a save-completed flicker counter per key.
+  _liveTimers: {},
+  _livePayloads: {},
+  _liveOrigins: {},
+  liveSavedSeq: {},
 
   // setup + errors
   setupQuestions: [],
@@ -185,7 +194,18 @@ export const useStore = create((set, get) => ({
     clearTimeout(get()._errorTimer)
     clearTimeout(get()._transientTimer)
     clearTimeout(get()._mcConnectTimer)
-    set({ _unsubs: [], _errorTimer: null, _transientTimer: null, _mcConnectTimer: null })
+    // App shutdown: drop pending live saves without firing (nothing would
+    // consume their results; the optimistic values were never persisted).
+    for (const timer of Object.values(get()._liveTimers)) clearTimeout(timer)
+    set({
+      _unsubs: [],
+      _errorTimer: null,
+      _transientTimer: null,
+      _mcConnectTimer: null,
+      _liveTimers: {},
+      _livePayloads: {},
+      _liveOrigins: {}
+    })
   },
 
   // ── speech ────────────────────────────────────────────────────────────────
@@ -555,6 +575,81 @@ export const useStore = create((set, get) => ({
       if (get().outfit === next) set({ outfit: prev })
       get().setError({ scope: 'profile', message: String(err?.message ?? err) })
     })
+  },
+
+  // Optimistic live-setting change: applied to the store immediately (all
+  // previews are store-driven via App/AmbientBackground subscriptions), then
+  // persisted through a per-key trailing debounce so slider drags and rapid
+  // toggles collapse into one profile:save carrying only the latest value.
+  // The first change of a burst is remembered as the rollback origin.
+  saveLiveSetting(key, value) {
+    const current = readLiveSetting(get(), key)
+    if (current === value) return
+    // Timer/payload/origin maps are bookkeeping only (nothing renders from
+    // them) — mutated directly like _mcConnectTimer.
+    const live = get()
+    if (!(key in live._liveOrigins)) live._liveOrigins[key] = current
+    live._applyLiveSetting(key, value)
+    live._livePayloads[key] = value
+    clearTimeout(live._liveTimers[key])
+    live._liveTimers[key] = setTimeout(() => {
+      delete get()._liveTimers[key]
+      get()._fireLiveSave(key)
+    }, AUTO_SAVE_DEBOUNCE_MS)
+  },
+
+  // Fire every pending debounced save NOW and clear its timer: used by the
+  // settings Save button (so nothing can double-fire after close) and by the
+  // overlay teardown (closing must never strand an applied-but-unpersisted
+  // toggle). Resolves once all outstanding invokes settle.
+  flushLiveSaves() {
+    const fires = Object.keys(get()._liveTimers).map((key) => {
+      clearTimeout(get()._liveTimers[key])
+      delete get()._liveTimers[key]
+      return get()._fireLiveSave(key)
+    })
+    return Promise.all(fires).then(() => {})
+  },
+
+  _fireLiveSave(key) {
+    const payload = get()._livePayloads[key]
+    const origin = get()._liveOrigins[key]
+    delete get()._livePayloads[key]
+    delete get()._liveOrigins[key]
+    if (payload === undefined) return Promise.resolve()
+    return window.dvc.invoke('profile:save', { [key]: payload }).then(
+      () => {
+        // Saved flicker counter: bumping remounts the row's "✓ saved" span,
+        // replaying its CSS animation without any component-side timers.
+        const seq = (get().liveSavedSeq[key] ?? 0) + 1
+        set({ liveSavedSeq: { ...get().liveSavedSeq, [key]: seq } })
+      },
+      (err) => {
+        // Guarded rollback (setTheme pattern): revert only if this value is
+        // still the live one — a newer edit supersedes the failed save.
+        if (readLiveSetting(get(), key) === payload) {
+          get()._applyLiveSetting(key, origin)
+        }
+        get().setError({ scope: 'profile', message: String(err?.message ?? err) })
+      }
+    )
+  },
+
+  // Key → store patch for the optimistic apply; mirrors readLiveSetting.
+  _applyLiveSetting(key, value) {
+    switch (key) {
+      case 'theme_id':
+        set({ theme: value })
+        break
+      case 'hearts_visible':
+        set({ heartsVisible: value })
+        break
+      case 'font_scale':
+        set({ fontScale: value })
+        break
+      default:
+        set({ config: { ...get().config, [key]: value } })
+    }
   },
 
   // Re-scan the outfits directory; main pushes the refreshed manifest back on

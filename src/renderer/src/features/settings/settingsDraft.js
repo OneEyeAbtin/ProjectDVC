@@ -1,5 +1,4 @@
-import { DEFAULT_GRADIENT } from './background.js'
-import { sanitizeParticleTheme } from '../ambient/particleThemes.js'
+import { isAutoSaveKey } from './liveSettings.js'
 
 export const TTS_ENGINES = ['elevenlabs', 'edge', 'piper']
 
@@ -60,14 +59,17 @@ export function buildMcSnapshot(cfg = {}) {
   return { ...mc, ai_features: pick(mc.ai_features, DEFAULT_MC_CONFIG.ai_features) }
 }
 
+// Draft snapshot = ONLY the fields that persist through the Save button.
+// Live appearance/behavior keys (theme, particles, gradient, toggles, font
+// scale — see liveSettings.js AUTO_SAVE_KEYS) are excluded: their controls
+// read the store directly and persist immediately (debounced), so including
+// them here would make Cancel/Save fight the already-live values.
 export function buildSnapshot(state) {
   const cfg = state.config ?? {}
   return {
     user_name: state.userName ?? '',
     pet_name: state.petName ?? '',
     brain_mode: state.brainMode ?? 'online',
-    hearts_visible: state.heartsVisible !== false,
-    theme_id: state.theme ?? 'midnight-sakura',
     max_history: Number(cfg.max_history) || 20,
     online_api_url: cfg.online_api_url ?? '',
     online_api_key: cfg.online_api_key ?? '',
@@ -75,14 +77,6 @@ export function buildSnapshot(state) {
     local_api_url: cfg.local_api_url ?? '',
     local_api_key: cfg.local_api_key ?? '',
     local_api_model: cfg.local_api_model ?? '',
-    always_on_top: cfg.always_on_top !== false,
-    tray_enabled: cfg.tray_enabled !== false,
-    ui_sounds: cfg.ui_sounds !== false,
-    idle_chat: cfg.idle_chat !== false,
-    ambient_effects: cfg.ambient_effects !== false,
-    custom_gradient: pick(cfg.custom_gradient, DEFAULT_GRADIENT),
-    particle_theme: sanitizeParticleTheme(cfg.particle_theme),
-    font_scale: Number(state.fontScale) || 1,
     lip_sync_tts: state.lipSyncTts !== false,
     lip_sync_text: state.lipSyncText === true,
     tts_config: pick(cfg.tts_config, DEFAULT_TTS_CONFIG),
@@ -96,9 +90,12 @@ export function buildSnapshot(state) {
 // which this strict compare treats as changed and sends in full to
 // profile:save; untouched objects keep their reference and are omitted.
 // Deep-diffing was rejected as needless complexity for two small flat objects.
+// Auto-save keys are skipped defensively: a stale draft that still carries
+// them can never leak back into a manual save.
 export function diffPatch(draft, snapshot) {
   const patch = {}
   for (const [key, value] of Object.entries(draft)) {
+    if (isAutoSaveKey(key)) continue
     if (value !== snapshot[key]) patch[key] = value
   }
   return patch

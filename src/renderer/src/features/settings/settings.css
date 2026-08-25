@@ -449,3 +449,29 @@
   border-color: var(--acc1);
   background: color-mix(in srgb, var(--acc1) 14%, transparent);
 }
+
+/* ── Auto-save flicker (live settings) ───────────────────────────────────── */
+.toggle-row,
+.field,
+.section-title {
+  position: relative;
+}
+.save-flash {
+  position: absolute;
+  right: 0;
+  pointer-events: none;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--acc1);
+  opacity: 0;
+  animation: save-flash 1.4s ease forwards;
+}
+.toggle-row .save-flash { top: 50%; transform: translateY(-50%); }
+.field .save-flash { top: 2px; }
+.section-title .save-flash { top: 4px; }
+@keyframes save-flash {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  65% { opacity: 1; }
+  100% { opacity: 0; }
+}

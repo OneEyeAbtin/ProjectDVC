@@ -4,6 +4,7 @@ import {
   diffPatch,
   TEST_EMOTIONS
 } from '../src/renderer/src/features/settings/settingsDraft.js'
+import { AUTO_SAVE_KEYS } from '../src/renderer/src/features/settings/liveSettings.js'
 
 describe('settings draft snapshot', () => {
   it('applies voice defaults when the config is empty', () => {
@@ -46,48 +47,44 @@ describe('settings draft snapshot', () => {
     expect(cfg.tts_config.enabled).toBe(true)
   })
 
-  describe('custom background gradient', () => {
-    it('applies gradient defaults when the config is empty', () => {
-      const snap = buildSnapshot({ config: {} })
-      expect(snap.custom_gradient).toEqual({
-        enabled: false,
-        from: '#1a1025',
-        to: '#0d0816',
-        angle: 135
+  describe('auto-save key exclusion (live settings)', () => {
+    it('keeps every auto-save key out of the snapshot — those controls read the store', () => {
+      const snap = buildSnapshot({
+        config: {
+          always_on_top: false,
+          tray_enabled: false,
+          ui_sounds: false,
+          idle_chat: false,
+          ambient_effects: false,
+          custom_gradient: { enabled: true, from: '#112233', to: '#445566', angle: 90 },
+          particle_theme: 'sakura'
+        },
+        theme: 'sakura-dawn',
+        heartsVisible: false,
+        fontScale: 1.2
       })
+      for (const key of AUTO_SAVE_KEYS) {
+        expect(key in snap).toBe(false)
+      }
     })
 
-    it('carries saved values and merges a partial object over defaults', () => {
-      const snap = buildSnapshot({ config: { custom_gradient: { enabled: true, from: '#112233' } } })
-      expect(snap.custom_gradient.enabled).toBe(true)
-      expect(snap.custom_gradient.from).toBe('#112233')
-      expect(snap.custom_gradient.to).toBe('#0d0816') // default survives
-      expect(snap.custom_gradient.angle).toBe(135) // default survives
-    })
-
-    it('sends custom_gradient whole when any subfield changes, omits it untouched', () => {
+    it('diffPatch never sends an auto-save key, even from a stale draft that carries one', () => {
       const base = buildSnapshot({ config: {} })
-      expect('custom_gradient' in diffPatch({ ...base }, base)).toBe(false)
-
-      const draft = { ...base, custom_gradient: { ...base.custom_gradient, angle: 90 } }
-      const patch = diffPatch(draft, base)
-      expect(patch.custom_gradient).toEqual({ ...base.custom_gradient, angle: 90 })
-    })
-  })
-
-  describe('particle theme', () => {
-    it('defaults to stars and carries the saved selection', () => {
-      expect(buildSnapshot({ config: {} }).particle_theme).toBe('stars')
-      expect(buildSnapshot({ config: { particle_theme: 'sakura' } }).particle_theme).toBe('sakura')
-      // Unknown values sanitize to stars so a hand-edited config can't break boot.
-      expect(buildSnapshot({ config: { particle_theme: 'confetti' } }).particle_theme).toBe('stars')
-    })
-
-    it('round-trips through diffPatch only when changed', () => {
-      const base = buildSnapshot({ config: {} })
-      expect('particle_theme' in diffPatch({ ...base }, base)).toBe(false)
-      const patch = diffPatch({ ...base, particle_theme: 'fireflies' }, base)
-      expect(patch.particle_theme).toBe('fireflies')
+      // Simulate a pre-migration draft that still holds live keys.
+      const staleDraft = {
+        ...base,
+        theme_id: 'ember-night',
+        particle_theme: 'snow',
+        custom_gradient: { enabled: true, from: '#000000', to: '#111111', angle: 0 },
+        ui_sounds: false,
+        always_on_top: false,
+        tray_enabled: false,
+        idle_chat: false,
+        ambient_effects: false,
+        font_scale: 1.3,
+        hearts_visible: false
+      }
+      expect(diffPatch(staleDraft, base)).toEqual({})
     })
   })
 })
