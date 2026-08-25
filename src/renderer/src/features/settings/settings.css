@@ -398,56 +398,81 @@
 }
 
 /* ── Background section (General tab) ────────────────────────────────────── */
+/* Stacked subsections, normal flow only: Custom gradient → Presets →
+   Particle effect. NOTE: never style these controls with a bare shared class
+   name (the old `.chip` collided with companion.css's absolutely-positioned
+   portrait badges and floated the whole chip grid over the presets). */
 .gradient-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
-/* Native color swatch: drop the text-input padding, give it input height. */
+/* Uniform color-input chrome: fixed box, no native padding/border noise, the
+   swatch itself carries the rounding inside a consistent 1px frame. */
 .field input[type='color'] {
-  padding: 4px;
-  height: 38px;
+  width: 100%;
+  height: 36px;
+  padding: 0;
+  border-radius: 10px;
   cursor: pointer;
 }
 .field input[type='color']::-webkit-color-swatch-wrapper { padding: 2px; }
-.field input[type='color']::-webkit-color-swatch { border: none; border-radius: 6px; }
+.field input[type='color']::-webkit-color-swatch { border: none; border-radius: 8px; }
+.field input[type='color']:focus { border-color: var(--acc1); }
+
 .preset-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
+  gap: 8px;
 }
 .preset-swatch {
-  height: 26px;
+  width: 100%;
+  height: 28px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 0;
-  transition: border-color .15s ease, transform .15s ease;
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
 }
 .preset-swatch:hover { border-color: var(--acc1); transform: translateY(-1px); }
 .preset-swatch.active {
   border-color: var(--acc1);
-  box-shadow: 0 0 0 1px var(--acc1);
+  /* Ring drawn as shadow so every chip keeps identical layout size. */
+  box-shadow:
+    0 0 0 2px var(--acc1),
+    0 0 10px color-mix(in srgb, var(--acc1) 45%, transparent);
 }
-.chip-grid {
-  display: flex;
-  flex-wrap: wrap;
+
+/* Particle effect chips: wrapping 3-column grid inside the panel; selected =
+   accent ring. Distinct class (not `.chip`) to avoid cross-feature leakage. */
+.particle-chip-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
-.chip {
+.particle-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg1) 55%, transparent);
   border-radius: 999px;
-  padding: 5px 11px;
+  padding: 7px 4px;
   font-family: inherit;
   font-size: 0.7188rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--txt2);
-  transition: color .15s ease, border-color .15s ease, background .15s ease;
+  transition: color .15s ease, border-color .15s ease, background .15s ease, box-shadow .15s ease;
 }
-.chip:hover { color: var(--txt1); }
-.chip.active {
+.particle-chip:hover { color: var(--txt1); }
+.particle-chip.active {
   color: var(--txt1);
   border-color: var(--acc1);
   background: color-mix(in srgb, var(--acc1) 14%, transparent);
+  box-shadow: 0 0 0 2px var(--acc1);
 }
 
 /* ── Auto-save flicker (live settings) ───────────────────────────────────── */
