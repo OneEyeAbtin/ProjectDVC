@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
+  CONSTELLATION_LINK_DIST,
+  countLinks,
   DEFAULT_PARTICLE_THEME,
   PARTICLE_THEMES,
   PARTICLE_THEME_IDS,
@@ -14,10 +16,11 @@ const H = 600
 const EDGE_MARGIN = 12
 
 describe('particle theme registry', () => {
-  it('exposes the twelve selectable themes plus None', () => {
+  it('exposes the thirteen selectable themes plus None', () => {
     expect(PARTICLE_THEME_IDS).toEqual([
       'stars', 'embers', 'snow', 'bubbles', 'sakura', 'fireflies',
       'matrix', 'rain', 'hearts', 'fireworks', 'sparkles', 'confetti',
+      'constellation',
       'none'
     ])
     expect(PARTICLE_THEME_META.map((t) => t.id)).toEqual(PARTICLE_THEME_IDS)
@@ -27,7 +30,7 @@ describe('particle theme registry', () => {
     }
     // 'none' is UI-only: it suppresses the loop, so no behavior entry exists.
     expect('none' in PARTICLE_THEMES).toBe(false)
-    expect(Object.keys(PARTICLE_THEMES)).toHaveLength(12)
+    expect(Object.keys(PARTICLE_THEMES)).toHaveLength(13)
   })
 
   it('sanitize falls back to stars for unknown/garbage values', () => {
@@ -161,5 +164,49 @@ describe('particle theme registry', () => {
     burst.age = burst.duration
     PARTICLE_THEMES.fireworks.step(burst, dt, W, H)
     expect(burst.age).toBeLessThan(ageBeforeReset) // …then respawn at age 0
+
+    const node = PARTICLE_THEMES.constellation.spawn(W, H)
+    const [xNode, yNode] = [node.x, node.y]
+    PARTICLE_THEMES.constellation.step(node, dt, W, H)
+    // Dots drift (positions genuinely change)…
+    expect(node.x).not.toBe(xNode)
+    expect(node.y).not.toBe(yNode)
+    // …slowly: max speed 6px/s per axis ⇒ a single 0.5s tick moves ≤ ~4.3px.
+    expect(Math.hypot(node.x - xNode, node.y - yNode)).toBeLessThan(4.5)
+  })
+})
+
+describe('constellation link counting', () => {
+  it('counts only pairs within the threshold', () => {
+    const points = [
+      { x: 0, y: 0 },
+      { x: 50, y: 0 },   // within 90 of p0 → pair
+      { x: 100, y: 0 },  // within 90 of p1, NOT of p0 → pair
+      { x: 400, y: 400 } // far from everyone → no pairs
+    ]
+    expect(countLinks(points, CONSTELLATION_LINK_DIST)).toBe(2)
+  })
+
+  it('treats the threshold as inclusive and handles degenerate inputs', () => {
+    const a = { x: 10, y: 10 }
+    const b = { x: 10 + CONSTELLATION_LINK_DIST, y: 10 } // exactly 90 apart
+    expect(countLinks([a, b], CONSTELLATION_LINK_DIST)).toBe(1)
+    expect(countLinks([a], CONSTELLATION_LINK_DIST)).toBe(0)
+    expect(countLinks([], 90)).toBe(0)
+    expect(countLinks(undefined, 90)).toBe(0)
+  })
+
+  it('scales with density: clustered points form a complete graph', () => {
+    const cluster = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 0, y: 10 },
+      { x: 10, y: 10 }
+    ]
+    expect(countLinks(cluster, CONSTELLATION_LINK_DIST)).toBe(6) // C(4,2)
+    // Tightening the rope drops the two ~14px diagonals but keeps the four
+    // 10px edges.
+    expect(countLinks(cluster, 12)).toBe(4)
+    expect(countLinks(cluster, 5)).toBe(0)
   })
 })

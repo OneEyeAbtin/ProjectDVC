@@ -9,6 +9,7 @@
 export const PARTICLE_THEME_IDS = [
   'stars', 'embers', 'snow', 'bubbles', 'sakura', 'fireflies',
   'matrix', 'rain', 'hearts', 'fireworks', 'sparkles', 'confetti',
+  'constellation',
   'none'
 ]
 
@@ -26,6 +27,7 @@ export const PARTICLE_THEME_META = [
   { id: 'fireworks', label: '🎆 Fireworks' },
   { id: 'sparkles', label: '💫 Sparkles' },
   { id: 'confetti', label: '🎉 Confetti' },
+  { id: 'constellation', label: '🕸️ Constellation' },
   { id: 'none', label: 'None' }
 ]
 
@@ -515,6 +517,69 @@ export const CONFETTI = {
   }
 }
 
+// ── constellation ─ drifting dots joined by faint lines when close together
+// (O(n²) pair check is fine at n ≤ 36). The optional `link` hook runs before
+// the per-particle draw pass so lines sit under the dots.
+export const CONSTELLATION_LINK_DIST = 90
+
+// Pure pair counter: how many unordered pairs are within `threshold` px.
+export function countLinks(points, threshold) {
+  const pts = Array.isArray(points) ? points : []
+  let count = 0
+  for (let i = 0; i < pts.length; i++) {
+    for (let j = i + 1; j < pts.length; j++) {
+      const dx = pts[i].x - pts[j].x
+      const dy = pts[i].y - pts[j].y
+      if (dx * dx + dy * dy <= threshold * threshold) count++
+    }
+  }
+  return count
+}
+
+export const CONSTELLATION = {
+  count: 32,
+  spawn(w, h) {
+    return {
+      x: Math.random() * w,
+      y: Math.random() * h,
+      r: rand(1.5, 2),
+      vx: rand(-6, 6),
+      vy: rand(-6, 6)
+    }
+  },
+  step(p, dt, w, h) {
+    // Gentle drift with modulo wrap on BOTH edges — a star leaving the right
+    // side re-enters from the left, keeping the web fully populated.
+    p.x = (((p.x + p.vx * dt) % w) + w) % w
+    p.y = (((p.y + p.vy * dt) % h) + h) % h
+  },
+  link(ctx, particles, _t, animate, accent) {
+    if (!animate) return undefined
+    ctx.lineWidth = 1
+    ctx.strokeStyle = accent
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x
+        const dy = particles[i].y - particles[j].y
+        const d2 = dx * dx + dy * dy
+        if (d2 > CONSTELLATION_LINK_DIST * CONSTELLATION_LINK_DIST) continue
+        // Alpha fades with distance: tight pairs glow, far pairs vanish.
+        ctx.globalAlpha = (1 - Math.sqrt(d2) / CONSTELLATION_LINK_DIST) * 0.4
+        ctx.beginPath()
+        ctx.moveTo(particles[i].x, particles[i].y)
+        ctx.lineTo(particles[j].x, particles[j].y)
+        ctx.stroke()
+      }
+    }
+    return undefined
+  },
+  draw(ctx, p, _t, animate, accent, isAccent) {
+    ctx.globalAlpha = animate ? 0.7 : 0.55
+    ctx.fillStyle = isAccent ? accent : '#ffffff'
+    fillCircle(ctx, p.x, p.y, p.r)
+  }
+}
+
 export const PARTICLE_THEMES = {
   stars: STARS,
   embers: EMBERS,
@@ -527,7 +592,8 @@ export const PARTICLE_THEMES = {
   hearts: HEARTS,
   fireworks: FIREWORKS,
   sparkles: SPARKLES,
-  confetti: CONFETTI
+  confetti: CONFETTI,
+  constellation: CONSTELLATION
 }
 
 export function resolveParticleTheme(id) {
