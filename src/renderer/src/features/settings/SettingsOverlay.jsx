@@ -608,38 +608,41 @@ export default function SettingsOverlay() {
                 </div>
               </div>
 
-              <div className="preset-grid" role="group" aria-label="Gradient presets">
-                {GRADIENT_PRESETS.map((preset) => (
-                  <button
-                    key={preset.name}
-                    type="button"
-                    className={
-                      'preset-swatch' +
-                      (gradient.from === preset.from && gradient.to === preset.to ? ' active' : '')
-                    }
-                    style={{ background: `linear-gradient(135deg, ${preset.from}, ${preset.to})` }}
-                    title={preset.name}
-                    aria-label={`${preset.name} gradient preset`}
-                    onClick={() =>
-                      saveLive('custom_gradient', {
-                        ...gradient,
-                        enabled: true,
-                        from: preset.from,
-                        to: preset.to
-                      })
-                    }
-                  />
-                ))}
+              <div className="field">
+                <span className="field-label">Presets</span>
+                <div className="preset-grid" role="group" aria-label="Gradient presets">
+                  {GRADIENT_PRESETS.map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      className={
+                        'preset-swatch' +
+                        (gradient.from === preset.from && gradient.to === preset.to ? ' active' : '')
+                      }
+                      style={{ background: `linear-gradient(135deg, ${preset.from}, ${preset.to})` }}
+                      title={preset.name}
+                      aria-label={`${preset.name} gradient preset`}
+                      onClick={() =>
+                        saveLive('custom_gradient', {
+                          ...gradient,
+                          enabled: true,
+                          from: preset.from,
+                          to: preset.to
+                        })
+                      }
+                    />
+                  ))}
+                </div>
               </div>
 
               <div className="field">
-                <span className="field-label" id="particle-theme-label">Particles</span>
-                <div className="chip-grid" role="group" aria-labelledby="particle-theme-label">
+                <span className="field-label">Particle effect</span>
+                <div className="particle-chip-grid" role="group" aria-labelledby="particle-theme-label">
                   {PARTICLE_THEME_META.map((theme) => (
                     <button
                       key={theme.id}
                       type="button"
-                      className={'chip' + (liveParticleTheme === theme.id ? ' active' : '')}
+                      className={'particle-chip' + (liveParticleTheme === theme.id ? ' active' : '')}
                       aria-pressed={liveParticleTheme === theme.id}
                       onClick={() => saveLive('particle_theme', theme.id)}
                     >
