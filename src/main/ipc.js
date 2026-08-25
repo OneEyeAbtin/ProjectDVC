@@ -441,6 +441,14 @@ export function registerIpc({ services, getWin, idleRand = Math.random }) {
       return { stopped: true }
     },
 
+    // Tray-hide: hide the window; the tray icon (if enabled) restores it.
+    // Deliberately separate from the close path — X always quits now.
+    'win:hide': () => {
+      const w = getWin()
+      if (w && !w.isDestroyed() && typeof w.hide === 'function') w.hide()
+      return { hidden: true }
+    },
+
     // Mic STT: invoke ack carries the result directly ({text} or {error}) —
     // no push needed since only the requesting renderer cares.
     'voice:stt-transcribe': async (payload) => {

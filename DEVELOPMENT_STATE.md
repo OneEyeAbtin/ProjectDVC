@@ -125,8 +125,9 @@ src/main/            Electron main = the brain (plain Node, no Python anywhere)
     config.service.js    data/config.json + data/save.json, legacy migration
     memory.service.js    3-tier memory, dedup(≥0.75 sim, keep-longer), cap 30
     characters.service.js scans assets/outfits/, prefix detection, sprite resolve
-    window.service.js    tray (hide-to-tray), position persist/restore+clamp,
+    window.service.js    tray, position persist/restore+clamp,
                          always-on-top — applied live from profile:save
+                         (X always quits; hide_to_tray key unused by close)
     brain.service.js     LLM calls, [EMOTION:]/[TRAIT:]/[STAT:] tag parsing,
                          offline fallback mode, session-summary compression
   data/ (in src/main/data/)
@@ -195,7 +196,7 @@ keys). `data/config.json`, `data/save.json`, `data/memory/` also gitignored.**
 ## 8. What Abtin should check in the running app (visual QA)
 
 1. `npm run dev` → window appears: 400×700, rounded, glassy, always-on-top
-2. **Drag** the window by top bar; min/close dots work (close = **hides to tray** by default — quit via tray icon menu, or toggle "Tray icon"/"Hide to tray" off in Settings → General to make close quit)
+2. **Drag** the window by top bar; min/close dots work (**close always quits** the app now — session history flushes on quit; use the new "Minimize to tray" button (arrow icon, next to X) or the tray menu to hide instead)
 3. If migrated: companion page directly, correct pet name + Darkwave theme
 4. If fresh: 20-question wizard → greeting with persona-specific line
 5. Type a message (offline mode works keyless) → *thinking…* → typewriter

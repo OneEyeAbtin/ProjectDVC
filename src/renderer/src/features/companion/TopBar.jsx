@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { BarChart3, Heart, Settings, X } from 'lucide-react'
+import { ArrowDownFromLine, BarChart3, Heart, Settings, X } from 'lucide-react'
 import { useStore } from '../../state/store.js'
 
 // Ported from legacy _upd_hearts color stages.
@@ -146,6 +146,15 @@ export default function TopBar() {
           onClick={() => setSettingsOpen(true)}
         >
           <Settings size={15} />
+        </button>
+        <button
+          type="button"
+          className="icon-btn"
+          title="Minimize to tray"
+          aria-label="Minimize to tray"
+          onClick={() => window.dvc.invoke('win:hide').catch(() => {})}
+        >
+          <ArrowDownFromLine size={15} />
         </button>
         <button
           type="button"

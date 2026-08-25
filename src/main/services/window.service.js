@@ -135,17 +135,13 @@ export function createWindowService({ win, getConfig, onCloseToQuit, getWorkArea
   win.on('show', rebuildTrayMenu)
   win.on('hide', rebuildTrayMenu)
 
-  win.on('close', (event) => {
+  win.on('close', () => {
     if (quitting) return
-    const cfg = getConfig().getConfig()
-    if (cfg.hide_to_tray && cfg.tray_enabled && tray) {
-      event.preventDefault()
-      win.hide()
-      return
-    }
-    // Closing without hide-to-tray means the app is going down — persist chat
-    // history for next-boot summarization. Shared flusher with 'before-quit';
-    // double writes are guarded inside the flusher itself.
+    // X ALWAYS quits the app now. The hide_to_tray settings key remains in
+    // defaults (harmlessly unused by close logic — tray-hide is a dedicated
+    // button/channel instead). Closing persists chat history for next-boot
+    // summarization via the shared flusher with 'before-quit'; double writes
+    // are guarded inside the flusher itself.
     onCloseToQuit?.()
   })
 
