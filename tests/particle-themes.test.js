@@ -118,18 +118,23 @@ describe('particle theme registry', () => {
     for (let i = 0; i < 60; i++) PARTICLE_THEMES.fireflies.step(fly, 1 / 60, W, H)
     expect(fly.heading).not.toBeCloseTo(startHeading, 5)
 
+    // Mid-canvas starts so a single large dt tick cannot hit an edge wrap.
     const glyphs = PARTICLE_THEMES.matrix.spawn(W, H)
+    glyphs.y = H / 2
     const yGlyphs = glyphs.y
     PARTICLE_THEMES.matrix.step(glyphs, dt, W, H)
     expect(glyphs.y).toBeGreaterThan(yGlyphs) // matrix columns fall
 
     const drop = PARTICLE_THEMES.rain.spawn(W, H)
+    drop.x = W / 2
+    drop.y = H / 2
     const [xRain, yRain] = [drop.x, drop.y]
     PARTICLE_THEMES.rain.step(drop, dt, W, H)
     expect(drop.y).toBeGreaterThan(yRain) // rain falls…
     expect(drop.y - yRain).toBeGreaterThan(drop.x - xRain) // …much faster than the wind drifts
 
     const heart = PARTICLE_THEMES.hearts.spawn(W, H)
+    heart.y = H / 2
     const yHeart = heart.y
     PARTICLE_THEMES.hearts.step(heart, dt, W, H)
     expect(heart.y).toBeLessThan(yHeart) // hearts rise
@@ -142,6 +147,7 @@ describe('particle theme registry', () => {
     expect(sparkle.rot).not.toBe(rotSparkle) // …with only a tiny spin
 
     const piece = PARTICLE_THEMES.confetti.spawn(W, H)
+    piece.y = H / 2
     const [yPiece, rotPiece] = [piece.y, piece.rot]
     PARTICLE_THEMES.confetti.step(piece, dt, W, H)
     expect(piece.y).toBeGreaterThan(yPiece) // confetti falls…

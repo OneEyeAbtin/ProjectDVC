@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { INTERACT_MENU, INTERACTIONS, THEME_META } from '../src/renderer/src/features/menu/menuData.js'
 import { DEFAULTS } from '../src/main/data/defaults.js'
 import { THEME_LIST } from '../src/main/data/themes.js'
@@ -25,5 +28,29 @@ describe('renderer menu data mirrors legacy', () => {
       expect(t.name.length).toBeGreaterThan(2)
       expect(t.dot).toHaveLength(2)
     }
+  })
+})
+
+describe('context menu has no Themes submenu', () => {
+  // Theme selection lives in Settings → General only; the right-click menu
+  // keeps outfits/personas/interact/stats/settings. Guarded at source level:
+  // there is no component-mount test harness in this repo, and any return of
+  // the submenu would reintroduce these exact symbols.
+  const here = path.dirname(fileURLToPath(import.meta.url))
+  const src = fs.readFileSync(
+    path.join(here, '../src/renderer/src/features/menu/ContextMenu.jsx'),
+    'utf8'
+  )
+
+  it('renders no theme picker entries', () => {
+    expect(src).not.toMatch(/🎨|THEME_META|pickTheme|ctx-theme-grid|swatch-cell/)
+  })
+
+  it('keeps the outfits/personas/interact/stats/settings entries', () => {
+    expect(src).toContain('👗 Outfits')
+    expect(src).toContain('🎭 Personas')
+    expect(src).toContain('✨ Interact')
+    expect(src).toContain('⚙ Settings')
+    expect(src).toContain('UTILITY_ENTRIES')
   })
 })

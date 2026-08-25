@@ -209,6 +209,37 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 3px;
 }
+/* Theme picker cells (moved here from context-menu.css when the context
+   menu's Themes submenu was removed — Settings owns theme selection now). */
+.swatch-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 5px 7px;
+  color: var(--txt2);
+  font-size: 0.6875rem;
+  font-family: inherit;
+  text-align: left;
+}
+.swatch-cell:hover { background: color-mix(in srgb, var(--bg4) 70%, transparent); }
+.swatch-cell.active { color: var(--txt1); background: color-mix(in srgb, var(--acc1) 14%, transparent); }
+.swatch-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, .28);
+}
+.swatch-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .tab-placeholder {
   margin: auto;
