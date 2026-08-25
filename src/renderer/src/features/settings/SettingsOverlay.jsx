@@ -11,7 +11,7 @@ import {
   TTS_ENGINES
 } from './settingsDraft.js'
 import './settings.css'
-import { GRADIENT_PRESETS, sanitizeGradient } from './background.js'
+import { GRADIENT_PRESETS, GRADIENT_STYLE_OPTIONS, sanitizeGradient, sanitizeGradientStyle } from './background.js'
 import { PARTICLE_THEME_META, sanitizeParticleTheme } from '../ambient/particleThemes.js'
 import {
   ANIMATION_SPEED_MAX,
@@ -258,6 +258,7 @@ export default function SettingsOverlay() {
   const liveAnimationSpeed = useStore((s) => sanitizeAnimationSpeed(s.config?.animation_speed))
   const liveParticleTheme = useStore((s) => sanitizeParticleTheme(s.config?.particle_theme))
   const liveGradientCfg = useStore((s) => s.config?.custom_gradient)
+  const liveGradientStyle = useStore((s) => sanitizeGradientStyle(s.config?.gradient_style))
   const [tab, setTab] = useState('General')
   const [draft, setDraft] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -582,6 +583,27 @@ export default function SettingsOverlay() {
                     }`}
               </p>
 
+              {/* Gradient SHAPE — applies to both theme gradients and the
+                  custom override. Auto-saves. */}
+              <div className="field">
+                <span className="field-label" id="gradient-style-label">Gradient style</span>
+                <div className="segmented" role="group" aria-labelledby="gradient-style-label">
+                  {GRADIENT_STYLE_OPTIONS.map((style) => (
+                    <button
+                      key={style.id}
+                      type="button"
+                      className={`seg${liveGradientStyle === style.id ? ' active' : ''}`}
+                      aria-pressed={liveGradientStyle === style.id}
+                      title={style.id === 'radial' ? 'Radial ignores the angle slider' : undefined}
+                      onClick={() => saveLive('gradient_style', style.id)}
+                    >
+                      {style.label}
+                    </button>
+                  ))}
+                </div>
+                <SavedFlash seq={savedSeq.gradient_style} />
+              </div>
+
               <div className="gradient-row">
                 <div className="field">
                   <label htmlFor="grad-from">From</label>
@@ -606,7 +628,9 @@ export default function SettingsOverlay() {
               </div>
 
               <div className="field">
-                <label htmlFor="grad-angle-slider">Angle</label>
+                <label htmlFor="grad-angle-slider">
+                  Angle{liveGradientStyle === 'radial' ? ' (ignored for Radial)' : ''}
+                </label>
                 <div className="limit-row">
                   <input
                     id="grad-angle-slider"

@@ -52,27 +52,42 @@ describe('resolveBackground precedence', () => {
 
   it('custom enabled → custom values win', () => {
     const resolved = resolveBackground({ themeId: 'matrix', customGradient: CUSTOM })
-    expect(resolved).toEqual({ enabled: true, from: '#112233', to: '#445566', angle: 200 })
+    expect(resolved).toEqual({ enabled: true, from: '#112233', to: '#445566', angle: 200, style: 'diagonal' })
   })
 
-  it('custom off → the selected theme gradient applies', () => {
+  it('custom off → the selected theme gradient applies (style owns the angle)', () => {
     const resolved = resolveBackground({
       themeId: 'matrix',
       customGradient: { ...CUSTOM, enabled: false }
     })
-    expect(resolved).toEqual({ enabled: true, ...THEME_GRADIENTS.matrix })
+    expect(resolved).toEqual({
+      enabled: true,
+      from: THEME_GRADIENTS.matrix.from,
+      to: THEME_GRADIENTS.matrix.to,
+      angle: 135, // 'diagonal' default style replaces the legacy theme angle
+      style: 'diagonal'
+    })
   })
 
   it('unknown theme → midnight-sakura fallback', () => {
     expect(resolveBackground({ themeId: 'nope' })).toEqual({
       enabled: true,
-      ...THEME_GRADIENTS[DEFAULT_THEME_ID]
+      from: THEME_GRADIENTS[DEFAULT_THEME_ID].from,
+      to: THEME_GRADIENTS[DEFAULT_THEME_ID].to,
+      angle: 135,
+      style: 'diagonal'
     })
     expect(DEFAULT_THEME_ID).toBe('midnight-sakura')
   })
 
   it('missing options still resolve to the default theme', () => {
-    expect(resolveBackground()).toEqual({ enabled: true, ...THEME_GRADIENTS[DEFAULT_THEME_ID] })
+    expect(resolveBackground()).toEqual({
+      enabled: true,
+      from: THEME_GRADIENTS[DEFAULT_THEME_ID].from,
+      to: THEME_GRADIENTS[DEFAULT_THEME_ID].to,
+      angle: 135,
+      style: 'diagonal'
+    })
   })
 })
 
@@ -83,12 +98,13 @@ describe('applyBackground writes shell vars', () => {
     delete globalThis.document
   })
 
-  it('applies the theme gradient when custom is off', () => {
+  it('applies the theme gradient when custom is off (style owns the angle)', () => {
     applyBackground({ themeId: 'amber-terminal', customGradient: { enabled: false } })
     const t = THEME_GRADIENTS['amber-terminal']
     expect(cssVars['--shell-grad-from']).toBe(t.from)
     expect(cssVars['--shell-grad-to']).toBe(t.to)
-    expect(cssVars['--shell-grad-angle']).toBe(`${t.angle}deg`)
+    // Default style is 'diagonal' = 135deg, replacing the legacy theme angle.
+    expect(cssVars['--shell-grad-angle']).toBe('135deg')
   })
 
   it('applies custom values when enabled', () => {
@@ -132,7 +148,8 @@ describe('store integration: background follows both fields', () => {
 
     useStore.setState({ theme: 'matrix' })
     expect(cssVars['--shell-grad-from']).toBe(THEME_GRADIENTS.matrix.from)
-    expect(cssVars['--shell-grad-angle']).toBe(`${THEME_GRADIENTS.matrix.angle}deg`)
+    // Style owns the angle now: default 'diagonal' = 135deg.
+    expect(cssVars['--shell-grad-angle']).toBe('135deg')
   })
 
   it('re-applies when custom_gradient toggles on and returns to theme when off', () => {

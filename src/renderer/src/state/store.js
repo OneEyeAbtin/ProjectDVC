@@ -178,10 +178,11 @@ export const useStore = create((set, get) => ({
     let last = null
     const sync = (state) => {
       const custom = state.config?.custom_gradient
-      const key = `${state.theme}|${JSON.stringify(custom ?? null)}`
+      const style = state.config?.gradient_style
+      const key = `${state.theme}|${style ?? ''}|${JSON.stringify(custom ?? null)}`
       if (key === last) return
       last = key
-      applyBackground({ themeId: state.theme, customGradient: custom })
+      applyBackground({ themeId: state.theme, customGradient: custom, gradientStyle: style })
     }
     sync(get())
     set({ _bgUnsub: useStore.subscribe(sync) })
