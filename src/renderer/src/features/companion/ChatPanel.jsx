@@ -130,6 +130,11 @@ export default function ChatPanel() {
         )}
         {displayText && (
           <p className="bubble-text">
+            {bubble?.source === 'mc' && (
+              <span className="bubble-src" title="Minecraft" aria-label="Minecraft">
+                ⛏
+              </span>
+            )}
             {bubbleParts(displayText)}
             {charTyping && <span className="caret" aria-hidden="true" />}
           </p>

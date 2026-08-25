@@ -367,3 +367,23 @@
 }
 .btn.ghost:hover:not(:disabled) { color: var(--txt1); }
 .btn:disabled { cursor: default; opacity: .55; }
+
+/* ⛏ MC tab */
+.mc-settings-note {
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  font-style: italic;
+  color: var(--txt2);
+}
+.mc-settings-note code {
+  font-style: normal;
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg4) 70%, transparent);
+  font-size: 0.625rem;
+}
+.mc-field-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}

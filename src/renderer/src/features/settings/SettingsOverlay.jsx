@@ -12,8 +12,15 @@ import {
 } from './settingsDraft.js'
 import './settings.css'
 
-const TABS = ['General', 'AI/API', 'Voice', 'Memory']
+const TABS = ['General', 'AI/API', 'Voice', '⛏ MC', 'Memory']
 const BRAIN_MODES = ['local', 'online', 'offline']
+const MC_AUTH_MODES = ['offline', 'microsoft']
+const MC_AI_FEATURES = [
+  { key: 'ai_hash_chat', label: 'Brain replies to # chat' },
+  { key: 'ai_advancements', label: 'Brain comments on advancements' },
+  { key: 'ai_task_done', label: 'Brain comments on finished tasks' },
+  { key: 'ai_events', label: 'Brain comments on events' }
+]
 const HISTORY_PAGE = 50
 const FONT_MIN = 0.85
 const FONT_MAX = 1.3
@@ -271,6 +278,18 @@ export default function SettingsOverlay() {
 
   function setElevenlabsField(key, value) {
     setDraft((d) => ({ ...d, elevenlabs: { ...d.elevenlabs, [key]: value } }))
+  }
+
+  // minecraft_v2 is replaced whole on Save, same as tts_config.
+  function setMcField(key, value) {
+    setDraft((d) => ({ ...d, minecraft_v2: { ...d.minecraft_v2, [key]: value } }))
+  }
+
+  function setMcAiFeature(key, value) {
+    setDraft((d) => ({
+      ...d,
+      minecraft_v2: { ...d.minecraft_v2, ai_features: { ...d.minecraft_v2.ai_features, [key]: value } }
+    }))
   }
 
   function previewTheme(id) {
@@ -744,6 +763,107 @@ export default function SettingsOverlay() {
               </div>
             </>
           )}
+          {tab === '⛏ MC' && (
+            <>
+              <p className="mc-settings-note">
+                Drone runs from <code>drone/</code> automatically on connect.
+              </p>
+
+              <h3 className="section-title">Server</h3>
+              <TextField
+                id="mc-host"
+                label="Host"
+                value={draft.minecraft_v2.host}
+                placeholder="localhost"
+                onChange={(v) => setMcField('host', v)}
+              />
+              <div className="mc-field-pair">
+                <TextField
+                  id="mc-port"
+                  label="Port"
+                  value={String(draft.minecraft_v2.port ?? '')}
+                  placeholder="25565"
+                  onChange={(v) => setMcField('port', v)}
+                />
+                <TextField
+                  id="mc-version"
+                  label="MC version"
+                  value={draft.minecraft_v2.version}
+                  placeholder="1.21"
+                  onChange={(v) => setMcField('version', v)}
+                />
+              </div>
+              <TextField
+                id="mc-username"
+                label="Bot username"
+                value={draft.minecraft_v2.username}
+                placeholder="RavenBot"
+                onChange={(v) => setMcField('username', v)}
+              />
+              <div className="field">
+                <label htmlFor="mc-auth">Auth mode</label>
+                <select
+                  id="mc-auth"
+                  value={draft.minecraft_v2.auth}
+                  aria-label="Minecraft auth mode"
+                  onChange={(e) => setMcField('auth', e.target.value)}
+                >
+                  {MC_AUTH_MODES.map((mode) => (
+                    <option key={mode} value={mode}>
+                      {mode}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <TextField
+                id="mc-ws-port"
+                label="Drone WS port"
+                value={String(draft.minecraft_v2.ws_port ?? '')}
+                placeholder="8765"
+                onChange={(v) => setMcField('ws_port', v)}
+              />
+
+              <h3 className="section-title">Brain</h3>
+              <TextField
+                id="mc-brain-url"
+                label="Brain URL"
+                value={draft.minecraft_v2.brain_url}
+                placeholder="https://api.openai.com/v1/chat/completions"
+                onChange={(v) => setMcField('brain_url', v)}
+              />
+              <SecretField
+                id="mc-brain-key"
+                label="Brain API key"
+                value={draft.minecraft_v2.brain_key}
+                onChange={(v) => setMcField('brain_key', v)}
+              />
+              <TextField
+                id="mc-brain-model"
+                label="Brain model"
+                value={draft.minecraft_v2.brain_model}
+                placeholder="(blank = main model)"
+                onChange={(v) => setMcField('brain_model', v)}
+              />
+
+              <h3 className="section-title">AI features</h3>
+              {MC_AI_FEATURES.map((feature) => (
+                <label className="toggle-row" key={feature.key}>
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={Boolean(draft.minecraft_v2.ai_features?.[feature.key])}
+                    aria-label={feature.label}
+                    onChange={(e) => setMcAiFeature(feature.key, e.target.checked)}
+                  />
+                  <span className="toggle-track" aria-hidden="true">
+                    <span className="toggle-thumb" />
+                  </span>
+                  <span className="toggle-text">{feature.label}</span>
+                </label>
+              ))}
+            </>
+          )}
+
           {tab === 'Memory' && (
             <>
               <div className="mem-io-row">

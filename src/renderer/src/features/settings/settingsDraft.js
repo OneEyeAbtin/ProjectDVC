@@ -30,9 +30,31 @@ const DEFAULT_TTS_CONFIG = {
 
 const DEFAULT_ELEVENLABS = { api_key: '', voice_id: '', model_id: 'eleven_flash_v2_5' }
 
+// Mirrors DEFAULTS.minecraft_v2 in src/main/data/defaults.js — kept in sync
+// manually so the renderer can render a complete form before app:init lands.
+export const DEFAULT_MC_CONFIG = {
+  host: 'localhost',
+  port: 25565,
+  username: 'RavenBot',
+  version: '1.21',
+  auth: 'offline',
+  ws_port: 8765,
+  brain_url: '',
+  brain_key: '',
+  brain_model: '',
+  ai_features: { ai_hash_chat: true, ai_advancements: false, ai_task_done: false, ai_events: false }
+}
+
 function pick(source, defaults) {
   const src = source && typeof source === 'object' ? source : {}
   return { ...defaults, ...src }
+}
+
+// minecraft_v2 snapshot: shallow-merge like tts_config, then re-merge
+// ai_features so a partially-saved toggle set still shows the defaults.
+export function buildMcSnapshot(cfg = {}) {
+  const mc = pick(cfg.minecraft_v2, DEFAULT_MC_CONFIG)
+  return { ...mc, ai_features: pick(mc.ai_features, DEFAULT_MC_CONFIG.ai_features) }
 }
 
 export function buildSnapshot(state) {
@@ -59,7 +81,8 @@ export function buildSnapshot(state) {
     lip_sync_tts: state.lipSyncTts !== false,
     lip_sync_text: state.lipSyncText === true,
     tts_config: pick(cfg.tts_config, DEFAULT_TTS_CONFIG),
-    elevenlabs: pick(cfg.elevenlabs, DEFAULT_ELEVENLABS)
+    elevenlabs: pick(cfg.elevenlabs, DEFAULT_ELEVENLABS),
+    minecraft_v2: buildMcSnapshot(cfg)
   }
 }
 

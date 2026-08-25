@@ -174,7 +174,8 @@ export const useStore = create((set, get) => ({
       dvc.on('mc-status', (p) => get()._onMcStatus(p)),
       dvc.on('mc-radar', (p) => get()._onMcRadar(p)),
       dvc.on('mc-inventory', (p) => get()._onMcInventory(p)),
-      dvc.on('mc-bot-status', (p) => get()._onMcBotStatus(p))
+      dvc.on('mc-bot-status', (p) => get()._onMcBotStatus(p)),
+      dvc.on('mc-say', (p) => get()._onMcSay(p))
     ]
     set({ _unsubs: unsubs })
   },
@@ -188,9 +189,11 @@ export const useStore = create((set, get) => ({
   },
 
   // ── speech ────────────────────────────────────────────────────────────────
-  say(text, targetEmotion = null) {
+  // `source` tags non-companion bubbles (e.g. 'mc' for Minecraft drone lines)
+  // so the UI can mark their origin; null keeps the classic companion look.
+  say(text, targetEmotion = null, source = null) {
     set({
-      bubble: { text, muted: false },
+      bubble: { text, muted: false, source },
       typing: true,
       thinking: false,
       pendingEmotion: targetEmotion
@@ -207,13 +210,15 @@ export const useStore = create((set, get) => ({
       pendingEmotion && !transientEmotions.includes(pendingEmotion) ? pendingEmotion : emotion
     // transientEmotion: null — any completed reply ends a forced render-only
     // state like `talking`, so the sprite/badge unfreeze (audit #4).
+    // Tagged bubbles (mc) don't become the boot "last response" replay.
     clearTimeout(get()._transientTimer)
     set({
       typing: false,
       emotion: next,
       transientEmotion: null,
       pendingEmotion: null,
-      lastResponse: bubble?.text ?? get().lastResponse
+      lastResponse:
+        bubble?.text && !bubble?.source ? bubble.text : get().lastResponse
     })
   },
 
@@ -262,6 +267,16 @@ export const useStore = create((set, get) => ({
   _onMcBotStatus(payload) {
     const data = payload && typeof payload.data === 'object' ? payload.data : null
     if (data) set({ mcBotStatus: data })
+  },
+
+  // mc-say = the drone's spoken lines (observations, reactions, brain chat).
+  // They ride the normal say() pipeline so they get bubble + typewriter +
+  // emotion, but are tagged 'mc'; main handles the actual TTS via autoSpeak.
+  // Not counted in MEM — these aren't companion conversation turns.
+  _onMcSay(payload) {
+    const text = String(payload?.text ?? '').trim()
+    if (!text) return
+    get().say(text, payload?.emotion ?? null, 'mc')
   },
 
   // ── actions ───────────────────────────────────────────────────────────────
