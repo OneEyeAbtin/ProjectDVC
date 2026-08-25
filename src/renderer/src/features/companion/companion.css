@@ -15,6 +15,7 @@
 }
 
 .hearts {
+  position: relative;
   display: flex;
   gap: 2px;
   align-items: center;
@@ -84,12 +85,32 @@
   justify-content: center;
   padding: 8px 14px;
 }
+/* Breathing container: slow scale on the WRAPPER so it never conflicts with
+   the sprite swap animation on the img itself. */
+.sprite-stage {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: bottom center;
+  animation: sprite-breathe 3.6s ease-in-out infinite;
+}
+@keyframes sprite-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.012); }
+}
 .sprite {
   max-height: 100%;
   max-width: 100%;
   object-fit: contain;
   image-rendering: auto;
-  transition: opacity .18s ease, transform .18s ease;
+  /* Keyed remount on emotion swap replays this mount animation. */
+  animation: sprite-in 220ms ease-out;
+}
+@keyframes sprite-in {
+  from { opacity: 0; transform: scale(.97); }
+  to { opacity: 1; transform: scale(1); }
 }
 .sprite-fallback {
   width: 140px;
@@ -146,6 +167,55 @@
 .bubble-action {
   font-style: italic;
   color: var(--txt2);
+}
+
+/* Thinking indicator: italic label + staggered bouncing dots. */
+.thinking-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.think-dots {
+  display: inline-flex;
+  gap: 3px;
+}
+.think-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--acc1);
+  animation: think-bounce 1s ease-in-out infinite;
+}
+.think-dot:nth-child(2) { animation-delay: .15s; }
+.think-dot:nth-child(3) { animation-delay: .3s; }
+@keyframes think-bounce {
+  0%, 100% { transform: translateY(0); opacity: .45; }
+  50% { transform: translateY(-4px); opacity: 1; }
+}
+
+/* Floating stat chips (spawned by StatChips in TopBar). */
+.stat-chips {
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  display: flex;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.stat-chip {
+  margin-left: -8px;
+  font-family: 'Fredoka', sans-serif;
+  font-size: .6875rem;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .55);
+  animation: chip-float 900ms ease-out forwards;
+}
+.stat-chip.up { color: #4ade80; }
+.stat-chip.down { color: #ff6b6b; }
+@keyframes chip-float {
+  0% { opacity: 0; transform: translateY(0) scale(.9); }
+  15% { opacity: 1; transform: translateY(-6px) scale(1); }
+  100% { opacity: 0; transform: translateY(-28px) scale(1); }
 }
 .caret {
   display: inline-block;

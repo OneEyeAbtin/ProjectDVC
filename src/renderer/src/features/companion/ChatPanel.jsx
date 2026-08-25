@@ -113,7 +113,16 @@ export default function ChatPanel() {
             </button>
           </div>
         )}
-        {thinking && !bubble && <em className="bubble-action">*thinking...</em>}
+        {thinking && !bubble && (
+          <em className="bubble-action thinking-indicator">
+            thinking
+            <span className="think-dots" aria-hidden="true">
+              <span className="think-dot" />
+              <span className="think-dot" />
+              <span className="think-dot" />
+            </span>
+          </em>
+        )}
         {displayText && (
           <p className="bubble-text">
             {bubbleParts(displayText)}
