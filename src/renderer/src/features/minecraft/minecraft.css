@@ -1,0 +1,152 @@
+/* ── Minecraft drone UI (Plan 4) ─────────────────────────────────────────── */
+
+/* Top-bar MC button */
+.mc-btn { position: relative; }
+.mc-btn:disabled { cursor: progress; opacity: .8; }
+.mc-btn.live { color: #4ade80; }
+.mc-dot {
+  position: absolute;
+  bottom: 1px;
+  right: 1px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 5px rgba(74, 222, 128, .8);
+}
+.mc-spin { animation: mc-rotate 900ms linear infinite; }
+@keyframes mc-rotate { to { transform: rotate(360deg); } }
+
+/* View switching */
+.is-hidden { display: none !important; }
+
+/* Bottom tab row */
+.mc-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.mc-tab {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg1) 55%, transparent);
+  color: var(--txt2);
+  font-size: 0.6875rem;
+  padding: 5px 2px;
+  border-radius: 9px;
+  transition: color .15s ease, border-color .15s ease, background .15s ease;
+  white-space: nowrap;
+}
+.mc-tab:hover { color: var(--txt1); }
+.mc-tab.active {
+  color: var(--txt1);
+  border-color: var(--acc1);
+  background: color-mix(in srgb, var(--acc1) 14%, transparent);
+}
+
+/* Shared panel shell — takes over the bubble region's space. */
+.mc-console,
+.mc-radar,
+.mc-inv {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+
+/* Console */
+.mc-log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg4) transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  user-select: text;
+}
+.mc-line {
+  font-size: 0.71875rem;
+  line-height: 1.45;
+  color: var(--txt2);
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.mc-line.tone-ok { color: #4ade80; }
+.mc-line.tone-err { color: #ff6b6b; }
+.mc-line.tone-warn { color: #fbbf24; }
+.mc-line.tone-cmd { color: #67e8f9; }
+.mc-log-empty { font-size: 0.75rem; color: var(--txt2); opacity: .7; font-style: italic; }
+.mc-con-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+}
+.mc-con-input { padding: 7px 11px; font-size: 0.75rem; }
+
+/* Radar */
+.mc-radar { align-items: center; justify-content: center; gap: 6px; }
+.mc-radar-canvas {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: block;
+}
+.mc-radar-legend {
+  font-size: 0.65rem;
+  color: var(--txt2);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.legend-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.legend-dot.hostile { background: #ff3c3c; }
+.legend-dot.player { background: #00d2ff; }
+
+/* Inventory */
+.mc-status-line {
+  font-size: 0.71875rem;
+  color: var(--txt1);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+.mc-status-line.idle { color: var(--txt2); opacity: .7; }
+.mc-inv-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg4) transparent;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.mc-inv-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78125rem;
+  color: var(--txt1);
+}
+.mc-inv-name { flex: 1; text-transform: capitalize; }
+.mc-inv-count { color: var(--txt2); font-variant-numeric: tabular-nums; }
+.mc-inv-empty { font-size: 0.75rem; color: var(--txt2); opacity: .7; font-style: italic; }
+.mc-inv-refresh { align-self: center; margin-top: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mc-spin { animation: none; }
+}

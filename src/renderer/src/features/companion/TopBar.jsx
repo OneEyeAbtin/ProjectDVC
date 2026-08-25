@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowDownFromLine, BarChart3, Heart, Settings, X } from 'lucide-react'
 import { useStore } from '../../state/store.js'
+import McButton from '../minecraft/McButton.jsx'
 
 // Ported from legacy _upd_hearts color stages.
 export function heartColors(affection) {
@@ -129,6 +130,7 @@ export default function TopBar() {
       </div>
       <h1 className="pet-name">{petName}</h1>
       <div className="topbar-actions">
+        <McButton />
         <button
           type="button"
           className="icon-btn"

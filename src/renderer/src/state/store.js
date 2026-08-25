@@ -1,5 +1,12 @@
 import { useEffect } from 'react'
 import { create } from 'zustand'
+import {
+  MC_CONSOLE_CAP,
+  MC_HISTORY_CAP,
+  classifyMcLine,
+  mapMcError,
+  shouldAcceptRadar
+} from '../features/minecraft/minecraftLogic.js'
 
 // Fallback until app:init delivers the authoritative list from main
 // (src/main/data/emotions.js is the single source).
@@ -56,6 +63,16 @@ export const useStore = create((set, get) => ({
   lipSyncText: false,
   piperVoices: [],
 
+  // minecraft drone (Plan 4)
+  mcConnected: false,
+  mcConnecting: false, // renderer-side spinner state: true until mc-status lands
+  mcTab: 0, // 0 chat · 1 console · 2 radar · 3 inventory
+  mcConsole: [], // [{ id, text, tone }]
+  mcRadar: [],
+  mcInventory: [],
+  mcBotStatus: null,
+  mcCmdHistory: [], // session-only % command recall
+
   // ui overlays
   settingsOpen: false,
   statsOpen: false,
@@ -70,6 +87,9 @@ export const useStore = create((set, get) => ({
   _unsubs: [],
   _errorTimer: null,
   _transientTimer: null,
+  _mcConnectTimer: null,
+  _mcSeq: 0,
+  _lastRadarAt: 0,
 
   async boot() {
     if (!get().booted) {
@@ -148,7 +168,13 @@ export const useStore = create((set, get) => ({
       dvc.on('memory', () => set({ historyCount: 0, lastUserText: '' })),
       dvc.on('profile', (p) => get()._applyProfile(p)),
       dvc.on('error', (e) => get().setError(e)),
-      dvc.on('outfits', (list) => set({ outfits: Array.isArray(list) ? list : [] }))
+      dvc.on('outfits', (list) => set({ outfits: Array.isArray(list) ? list : [] })),
+      // Minecraft drone pushes (Plan 4)
+      dvc.on('mc-log', (p) => get()._onMcLog(p)),
+      dvc.on('mc-status', (p) => get()._onMcStatus(p)),
+      dvc.on('mc-radar', (p) => get()._onMcRadar(p)),
+      dvc.on('mc-inventory', (p) => get()._onMcInventory(p)),
+      dvc.on('mc-bot-status', (p) => get()._onMcBotStatus(p))
     ]
     set({ _unsubs: unsubs })
   },
@@ -157,7 +183,8 @@ export const useStore = create((set, get) => ({
     for (const unsub of get()._unsubs) unsub()
     clearTimeout(get()._errorTimer)
     clearTimeout(get()._transientTimer)
-    set({ _unsubs: [], _errorTimer: null, _transientTimer: null })
+    clearTimeout(get()._mcConnectTimer)
+    set({ _unsubs: [], _errorTimer: null, _transientTimer: null, _mcConnectTimer: null })
   },
 
   // ── speech ────────────────────────────────────────────────────────────────
@@ -214,6 +241,29 @@ export const useStore = create((set, get) => ({
     set({ emotion: name, transientEmotion: null })
   },
 
+  _onMcLog(payload) {
+    const line = typeof payload?.line === 'string' ? payload.line : ''
+    if (!line) return
+    get().pushMcLog(line)
+  },
+
+  // Radar freshness: accept at most one snapshot per RADAR_MIN_INTERVAL_MS.
+  _onMcRadar(payload) {
+    const entities = Array.isArray(payload?.entities) ? payload.entities : []
+    const now = Date.now()
+    if (!shouldAcceptRadar(get()._lastRadarAt, now)) return
+    set({ mcRadar: entities, _lastRadarAt: now })
+  },
+
+  _onMcInventory(payload) {
+    set({ mcInventory: Array.isArray(payload?.items) ? payload.items : [] })
+  },
+
+  _onMcBotStatus(payload) {
+    const data = payload && typeof payload.data === 'object' ? payload.data : null
+    if (data) set({ mcBotStatus: data })
+  },
+
   // ── actions ───────────────────────────────────────────────────────────────
   // Text lip-sync tick (fired per word boundary by the typewriter): toggles
   // the render-only talking state against neutral. Skipped while real TTS
@@ -225,6 +275,77 @@ export const useStore = create((set, get) => ({
     set({ transientEmotion: talking ? 'talking' : 'neutral' })
   },
 
+  // ── minecraft drone (Plan 4) ──────────────────────────────────────────────
+  setMcTab(tab) {
+    const next = Number(tab)
+    if (!Number.isInteger(next) || next < 0 || next > 3 || next === get().mcTab) return
+    set({ mcTab: next })
+  },
+
+  pushMcLog(text, toneOverride = null) {
+    const line = String(text ?? '')
+    if (!line) return
+    const entry = {
+      id: get()._mcSeq + 1,
+      text: line,
+      tone: toneOverride ?? classifyMcLine(line)
+    }
+    set({
+      _mcSeq: entry.id,
+      mcConsole: [...get().mcConsole, entry].slice(-MC_CONSOLE_CAP)
+    })
+  },
+
+  mcConnect() {
+    if (get().mcConnecting || get().mcConnected) return
+    clearTimeout(get()._mcConnectTimer)
+    set({ mcConnecting: true, error: null })
+    // Failsafe: main only pushes mc-status once the WS handshake settles; a
+    // wedged drone spawn must never leave the spinner up forever.
+    get()._mcConnectTimer = setTimeout(() => {
+      if (get().mcConnecting) set({ mcConnecting: false })
+    }, 12000)
+    window.dvc.invoke('mc:connect').catch((err) => {
+      clearTimeout(get()._mcConnectTimer)
+      set({ mcConnecting: false })
+      get().setError({ scope: 'minecraft', message: String(err?.message ?? err) })
+    })
+  },
+
+  // Optimistic off: main confirms with its own {connected:false} push.
+  mcDisconnect() {
+    clearTimeout(get()._mcConnectTimer)
+    set({ mcConnected: false, mcConnecting: false })
+    window.dvc.invoke('mc:disconnect').catch((err) => {
+      get().setError({ scope: 'minecraft', message: String(err?.message ?? err) })
+    })
+  },
+
+  // Console input → bot. Sent exactly as typed (legacy required explicit %
+  // for commands); % entries join the recall history.
+  mcSendRaw(text) {
+    const t = String(text ?? '').trim()
+    if (!t) return
+    if (t.startsWith('%')) {
+      set({ mcCmdHistory: [...get().mcCmdHistory, t].slice(-MC_HISTORY_CAP) })
+    }
+    get().pushMcLog(`→ ${t}`, 'cmd')
+    window.dvc.invoke('mc:send-raw', { text: t }).catch((err) => {
+      get().setError({ scope: 'minecraft', message: String(err?.message ?? err) })
+    })
+  },
+
+  _onMcStatus(payload) {
+    clearTimeout(get()._mcConnectTimer)
+    if (payload?.connected === true) {
+      set({ mcConnected: true, mcConnecting: false })
+      return
+    }
+    set({ mcConnected: false, mcConnecting: false })
+    if (payload?.error) {
+      get().setError({ scope: 'minecraft', message: mapMcError(payload.error) })
+    }
+  },
 
   sendMsg(textRaw) {
     const text = String(textRaw ?? '').trim()

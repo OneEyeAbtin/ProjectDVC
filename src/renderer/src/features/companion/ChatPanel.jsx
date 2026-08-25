@@ -5,6 +5,10 @@ import { playSfx } from '../../lib/sfx.js'
 import { useMic } from '../voice/useMic.js'
 import { SEGMENT_COUNT } from '../voice/micHelpers.js'
 import { useTypewriter } from './useTypewriter.js'
+import McTabs from '../minecraft/McTabs.jsx'
+import McConsole from '../minecraft/McConsole.jsx'
+import McRadar from '../minecraft/McRadar.jsx'
+import McInventory from '../minecraft/McInventory.jsx'
 
 // Ported from legacy: *asterisk actions* render as italic muted spans.
 export function bubbleParts(text) {
@@ -38,6 +42,7 @@ export default function ChatPanel() {
   const lastUserText = useStore((s) => s.lastUserText)
   const completeType = useStore((s) => s.completeType)
   const dismissError = useStore((s) => s.dismissError)
+  const mcTab = useStore((s) => s.mcTab)
 
   const [draft, setDraft] = useState('')
   const [copied, setCopied] = useState(false)
@@ -99,20 +104,20 @@ export default function ChatPanel() {
 
   return (
     <section className="chat-panel">
-      <div className="glass bubble-region" ref={scrollRef}>
-        {error && (
-          <div className="error-chip" role="alert">
-            <span className="error-chip-msg">⚠ {error.message}</span>
-            <button
-              type="button"
-              className="chip-dismiss"
-              aria-label="Dismiss"
-              onClick={dismissError}
-            >
-              <X size={12} />
-            </button>
-          </div>
-        )}
+      {error && (
+        <div className="error-chip" role="alert">
+          <span className="error-chip-msg">⚠ {error.message}</span>
+          <button
+            type="button"
+            className="chip-dismiss"
+            aria-label="Dismiss"
+            onClick={dismissError}
+          >
+            <X size={12} />
+          </button>
+        </div>
+      )}
+      <div className={'glass bubble-region' + (mcTab !== 0 ? ' is-hidden' : '')} ref={scrollRef}>
         {thinking && !bubble && (
           <em className="bubble-action thinking-indicator">
             thinking
@@ -130,9 +135,13 @@ export default function ChatPanel() {
           </p>
         )}
       </div>
-      <div className="mem-label">
+      {mcTab === 1 && <McConsole />}
+      {mcTab === 2 && <McRadar />}
+      {mcTab === 3 && <McInventory />}
+      <div className={'mem-label' + (mcTab !== 0 ? ' is-hidden' : '')}>
         MEM:{historyCount}/{maxHistory}
       </div>
+      <McTabs />
       <div className="input-row">
         <input
           className="chat-input"

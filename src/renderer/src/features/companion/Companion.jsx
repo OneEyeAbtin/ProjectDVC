@@ -4,6 +4,7 @@ import TopBar from './TopBar.jsx'
 import Portrait from './Portrait.jsx'
 import ChatPanel from './ChatPanel.jsx'
 import './companion.css'
+import '../minecraft/minecraft.css'
 
 // Legacy parity (legacy/core/main.py::_greet): when a session summary exists,
 // acknowledge the previous session instead of the persona greeting.
