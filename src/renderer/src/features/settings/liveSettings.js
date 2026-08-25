@@ -10,6 +10,7 @@
 export const AUTO_SAVE_KEYS = [
   'theme_id',
   'ambient_effects',
+  'animation_speed',
   'particle_theme',
   'custom_gradient',
   'ui_sounds',

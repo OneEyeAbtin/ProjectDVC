@@ -119,6 +119,7 @@ export const DEFAULTS = {
   ui_sounds: true,
   idle_chat: true,
   ambient_effects: true,
+  animation_speed: 1,
   custom_gradient: { enabled: false, from: '#1a1025', to: '#0d0816', angle: 135 },
   particle_theme: 'stars',
   hide_to_tray: true,

@@ -4,6 +4,7 @@ import {
   resolveParticleTheme,
   sanitizeParticleTheme
 } from './particleThemes.js'
+import { applySpeed, sanitizeAnimationSpeed } from './animationSpeed.js'
 import './ambient.css'
 
 // Every Nth star tints with var(--acc1); the rest stay white (stars theme).
@@ -21,6 +22,13 @@ export default function AmbientBackground() {
   // Selected in Settings → General → Background; persisted via draft→Save,
   // delivered here through config pushes. Unknown/garbage falls back to stars.
   const particleTheme = sanitizeParticleTheme(useStore((s) => s.config?.particle_theme))
+  // Ambient motion multiplier (0.25×–3×): scales particle sim dt per tick and
+  // drives the aurora orbs' CSS duration via the --ambient-speed var below.
+  const animSpeed = sanitizeAnimationSpeed(useStore((s) => s.config?.animation_speed))
+  // Latest speed for the animation effect below: a slider change must apply
+  // per tick WITHOUT restarting the rAF loop (same pattern as blockedRef).
+  const speedRef = useRef(animSpeed)
+  speedRef.current = animSpeed
   // Latest blocked state for the animation effect below: a theme switch must
   // consult it at setup time without adding uiBlocked to that effect's deps
   // (block/unblock is owned by the pause/resume effect, not a restart trigger).
@@ -90,7 +98,10 @@ export default function AmbientBackground() {
       if (!last) last = now
       const dt = Math.min((now - last) / 1000, 0.05)
       last = now
-      for (const p of particles) def.step(p, dt, width, height)
+      // Speed multiplier scales per-frame velocity AND progress (age, phase,
+      // tumble — everything dt-driven) without restarting the loop.
+      const dtScaled = applySpeed(dt, speedRef.current)
+      for (const p of particles) def.step(p, dtScaled, width, height)
       paint(now, true)
     }
 
@@ -176,7 +187,7 @@ export default function AmbientBackground() {
   }, [uiBlocked])
 
   return (
-    <div className="ambient" aria-hidden="true">
+    <div className="ambient" style={{ '--ambient-speed': animSpeed }} aria-hidden="true">
       <div className="aurora">
         <span className="orb orb-a" />
         <span className="orb orb-b" />
