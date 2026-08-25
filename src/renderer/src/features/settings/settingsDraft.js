@@ -1,3 +1,5 @@
+import { DEFAULT_GRADIENT } from './background.js'
+
 export const TTS_ENGINES = ['elevenlabs', 'edge', 'piper']
 
 export const EDGE_VOICE_SUGGESTIONS = [
@@ -77,6 +79,7 @@ export function buildSnapshot(state) {
     ui_sounds: cfg.ui_sounds !== false,
     idle_chat: cfg.idle_chat !== false,
     ambient_effects: cfg.ambient_effects !== false,
+    custom_gradient: pick(cfg.custom_gradient, DEFAULT_GRADIENT),
     font_scale: Number(state.fontScale) || 1,
     lip_sync_tts: state.lipSyncTts !== false,
     lip_sync_text: state.lipSyncText === true,

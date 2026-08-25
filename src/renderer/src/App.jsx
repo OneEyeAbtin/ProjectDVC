@@ -6,6 +6,7 @@ import Companion from './features/companion/Companion.jsx'
 import AmbientBackground from './features/ambient/AmbientBackground.jsx'
 import ContextMenu from './features/menu/ContextMenu.jsx'
 import SettingsOverlay from './features/settings/SettingsOverlay.jsx'
+import { applyGradient } from './features/settings/background.js'
 import StatsDialog from './features/stats/StatsDialog.jsx'
 import { useVoice } from './features/voice/useVoice.js'
 
@@ -27,6 +28,13 @@ export default function App() {
   useEffect(() => {
     document.documentElement.style.setProperty('--font-scale', String(fontScale))
   }, [fontScale])
+
+  // Persisted custom background gradient (Settings → General → Background).
+  // Runs on boot and whenever a profile push delivers a new config.
+  const shellGradient = useStore((s) => s.config?.custom_gradient)
+  useEffect(() => {
+    applyGradient(shellGradient)
+  }, [shellGradient])
 
   // UI sound events (reply notify, stat up/down, error); unsubscribes on unmount.
   useEffect(() => wireSfxEvents(), [])

@@ -396,3 +396,35 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
+
+/* ── Background section (General tab) ────────────────────────────────────── */
+.gradient-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+/* Native color swatch: drop the text-input padding, give it input height. */
+.field input[type='color'] {
+  padding: 4px;
+  height: 38px;
+  cursor: pointer;
+}
+.field input[type='color']::-webkit-color-swatch-wrapper { padding: 2px; }
+.field input[type='color']::-webkit-color-swatch { border: none; border-radius: 6px; }
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.preset-swatch {
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0;
+  transition: border-color .15s ease, transform .15s ease;
+}
+.preset-swatch:hover { border-color: var(--acc1); transform: translateY(-1px); }
+.preset-swatch.active {
+  border-color: var(--acc1);
+  box-shadow: 0 0 0 1px var(--acc1);
+}

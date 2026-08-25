@@ -11,6 +11,7 @@ import {
   TTS_ENGINES
 } from './settingsDraft.js'
 import './settings.css'
+import { applyGradient, GRADIENT_PRESETS } from './background.js'
 
 const TABS = ['General', 'AI/API', 'Voice', '⛏ MC', 'Memory']
 const BRAIN_MODES = ['local', 'online', 'offline']
@@ -256,6 +257,7 @@ export default function SettingsOverlay() {
         '--font-scale',
         String(useStore.getState().fontScale)
       )
+      applyGradient(useStore.getState().config?.custom_gradient)
       restoreFocus.current?.focus?.()
     }
   }, [open])
@@ -301,6 +303,23 @@ export default function SettingsOverlay() {
   function previewFontScale(value) {
     setField('font_scale', value)
     document.documentElement.style.setProperty('--font-scale', String(value))
+  }
+
+  // custom_gradient edits preview instantly via the --shell-grad-* CSS vars
+  // (same draft→Save contract as the theme/font previews; Cancel reverts in
+  // the open effect cleanup above, Save persists through profile:save).
+  // Computed from the closure draft so the preview always matches what is
+  // stored — updater callbacks must stay side-effect free.
+  function setGradField(key, value) {
+    const next = { ...draft.custom_gradient, [key]: value }
+    setField('custom_gradient', next)
+    applyGradient(next)
+  }
+
+  function applyPreset(preset) {
+    const next = { ...draft.custom_gradient, enabled: true, from: preset.from, to: preset.to }
+    setField('custom_gradient', next)
+    applyGradient(next)
   }
 
   function cancel() {
@@ -514,6 +533,83 @@ export default function SettingsOverlay() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <h3 className="section-title">Background</h3>
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={draft.custom_gradient.enabled}
+                  aria-label="Custom background gradient"
+                  onChange={(e) => setGradField('enabled', e.target.checked)}
+                />
+                <span className="toggle-track" aria-hidden="true">
+                  <span className="toggle-thumb" />
+                </span>
+                <span className="toggle-text">Custom background gradient</span>
+              </label>
+
+              <div className="gradient-row">
+                <div className="field">
+                  <label htmlFor="grad-from">From</label>
+                  <input
+                    id="grad-from"
+                    type="color"
+                    value={draft.custom_gradient.from}
+                    aria-label="Gradient start color"
+                    onChange={(e) => setGradField('from', e.target.value)}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="grad-to">To</label>
+                  <input
+                    id="grad-to"
+                    type="color"
+                    value={draft.custom_gradient.to}
+                    aria-label="Gradient end color"
+                    onChange={(e) => setGradField('to', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="field">
+                <label htmlFor="grad-angle-slider">Angle</label>
+                <div className="limit-row">
+                  <input
+                    id="grad-angle-slider"
+                    type="range"
+                    min={0}
+                    max={360}
+                    step={1}
+                    value={draft.custom_gradient.angle}
+                    aria-valuetext={`${draft.custom_gradient.angle} degrees`}
+                    onChange={(e) => setGradField('angle', Number(e.target.value))}
+                  />
+                  <output id="grad-angle-value" className="limit-value" htmlFor="grad-angle-slider">
+                    {draft.custom_gradient.angle}°
+                  </output>
+                </div>
+              </div>
+
+              <div className="preset-grid" role="group" aria-label="Gradient presets">
+                {GRADIENT_PRESETS.map((preset) => (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    className={
+                      'preset-swatch' +
+                      (draft.custom_gradient.from === preset.from &&
+                      draft.custom_gradient.to === preset.to
+                        ? ' active'
+                        : '')
+                    }
+                    style={{ background: `linear-gradient(135deg, ${preset.from}, ${preset.to})` }}
+                    title={preset.name}
+                    aria-label={`${preset.name} gradient preset`}
+                    onClick={() => applyPreset(preset)}
+                  />
+                ))}
               </div>
 
               <h3 className="section-title danger-title">Danger zone</h3>

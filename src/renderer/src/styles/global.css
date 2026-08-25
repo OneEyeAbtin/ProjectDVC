@@ -8,7 +8,11 @@ html, body, #root { height: 100%; background: transparent; overflow: hidden;
 
 .shell { position: relative; height: 100%; display: flex; flex-direction: column; border-radius: 18px;
   overflow: hidden; color: var(--txt1);
-  background: linear-gradient(170deg, var(--bg2), var(--bg1));
+  /* Custom-gradient hook (Settings → General → Background): when enabled,
+     background.js sets --shell-grad-from/to/angle inline on <html>; unset
+     vars fall back to the theme's own two-tone gradient. */
+  background: linear-gradient(var(--shell-grad-angle, 135deg),
+    var(--shell-grad-from, var(--bg2)), var(--shell-grad-to, var(--bg1)));
   border: 1px solid var(--border);
   /* Static window aura — a constant soft glow, no animation (cheap). */
   box-shadow: 0 0 42px -8px color-mix(in srgb, var(--acc1) 30%, transparent);
