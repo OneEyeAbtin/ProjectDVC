@@ -64,6 +64,8 @@ export default function ContextMenu() {
 
   useEffect(() => {
     if (!pos) return undefined
+    // Publish open state so the ambient layer can pause while the menu is up.
+    useStore.getState().setContextMenuOpen(true)
     function onPointerDown(event) {
       if (panelRef.current && !panelRef.current.contains(event.target)) setPos(null)
     }
@@ -76,6 +78,7 @@ export default function ContextMenu() {
     window.addEventListener('mousedown', onPointerDown)
     window.addEventListener('keydown', onKeyDown)
     return () => {
+      useStore.getState().setContextMenuOpen(false)
       window.removeEventListener('mousedown', onPointerDown)
       window.removeEventListener('keydown', onKeyDown)
     }
