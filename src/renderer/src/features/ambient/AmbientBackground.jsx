@@ -72,9 +72,12 @@ export default function AmbientBackground() {
 
     // `animate=false` paints one static frame (reduced motion); each theme's
     // draw picks a mid alpha instead of its live pulse/twinkle value.
+    // Optional `def.link` paints pair-connection lines UNDER the dots
+    // (constellation) before the per-particle pass runs.
     function paint(now, animate) {
       ctx.clearRect(0, 0, width, height)
       const t = now / 1000
+      def.link?.(ctx, particles, t, animate, accent)
       for (let i = 0; i < particles.length; i++) {
         def.draw(ctx, particles[i], t, animate, accent, i % ACCENT_EVERY === 0)
       }
