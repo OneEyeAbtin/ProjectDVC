@@ -647,11 +647,15 @@ export const CONSTELLATION = {
       x: Math.random() * w,
       y: Math.random() * h,
       r: rand(1.5, 2),
-      vx: rand(-6, 6),
-      vy: rand(-6, 6)
+      vx: rand(-12, 12),
+      vy: rand(-12, 12)
     }
   },
   step(p, dt, w, h) {
+    // `dt` arrives PRE-SCALED by the animation-speed multiplier from
+    // AmbientBackground's frame loop (applySpeed), so dot velocities obey the
+    // slider like every other theme. Base drift is ±12px/s: slow enough to
+    // stay calm, fast enough that 0.25×→3× is plainly visible.
     // Gentle drift with modulo wrap on BOTH edges — a star leaving the right
     // side re-enters from the left, keeping the web fully populated.
     p.x = (((p.x + p.vx * dt) % w) + w) % w
