@@ -350,7 +350,9 @@
 }
 
 .limit-row { display: flex; align-items: center; gap: 10px; }
-.limit-row input[type='range'] { flex: 1; min-width: 0; accent-color: var(--acc1); }
+/* Track/thumb chrome comes from the global slider styles (global.css) — the
+   negative track margins there need every slider unstyled locally to work. */
+.limit-row input[type='range'] { flex: 1; min-width: 0; }
 .limit-value {
   min-width: 28px;
   text-align: center;

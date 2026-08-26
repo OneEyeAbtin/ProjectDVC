@@ -37,6 +37,43 @@ html, body, #root { height: 100%; background: transparent; overflow: hidden;
 button { cursor: pointer; font-family: inherit; }
 input { user-select: text; }
 
+/* ── Range sliders ─────────────────────────────────────────────────────────
+   Themed track+thumb via appearance:none. Full-travel fix: the native widget
+   stops the thumb EDGE at each end (center falls half-a-thumb short, reading
+   as ~10–90% travel). Negative inline margins widen the runnable-track's
+   LAYOUT box past the input edges, so the thumb CENTER reaches both ends at
+   min/max. (Margins on the thumb itself only fix the min side — verified in
+   this Chromium.) */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 22px;
+  background: transparent;
+}
+input[type='range']::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg4) 75%, var(--txt2));
+  margin-inline: -7px; /* = half thumb width */
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -4.5px; /* (track 5px − thumb 14px) / 2 */
+  border-radius: 50%;
+  background: var(--acc1);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--acc1) 45%, transparent);
+}
+input[type='range']:hover::-webkit-slider-thumb,
+input[type='range']:active::-webkit-slider-thumb {
+  background: color-mix(in srgb, var(--acc1) 75%, #fff);
+}
+input[type='range']:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--acc1);
+  outline-offset: 1px;
+}
+
 .boot-splash {
   height: 100%;
   display: flex;
