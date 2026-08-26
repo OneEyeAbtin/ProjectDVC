@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react'
 import { useStore } from '../../state/store.js'
 import {
   resolveParticleTheme,
-  sanitizeParticleTheme
+  sanitizeParticleTheme,
+  setSpriteScale
 } from './particleThemes.js'
 import { applySpeed, sanitizeAnimationSpeed } from './animationSpeed.js'
 import './ambient.css'
@@ -65,13 +66,16 @@ export default function AmbientBackground() {
 
     function resize() {
       const rect = shell.getBoundingClientRect()
-      // Cap DPR at 2 — beyond that the fill cost outweighs visual gain.
-      const dpr = Math.min(window.devicePixelRatio || 1, 2)
+      // Cap DPR at 1.5 — beyond that the full-canvas fill cost outweighs the
+      // visual gain on soft-edged particles (44% fewer pixels than 2×), and
+      // dot sprites rasterize at this scale too.
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5)
       width = Math.max(1, Math.round(rect.width))
       height = Math.max(1, Math.round(rect.height))
       canvas.width = Math.round(width * dpr)
       canvas.height = Math.round(height * dpr)
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      setSpriteScale(dpr)
       if (!particles.length) spawnAll()
       for (const p of particles) {
         if (p.x > width) p.x = Math.random() * width

@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   CONSTELLATION_LINK_DIST,
+  CONSTELLATION_MAX_LINKS,
+  collectLinks,
   countLinks,
   DEFAULT_PARTICLE_THEME,
   PARTICLE_THEMES,
@@ -208,5 +210,48 @@ describe('constellation link counting', () => {
     // 10px edges.
     expect(countLinks(cluster, 12)).toBe(4)
     expect(countLinks(cluster, 5)).toBe(0)
+  })
+})
+
+describe('collectLinks (batched link pass)', () => {
+  it('finds exactly the pairs countLinks finds — random clouds agree', () => {
+    for (let trial = 0; trial < 20; trial++) {
+      const pts = Array.from({ length: 40 }, () => ({
+        x: Math.random() * 800,
+        y: Math.random() * 600
+      }))
+      const segs = collectLinks(pts, CONSTELLATION_LINK_DIST)
+      expect(segs, `trial ${trial}`).not.toBeNull()
+      expect(segs.length).toBe(countLinks(pts, CONSTELLATION_LINK_DIST))
+      for (const s of segs) {
+        expect(s[4]).toBeLessThanOrEqual(CONSTELLATION_LINK_DIST)
+      }
+    }
+  })
+
+  it('x-sort early-out never misses Y-close but X-far pairs', () => {
+    const pts = [
+      { x: 0, y: 100 },
+      { x: 400, y: 102 }, // close in Y, far in X → NOT a link
+      { x: 60, y: 100 }   // within 90 of p0 → link
+    ]
+    const segs = collectLinks(pts, CONSTELLATION_LINK_DIST)
+    expect(segs.length).toBe(1)
+    expect(segs[0].slice(0, 4)).toEqual([0, 100, 60, 100])
+  })
+
+  it('returns null once the pair count exceeds max (hairball bail-out)', () => {
+    const cluster = Array.from({ length: 32 }, (_, i) => ({ x: i % 6 * 5, y: Math.floor(i / 6) * 5 }))
+    expect(countLinks(cluster, CONSTELLATION_LINK_DIST)).toBeGreaterThan(CONSTELLATION_MAX_LINKS)
+    expect(collectLinks(cluster, CONSTELLATION_LINK_DIST)).toBeNull()
+    expect(collectLinks(cluster, CONSTELLATION_LINK_DIST, countLinks(cluster, CONSTELLATION_LINK_DIST)))
+      .not.toBeNull()
+  })
+
+  it('handles degenerate inputs like countLinks', () => {
+    expect(collectLinks([], CONSTELLATION_LINK_DIST)).toEqual([])
+    expect(collectLinks([{ x: 5, y: 5 }], CONSTELLATION_LINK_DIST)).toEqual([])
+    expect(collectLinks(undefined, CONSTELLATION_LINK_DIST)).toEqual([])
+    expect(collectLinks([{ x: 0, y: 0 }, { x: 10, y: 0 }], -1)).toEqual([])
   })
 })

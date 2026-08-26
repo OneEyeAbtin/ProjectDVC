@@ -65,6 +65,77 @@ function fillCircle(ctx, x, y, r) {
   ctx.fill()
 }
 
+// ── sprite cache ──────────────────────────────────────────────────────────
+// Soft dots are pre-rendered ONCE to offscreen canvases (keyed by shape +
+// color, radii quantized to ¼ px so the cache stays bounded); the live loop
+// just drawImage()s them, replacing an arc+fill per particle per frame.
+// Radii quantize by ≤⅛ px — imperceptible at these sizes. Tests run without
+// DOM and fall back to direct path painting (identical visuals).
+let spriteScale = 1
+const sprites = new Map()
+
+export function setSpriteScale(scale) {
+  const s = Math.max(1, Math.round((Number(scale) || 1) * 2) / 2)
+  if (s === spriteScale) return
+  spriteScale = s
+  sprites.clear()
+}
+
+function getSprite(kind, color, r, strokeW) {
+  const rq = Math.round(r * 4) / 4
+  const swq = Math.round((strokeW || 0) * 4) / 4
+  const key = `${kind}|${color}|${rq}|${swq}`
+  let sp = sprites.get(key)
+  if (sp !== undefined) return sp
+  if (typeof document === 'undefined' || typeof document.createElement !== 'function') {
+    sprites.set(key, null)
+    return null
+  }
+  const ext = rq + swq / 2 + 1 // half-extent in CSS px (+1px AA padding)
+  const size = Math.max(2, Math.ceil(ext * 2 * spriteScale))
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const sctx = canvas.getContext('2d')
+  sctx.scale(spriteScale, spriteScale)
+  sctx.translate(size / (2 * spriteScale), size / (2 * spriteScale))
+  sctx.fillStyle = color
+  sctx.strokeStyle = color
+  sctx.lineJoin = 'round'
+  sctx.beginPath()
+  sctx.arc(0, 0, rq, 0, TAU)
+  if (kind === 'ring') {
+    sctx.lineWidth = swq
+    sctx.stroke()
+  } else {
+    sctx.fill()
+  }
+  sp = { canvas, ext }
+  sprites.set(key, sp)
+  return sp
+}
+
+// Caller sets globalAlpha first (same contract as the old arc+fill path).
+function drawDot(ctx, x, y, r, color) {
+  const sp = getSprite('dot', color, r)
+  if (!sp) {
+    fillCircle(ctx, x, y, r)
+    return
+  }
+  ctx.drawImage(sp.canvas, x - sp.ext, y - sp.ext, sp.ext * 2, sp.ext * 2)
+}
+
+function drawRing(ctx, x, y, r, strokeW, color) {
+  const sp = getSprite('ring', color, r, strokeW)
+  if (!sp) {
+    ctx.beginPath()
+    ctx.arc(x, y, r, 0, TAU)
+    ctx.stroke()
+    return
+  }
+  ctx.drawImage(sp.canvas, x - sp.ext, y - sp.ext, sp.ext * 2, sp.ext * 2)
+}
+
 // ── stars ─ current behavior: slow rise, gentle wobble, twinkle, white/accent
 // Pulse/twinkle phases are ACCUMULATED in step() (never read from absolute
 // time) so the animation-speed slider scales the whole visual live.
@@ -93,8 +164,7 @@ export const STARS = {
     ctx.globalAlpha = animate
       ? 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(p.twPhase))
       : 0.55
-    ctx.fillStyle = isAccent ? accent : '#ffffff'
-    fillCircle(ctx, p.x + Math.sin(p.phase) * p.swayAmp, p.y, p.r)
+    drawDot(ctx, p.x + Math.sin(p.phase) * p.swayAmp, p.y, p.r, isAccent ? accent : '#ffffff')
   }
 }
 
@@ -126,8 +196,7 @@ export const EMBERS = {
       ? 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(p.flickPhase))
       : 0.7
     ctx.globalAlpha = 0.85 * flicker
-    ctx.fillStyle = p.color
-    fillCircle(ctx, p.x + Math.sin(p.phase) * p.swayAmp, p.y, p.r)
+    drawDot(ctx, p.x + Math.sin(p.phase) * p.swayAmp, p.y, p.r, p.color)
   }
 }
 
@@ -153,8 +222,7 @@ export const SNOW = {
   },
   draw(ctx, p, _t, animate) {
     ctx.globalAlpha = animate ? p.alpha : 0.7
-    ctx.fillStyle = '#ffffff'
-    fillCircle(ctx, p.x + Math.sin(p.phase) * p.swayAmp, p.y, p.r)
+    drawDot(ctx, p.x + Math.sin(p.phase) * p.swayAmp, p.y, p.r, '#ffffff')
   }
 }
 
@@ -183,9 +251,7 @@ export const BUBBLES = {
     ctx.globalAlpha = animate ? p.alpha : 0.5
     ctx.strokeStyle = '#67e8f9'
     ctx.lineWidth = p.lineWidth
-    ctx.beginPath()
-    ctx.arc(p.x + Math.sin(p.phase) * p.swayAmp, p.y, p.r, 0, TAU)
-    ctx.stroke()
+    drawRing(ctx, p.x + Math.sin(p.phase) * p.swayAmp, p.y, p.r, p.lineWidth, '#67e8f9')
   }
 }
 
@@ -257,10 +323,9 @@ export const FIREFLIES = {
       : 0.5
     // Halo first (soft glow), then the bright core.
     ctx.globalAlpha = 0.08 + 0.3 * pulse
-    ctx.fillStyle = '#d4ff5e'
-    fillCircle(ctx, p.x, p.y, p.r * 3)
+    drawDot(ctx, p.x, p.y, p.r * 3, '#d4ff5e')
     ctx.globalAlpha = 0.35 + 0.6 * pulse
-    fillCircle(ctx, p.x, p.y, p.r)
+    drawDot(ctx, p.x, p.y, p.r, '#d4ff5e')
   }
 }
 
@@ -427,12 +492,12 @@ export const FIREWORKS = {
     const drop = FIREWORK_GRAVITY * age * age
     for (const s of p.sparks) {
       ctx.globalAlpha = Math.max(0, life) * 0.9
-      ctx.fillStyle = s.color
-      fillCircle(
+      drawDot(
         ctx,
         p.x + Math.cos(s.ang) * s.spd * age,
         p.y + Math.sin(s.ang) * s.spd * age + drop,
-        s.size * (0.5 + 0.5 * life)
+        s.size * (0.5 + 0.5 * life),
+        s.color
       )
     }
   }
@@ -523,10 +588,16 @@ export const CONFETTI = {
   }
 }
 
-// ── constellation ─ drifting dots joined by faint lines when close together
-// (O(n²) pair check is fine at n ≤ 36). The optional `link` hook runs before
-// the per-particle draw pass so lines sit under the dots.
+// ── constellation ─ drifting dots joined by faint lines when close together.
+// The optional `link` hook runs before the per-particle draw pass so lines
+// sit under the dots. Pair search is x-sorted with an early-out break, and
+// strokes batch into ONE path per alpha bucket (≤10 stroke calls instead of
+// one per pair).
 export const CONSTELLATION_LINK_DIST = 90
+// Above ~120 visible links the web turns into a hairball: skip the pass
+// entirely rather than pay for visual mush (clustered spawn edge case).
+export const CONSTELLATION_MAX_LINKS = 120
+const LINK_ALPHA_STEPS = 10
 
 // Pure pair counter: how many unordered pairs are within `threshold` px.
 export function countLinks(points, threshold) {
@@ -540,6 +611,33 @@ export function countLinks(points, threshold) {
     }
   }
   return count
+}
+
+// Pure segment collector: every in-range pair as [x1, y1, x2, y2, dist], or
+// null the moment the count exceeds `max` (caller skips drawing). X-sorting
+// bounds each i's scan to a ±dist window; pairs close in Y but far in X are
+// excluded correctly because their distance is ≥ dx.
+export function collectLinks(points, threshold, max = CONSTELLATION_MAX_LINKS) {
+  const pts = Array.isArray(points) ? points : []
+  if (pts.length < 2 || !(threshold > 0)) return []
+  const order = pts.map((p, i) => i).sort((a, b) => pts[a].x - pts[b].x)
+  const d2max = threshold * threshold
+  const segs = []
+  for (let ii = 0; ii < order.length; ii++) {
+    const i = order[ii]
+    for (let jj = ii + 1; jj < order.length; jj++) {
+      const j = order[jj]
+      const dx = pts[j].x - pts[i].x
+      if (dx > threshold) break // x-sorted: everything later is farther away
+      const dy = pts[i].y - pts[j].y
+      const d2 = dx * dx + dy * dy
+      if (d2 <= d2max) {
+        segs.push([pts[i].x, pts[i].y, pts[j].x, pts[j].y, Math.sqrt(d2)])
+        if (segs.length > max) return null
+      }
+    }
+  }
+  return segs
 }
 
 export const CONSTELLATION = {
@@ -561,28 +659,34 @@ export const CONSTELLATION = {
   },
   link(ctx, particles, _t, animate, accent) {
     if (!animate) return undefined
+    const segs = collectLinks(particles, CONSTELLATION_LINK_DIST)
+    if (!segs || !segs.length) return undefined
+    // Alpha still fades with distance (tight pairs glow), but quantized into
+    // buckets so each bucket strokes as a single batched path.
     ctx.lineWidth = 1
     ctx.strokeStyle = accent
-    for (let i = 0; i < particles.length; i++) {
-      for (let j = i + 1; j < particles.length; j++) {
-        const dx = particles[i].x - particles[j].x
-        const dy = particles[i].y - particles[j].y
-        const d2 = dx * dx + dy * dy
-        if (d2 > CONSTELLATION_LINK_DIST * CONSTELLATION_LINK_DIST) continue
-        // Alpha fades with distance: tight pairs glow, far pairs vanish.
-        ctx.globalAlpha = (1 - Math.sqrt(d2) / CONSTELLATION_LINK_DIST) * 0.4
-        ctx.beginPath()
-        ctx.moveTo(particles[i].x, particles[i].y)
-        ctx.lineTo(particles[j].x, particles[j].y)
-        ctx.stroke()
+    const buckets = new Map()
+    for (const s of segs) {
+      const q = Math.round((1 - s[4] / CONSTELLATION_LINK_DIST) * LINK_ALPHA_STEPS) / LINK_ALPHA_STEPS
+      if (q <= 0) continue // fully-faded pair: invisible, don't pay for it
+      let list = buckets.get(q)
+      if (!list) buckets.set(q, (list = []))
+      list.push(s)
+    }
+    for (const [q, list] of buckets) {
+      ctx.globalAlpha = q * 0.4
+      ctx.beginPath()
+      for (const [x1, y1, x2, y2] of list) {
+        ctx.moveTo(x1, y1)
+        ctx.lineTo(x2, y2)
       }
+      ctx.stroke()
     }
     return undefined
   },
   draw(ctx, p, _t, animate, accent, isAccent) {
     ctx.globalAlpha = animate ? 0.7 : 0.55
-    ctx.fillStyle = isAccent ? accent : '#ffffff'
-    fillCircle(ctx, p.x, p.y, p.r)
+    drawDot(ctx, p.x, p.y, p.r, isAccent ? accent : '#ffffff')
   }
 }
 
