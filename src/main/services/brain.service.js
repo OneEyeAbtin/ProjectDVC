@@ -28,12 +28,25 @@ export function looksLikeReasoning(text) {
   return REASONING_OPENERS.test(s)
 }
 
+// Keyword fallback when a reply carries no [EMOTION:] tag. Scans EVERY
+// trigger and keeps the match that occurs LAST in the text — the closing cue
+// is the message's actual emotional tone. The old first-map-key-wins scan let
+// an early 'haha'/'lol' (happy) outrank a later "( with a smirk ..... )" even
+// though the smirk was the sentence's real punchline. Equal positions prefer
+// the longer (more specific) trigger.
 function deepScan(text) {
-  const lo = text.toLowerCase()
+  const lo = String(text ?? '').toLowerCase()
+  let best = null // { emotion, index, length }
   for (const [emotion, triggers] of Object.entries(DEEP_MAP)) {
-    if (triggers.some((trigger) => lo.includes(trigger))) return emotion
+    for (const trigger of triggers) {
+      const index = lo.lastIndexOf(trigger)
+      if (index === -1) continue
+      if (!best || index > best.index || (index === best.index && trigger.length > best.length)) {
+        best = { emotion, index, length: trigger.length }
+      }
+    }
   }
-  return 'neutral'
+  return best ? best.emotion : 'neutral'
 }
 
 // Time-of-day context for the system prompt, from the MAIN process clock.

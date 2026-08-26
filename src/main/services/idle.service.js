@@ -12,6 +12,8 @@ export function randomIdleDelayMs(rand) {
   return Math.round(minutes * 60 * 1000)
 }
 
+// Returns one entry from the pool (IDLE_LINES entries are {text, emotion});
+// an empty pool yields '' so callers can no-op defensively.
 export function pickIdleLine(lines = IDLE_LINES, rand) {
   if (!Array.isArray(lines) || lines.length === 0) return ''
   const r = typeof rand === 'function' ? rand : Math.random

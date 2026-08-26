@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useStore } from '../src/renderer/src/state/store.js'
+import { IDLE_LINES } from '../src/main/data/personas.js'
 
 // Store reads window.dvc lazily inside actions; this stub captures push
 // handlers so tests can fire bus-driven events (reply/memory/emotion).
@@ -232,6 +233,26 @@ describe('fixwave B renderer fixes', () => {
       expect(useStore.getState().error?.scope).toBe('brain')
       useStore.getState().dismissError()
       expect(useStore.getState().error).toBe(null)
+    })
+  })
+
+  describe('emotion resolution regressions (fixwave O)', () => {
+    it('REGRESSION (bug B): a resolved payload emotion replaces the stale happy face', () => {
+      // Boot face was happy; the smirk reply must win once typing completes.
+      useStore.setState({ emotion: 'happy' })
+      useStore.getState()._onReply({ text: '( with a smirk ............. )', emotion: 'smirk' })
+      expect(useStore.getState().pendingEmotion).toBe('smirk')
+      useStore.getState().completeType()
+      expect(useStore.getState().emotion).toBe('smirk')
+    })
+
+    it('REGRESSION (bug A): an idle reply shows the line’s own emotion, not the inherited one', () => {
+      const bored = IDLE_LINES.find((l) => l.text.includes('Bored. Bored.'))
+      useStore.setState({ emotion: 'happy' })
+      // Main now pushes {text, emotion} for idle lines; renderer must apply it.
+      useStore.getState()._onReply({ text: bored.text, emotion: bored.emotion })
+      useStore.getState().completeType()
+      expect(useStore.getState().emotion).toBe('bored')
     })
   })
 

@@ -58,11 +58,16 @@ export function registerIpc({ services, getWin, idleRand = Math.random }) {
 
   // Idle chatter: timestamp refreshed on every user message; the timer resets
   // on each send so a fire can never land inside an active conversation.
+  // Each IDLE_LINES entry is {text, emotion} — the line's own emotion rides
+  // the push so the sprite matches what she says (never a stale inherited face).
   let lastActivity = Date.now()
   const idleSvc = createIdleService({
     getEnabled: () => services.config.getConfig().idle_chat !== false,
     getLastActivity: () => lastActivity,
-    fire: () => push('reply', { text: pickIdleLine(IDLE_LINES, idleRand), emotion: null }),
+    fire: () => {
+      const line = pickIdleLine(IDLE_LINES, idleRand)
+      push('reply', { text: line?.text ?? '', emotion: line?.emotion ?? null })
+    },
     rand: idleRand
   })
   idleSvc.schedule()
@@ -133,7 +138,9 @@ export function registerIpc({ services, getWin, idleRand = Math.random }) {
       const next = !services.config.getSave().hearts_visible
       services.config.patchSave({ hearts_visible: next })
       push('profile', { hearts_visible: next })
-      push('reply', { text: next ? '*hearts everywhere!* 💞' : '*tucks the hearts away* 🙈', emotion: null })
+      // Real emotions on both lines — a null here would silently inherit the
+      // sprite's previous face (same bug class as the idle chatter push).
+      push('reply', { text: next ? '*hearts everywhere!* 💞' : '*tucks the hearts away* 🙈', emotion: next ? 'love' : 'blush' })
       return true
     }
 

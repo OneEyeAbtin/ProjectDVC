@@ -54,12 +54,13 @@ function makeHarness({ idleRand = () => 0 } = {}) {
     }),
     idleRand
   })
-  const handlers = new Map(ipcMain.handle.mock.calls.map(([ch, fn]) => [ch, fn]))
+  const handlers = new Map(ipcMain.handle.mock.calls.map(([ch, fn]) => ([ch, fn])))
   return {
     config,
     sent,
     call: (channel, payload) => handlers.get(channel)(null, payload),
-    idleReplies: () => sent.filter(([c, p]) => c === 'reply' && IDLE_LINES.includes(p.text))
+    idleReplies: () =>
+      sent.filter(([c, p]) => c === 'reply' && IDLE_LINES.some((l) => l.text === p.text))
   }
 }
 
@@ -86,7 +87,7 @@ describe('idle pure helpers', () => {
     expect(fallback).toBeLessThanOrEqual(MAX_MS)
   })
 
-  it('pickIdleLine returns pool members and honors injected rand', () => {
+  it('pickIdleLine returns pool entries and honors injected rand', () => {
     expect(pickIdleLine(IDLE_LINES, () => 0)).toBe(IDLE_LINES[0])
     for (let i = 0; i < 50; i++) {
       expect(IDLE_LINES).toContain(pickIdleLine(IDLE_LINES))
@@ -144,11 +145,26 @@ describe('idle chatter wiring', () => {
     await vi.advanceTimersByTimeAsync(1)
     expect(h.idleReplies()).toHaveLength(1)
     const reply = h.sent.find(([c]) => c === 'reply')[1]
-    expect(reply.text).toBe(IDLE_LINES[0])
-    expect(IDLE_LINES.some((l) => l.includes('[EMOTION:'))).toBe(false)
+    expect(reply.text).toBe(IDLE_LINES[0].text)
+    expect(IDLE_LINES.some((l) => l.text.includes('[EMOTION:'))).toBe(false)
 
     await vi.advanceTimersByTimeAsync(MIN_MS)
     expect(h.idleReplies()).toHaveLength(2)
+  })
+
+  it('REGRESSION (bug A): the idle push carries the line’s own emotion, never null', async () => {
+    // User report: "Bored. Bored. Bored." displayed with a HAPPY face because
+    // idle pushes shipped emotion:null and the renderer kept its stale face.
+    const h = makeHarness({ idleRand: () => 0 }) // IDLE_LINES[0] → thinking
+    await vi.advanceTimersByTimeAsync(MIN_MS)
+    const replies = h.sent.filter(([c]) => c === 'reply')
+    for (const [, payload] of replies) {
+      const entry = IDLE_LINES.find((l) => l.text === payload.text)
+      expect(entry).toBeDefined()
+      expect(payload.emotion).toBe(entry.emotion)
+      expect(payload.emotion).not.toBeNull()
+    }
+    expect(replies[0][1].emotion).toBe(IDLE_LINES[0].emotion)
   })
 
   it('never fires when idle_chat is disabled', async () => {
