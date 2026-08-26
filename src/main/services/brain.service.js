@@ -28,22 +28,87 @@ export function looksLikeReasoning(text) {
   return REASONING_OPENERS.test(s)
 }
 
-// Keyword fallback when a reply carries no [EMOTION:] tag. Scans EVERY
-// trigger and keeps the match that occurs LAST in the text — the closing cue
-// is the message's actual emotional tone. The old first-map-key-wins scan let
-// an early 'haha'/'lol' (happy) outrank a later "( with a smirk ..... )" even
-// though the smirk was the sentence's real punchline. Equal positions prefer
-// the longer (more specific) trigger.
-function deepScan(text) {
+// Keyword fallback when a reply carries no [EMOTION:] tag. Cues are scored,
+// not positioned: "haha ... with a smirk" is ambiguous by position alone, but
+// a self-described smirk is stronger evidence than a reflex laugh. Weights:
+//   strong (3) — the emotion's own name as a word ('smirk', 'blush', ...) plus
+//                literal statements like 'love you' / 'rolls eyes'
+//   medium (2) — distinctive markers: every emoji plus expressive tokens
+//                ('😈', '😳', 'mwahaha', 'ugh', 'eww', 'oh really', ...)
+//   weak   (1) — generic interjections that fit any mood ('haha', 'lol',
+//                'heh', 'yay', 'hmm', 'meh', 'huh', 'sorry', ...)
+// Highest total wins; ties go to the cue occurring LAST in the text; no cues
+// means neutral. Word triggers match on word boundaries so 'ugh' inside
+// 'laughed' or 'WHAT' inside 'whatever' never phantom-score.
+const WEAK_CUES = new Set(['haha', 'lol', 'heh', 'yay', 'hmm', 'huh', 'meh', 'sorry', 'what', 'think', 'whatever'])
+const STRONG_PHRASES = new Set(['love you', 'rolls eyes'])
+
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function triggerWeight(trigger, emotion) {
+  if (trigger === emotion || STRONG_PHRASES.has(trigger)) return 3
+  if (WEAK_CUES.has(trigger)) return 1
+  return 2
+}
+
+const CUE_TABLE = Object.entries(DEEP_MAP).flatMap(([emotion, triggers]) =>
+  triggers.map((rawTrigger) => {
+    const trigger = String(rawTrigger).toLowerCase()
+    const isWordLike = /^[a-z][a-z\s'-]*$/.test(trigger)
+    return {
+      emotion,
+      weight: triggerWeight(trigger, emotion),
+      text: isWordLike ? null : trigger,
+      // Word cues match on boundaries so 'ugh' inside 'laughed' or 'WHAT'
+      // inside 'whatever' never phantom-score. Common inflections are folded
+      // in (*smirks*, *smirking*, hahaha, sorryyy) while real longer words
+      // ('wonderful', 'mockingbird') stay excluded by the trailing guard.
+      re: isWordLike ? new RegExp(`\\b${escapeRegExp(trigger)}(?:ing|es|ed|ly|s)?(?![a-z]{3})`, 'g') : null
+    }
+  })
+)
+
+function cueIndices(lowerText, cue) {
+  const indices = []
+  if (cue.re) {
+    cue.re.lastIndex = 0
+    for (let match = cue.re.exec(lowerText); match; match = cue.re.exec(lowerText)) {
+      indices.push(match.index)
+    }
+  } else {
+    let from = lowerText.indexOf(cue.text)
+    while (from !== -1) {
+      indices.push(from)
+      from = lowerText.indexOf(cue.text, from + 1)
+    }
+  }
+  return indices
+}
+
+export function scoreDeepCues(text) {
   const lo = String(text ?? '').toLowerCase()
-  let best = null // { emotion, index, length }
-  for (const [emotion, triggers] of Object.entries(DEEP_MAP)) {
-    for (const trigger of triggers) {
-      const index = lo.lastIndexOf(trigger)
-      if (index === -1) continue
-      if (!best || index > best.index || (index === best.index && trigger.length > best.length)) {
-        best = { emotion, index, length: trigger.length }
+  const tally = new Map() // emotion -> { score, last }
+  for (const cue of CUE_TABLE) {
+    for (const index of cueIndices(lo, cue)) {
+      const entry = tally.get(cue.emotion)
+      if (entry) {
+        entry.score += cue.weight
+        if (index > entry.last) entry.last = index
+      } else {
+        tally.set(cue.emotion, { score: cue.weight, last: index })
       }
+    }
+  }
+  return tally
+}
+
+function deepScan(text) {
+  let best = null // { emotion, score, last }
+  for (const [emotion, { score, last }] of scoreDeepCues(text)) {
+    if (!best || score > best.score || (score === best.score && last > best.last)) {
+      best = { emotion, score, last }
     }
   }
   return best ? best.emotion : 'neutral'

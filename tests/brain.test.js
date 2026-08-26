@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { parseTags, createBrain, timeOfDay } from '../src/main/services/brain.service.js'
+import { parseTags, createBrain, timeOfDay, scoreDeepCues } from '../src/main/services/brain.service.js'
 import { defaultCallLLM } from '../src/main/providers/llm.js'
 import { PERSONAS } from '../src/main/data/personas.js'
 
@@ -40,14 +40,14 @@ describe('parseTags', () => {
     expect(r.clean).toContain('smirk')
   })
 
-  it('REGRESSION (bug B): the last emotional cue in the text wins over an earlier one', () => {
-    // The old deepScan returned the first DEEP_MAP key hit in fixed map order,
-    // so 'haha'/'lol' (happy) outranked a later "( with a smirk ..... )" even
-    // though the smirk was the sentence's closing tone. Recency must win.
+  it('REGRESSION (bug B): a strong cue beats surrounding interjections — weight, not position', () => {
+    // The original bug: fixed map order let 'haha'/'lol' (happy) mask the
+    // smirk entirely. Recency fixed the direction but still made any closing
+    // interjection win. Weighted scoring keeps the smirk punchline on top no
+    // matter where the laughs sit — and '*smirks*' now outruns 'ugh' too.
     expect(parseTags('Haha okay okay~ ( with a smirk ............. )', { stats }).emotion).toBe('smirk')
-    expect(parseTags('*smirks* ...ugh, fine, whatever.', { stats }).emotion).toBe('bored')
-    // And a closing laugh still beats an earlier smirk — direction-agnostic.
-    expect(parseTags('( with a smirk ............. ) haha lol', { stats }).emotion).toBe('happy')
+    expect(parseTags('( with a smirk ............. ) haha lol', { stats }).emotion).toBe('smirk')
+    expect(parseTags('*smirks* ...ugh, fine, whatever.', { stats }).emotion).toBe('smirk')
   })
 
   it('REGRESSION (bug B): full send path resolves emotion when the model ships no tag', async () => {
@@ -77,6 +77,82 @@ describe('parseTags', () => {
     const r = parseTags('[STAT: nope +9]', { stats })
     expect(r.statDeltas).toEqual([])
     expect(r.applyTo(stats)).toEqual(stats)
+  })
+})
+
+describe('weighted deepScan emotion scoring', () => {
+  it('strong emotion-name cue beats generic interjections regardless of position', () => {
+    // "haha ... with a smirk": smirk(3) > happy-from-haha(1)
+    expect(parseTags('haha with a smirk', { stats }).emotion).toBe('smirk')
+    const scores = scoreDeepCues('haha with a smirk')
+    expect(scores.get('smirk').score).toBe(3)
+    expect(scores.get('happy').score).toBe(1)
+  })
+
+  it('weak interjections accumulate — repeated laughs carry the message alone', () => {
+    // haha(1) + haha(1) + lol(1) = 3 happy points, nothing competes
+    expect(parseTags('haha haha lol', { stats }).emotion).toBe('happy')
+    expect(scoreDeepCues('haha haha lol').get('happy').score).toBe(3)
+  })
+
+  it('medium distinctive cue beats weak interjection: ugh(2) over haha(1)', () => {
+    expect(parseTags('ugh... fine, haha', { stats }).emotion).toBe('annoyed')
+  })
+
+  it('strong beats medium: smirk(3) over blush-from-emoji(2), laughs irrelevant', () => {
+    // 😳 is a medium blush cue; the self-described smirk still wins.
+    expect(parseTags('smirk... haha... 😳', { stats }).emotion).toBe('smirk')
+    const scores = scoreDeepCues('smirk... haha... 😳')
+    expect(scores.get('smirk').score).toBe(3)
+    expect(scores.get('blush').score).toBe(2)
+    expect(scores.get('happy').score).toBe(1)
+  })
+
+  it('every emoji trigger is a medium-weight cue', () => {
+    // lol(happy, weak 1) vs 😳(blush, medium 2) → blush
+    expect(parseTags('lol 😳', { stats }).emotion).toBe('blush')
+  })
+
+  it('ties on total score resolve to the cue occurring LAST in the text', () => {
+    // haha(happy 1) vs heh(smirk 1): equal weight → later heh wins
+    expect(parseTags('haha okay okay~ heh', { stats }).emotion).toBe('smirk')
+    // heh(smirk 1) vs yay(happy 1): equal weight → later yay wins
+    expect(parseTags('heh ...yay', { stats }).emotion).toBe('happy')
+  })
+
+  it('word-boundary guard: ugh inside laughed/through never phantom-scores annoyed', () => {
+    const scores = scoreDeepCues('i laughed through the whole thing haha')
+    expect(scores.get('annoyed')).toBeUndefined()
+    expect(scores.get('happy').score).toBe(1)
+  })
+
+  it('WHAT does not leak out of whatever', () => {
+    expect(scoreDeepCues('whatever').get('shocked')).toBeUndefined()
+    expect(scoreDeepCues('*smirks* fine, whatever.').get('bored').score).toBe(1)
+  })
+
+  it('inflections still match: smirks/smirked/smirking count as strong cues', () => {
+    expect(scoreDeepCues('*smirks*').get('smirk').score).toBe(3)
+    expect(scoreDeepCues('she smirked lol').get('smirk').score).toBe(3)
+    expect(parseTags('stop smirking!! haha', { stats }).emotion).toBe('smirk')
+  })
+
+  it('zero cues resolves to neutral', () => {
+    expect(scoreDeepCues('plain text').size).toBe(0)
+    expect(parseTags('plain text', { stats }).emotion).toBe('neutral')
+  })
+
+  it('scoreDeepCues is pure and deterministic across calls', () => {
+    const input = 'mwahaha! heh heh'
+    const a = scoreDeepCues(input)
+    const b = scoreDeepCues(input)
+    expect([...a.entries()]).toEqual([...b.entries()])
+    // mwahaha(evil 2) ties heh×2(smirk 2) → the later heh wins; 'haha' inside
+    // 'mwahaha' is boundary-guarded so happy never joins the race.
+    expect(a.get('evil').score).toBe(2)
+    expect(a.get('smirk').score).toBe(2)
+    expect(a.has('happy')).toBe(false)
+    expect(parseTags(input, { stats }).emotion).toBe('smirk')
   })
 })
 
