@@ -85,7 +85,7 @@ describe('createWindowService config binding', () => {
     const written = JSON.parse(fs.readFileSync(path.join(root, 'data', 'save.json'), 'utf8'))
     expect(written.win_x).toBe(111)
     expect(written.win_y).toBe(222)
-    expect(written.persona).toBe('Tsundere')
+    expect(written.persona).toBe('Friend')
     expect(written.session_summary).toBeUndefined()
   })
 })

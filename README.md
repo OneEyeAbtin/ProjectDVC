@@ -68,10 +68,9 @@ The memory system has three tiers:
 10 live stats tracked as 0–100 values: Affection, Rizz, Nerdiness, Sass, Chaos, Loyalty, Creativity, Wisdom, Humor, Romance. Stats decay and rise based on interactions. The top-bar heart display pulses through 5 colour stages tied to the Affection value. A Stats dialog provides ±5 manual controls with live colour-coded bars.
 
 ### 🎭 Personas
-23 fully written persona profiles, each a complete character description. Switchable at runtime from the right-click menu or Settings. Persona affects system prompt tone, greeting style, and response tendencies.
+21 fully written persona profiles, each a complete character description. Switchable at runtime from the right-click menu or Settings. Persona affects system prompt tone, greeting style, and response tendencies.
 
-**Dere types:** Tsundere, Yandere, Kuudere, Dandere  
-**Relationship:** Girlfriend, Best Friend, Mentor  
+**Relationship:** Friend, Girlfriend, Best Friend, Mentor  
 **Aesthetic:** Gothic, Friendly Goth, Goth Baddie, Catgirl, Royal, Vampire  
 **Character:** Pirate, Alien, Scientist, Sporty, Glitching Android  
 **Chaos:** Gremlin, Mean Girl, Hater, Maid That Hates You, Tired College Student

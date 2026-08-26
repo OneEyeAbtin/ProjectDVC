@@ -103,7 +103,7 @@ function fakeConfig(saveOverrides = {}, configOverrides = {}) {
     getSave: () => ({
       user_name: 'Abtin',
       pet_name: 'Raven',
-      persona: 'Tsundere',
+      persona: 'Friend',
       stats: { ...stats },
       setup_answers: {},
       session_summary: '',
@@ -157,8 +157,8 @@ describe('brain sysPrompt', () => {
     expect(p.startsWith('You are "Raven" — a living virtual companion')).toBe(true)
     expect(p).toContain('"Abtin", the person who matters most to you. (It\'s ')
     expect(p).toContain(` where Abtin is.)`)
-    expect(p).toContain('PERSONA — Tsundere:\n')
-    expect(p).toContain(PERSONAS.Tsundere)
+    expect(p).toContain('PERSONA — Friend:\n')
+    expect(p).toContain(PERSONAS.Friend)
     // Enforced format + hard rules stable fragments.
     expect(p).toContain('HOW YOU SPEAK — NON-NEGOTIABLE FORMAT:')
     expect(p).toContain('[EMOTION: name] — REQUIRED. A reply without it is a broken reply.')
@@ -181,6 +181,21 @@ describe('brain sysPrompt', () => {
       callLLM: async () => ''
     })
     expect(brain.sysPrompt()).toContain(PERSONAS.Gothic)
+  })
+
+  it('retired dere persona in a legacy save falls back via the Gothic chain', () => {
+    // Migration: saves written before the deres were removed can still carry
+    // persona: 'Tsundere'. The prompt chain (persona → Gothic → '') must
+    // resolve it instead of injecting an empty PERSONA block.
+    const brain = createBrain({
+      config: fakeConfig({ persona: 'Tsundere' }),
+      memory: fakeMemory(),
+      callLLM: async () => ''
+    })
+    const p = brain.sysPrompt()
+    expect(p).toContain('PERSONA — Tsundere:')
+    expect(p).toContain(PERSONAS.Gothic)
+    expect(p).not.toContain('PERSONA — Tsundere:\n\n')
   })
 })
 

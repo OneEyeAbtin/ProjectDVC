@@ -244,14 +244,14 @@ describe('profile:factory-reset', () => {
     const save = h.call('profile:factory-reset')
 
     expect(save.setup_complete).toBe(false)
-    expect(save.persona).toBe('Tsundere')
+    expect(save.persona).toBe('Friend')
     expect(save.stats.affection).toBe(20)
 
     const dataDir = path.join(h.root, 'data')
     expect(fs.existsSync(path.join(dataDir, 'config.json'))).toBe(true)
     expect(fs.existsSync(path.join(dataDir, 'save.json'))).toBe(true)
     const fresh = JSON.parse(fs.readFileSync(path.join(dataDir, 'save.json'), 'utf8'))
-    expect(fresh.persona).toBe('Tsundere')
+    expect(fresh.persona).toBe('Friend')
     expect(fresh.session_summary).toBeUndefined()
     expect(fresh.setup_answers).toEqual({})
   })
@@ -273,7 +273,7 @@ describe('profile:factory-reset', () => {
 
     const boot = h.call('app:init')
     expect(boot.save.setup_complete).toBe(false)
-    expect(boot.save.persona).toBe('Tsundere')
+    expect(boot.save.persona).toBe('Friend')
     expect(boot.traits).toEqual([])
     expect(boot.permanentFacts).toEqual([])
 
@@ -299,7 +299,7 @@ describe('profile:factory-reset', () => {
     const rebooted = createConfigService({ rootDir: h.root })
     rebooted.migrateLegacyIfNeeded()
     expect(rebooted.getConfig().online_api_key).toBe('')
-    expect(rebooted.getSave().persona).toBe('Tsundere')
+    expect(rebooted.getSave().persona).toBe('Friend')
   })
 
   it('leaves legacy root files untouched', () => {

@@ -64,7 +64,7 @@ function fakeConfig(saveOverrides = {}, configOverrides = {}) {
     getSave: () => ({
       user_name: 'Abtin',
       pet_name: 'Raven',
-      persona: 'Tsundere',
+      persona: 'Friend',
       stats: {},
       setup_answers: {},
       session_summary: '',

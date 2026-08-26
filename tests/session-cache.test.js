@@ -123,7 +123,7 @@ describe('onSummary dynamic lookup across factory reset', () => {
     const onDisk = JSON.parse(fs.readFileSync(savePath(), 'utf8'))
     expect(onDisk.session_summary).toBe('recap of pre-reset chat')
     // No resurrection of pre-reset values — back to defaults, not wiped data:
-    expect(onDisk.persona).toBe('Tsundere')
+    expect(onDisk.persona).toBe('Friend')
     expect(onDisk.user_name).toBe('User')
   })
 
