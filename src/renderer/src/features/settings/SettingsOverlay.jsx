@@ -406,6 +406,7 @@ export default function SettingsOverlay() {
         <div className="settings-body" role="tabpanel" aria-label={`${tab} settings`}>
           {tab === 'General' && (
             <>
+              {/* Identity (draft fields — persist through the Save button) */}
               <TextField
                 id="settings-user-name"
                 label="Your name"
@@ -419,6 +420,232 @@ export default function SettingsOverlay() {
                 onChange={(v) => setField('pet_name', v)}
               />
 
+              {/* ── THEME ─────────────────────────────────────────────── */}
+              <h3 className="section-title">Theme</h3>
+              <div className="field">
+                <div className="theme-grid" role="group" aria-label="Theme">
+                  {THEME_META.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      className={`swatch-cell${liveTheme === t.id ? ' active' : ''}`}
+                      aria-pressed={liveTheme === t.id}
+                      onClick={() => saveLive('theme_id', t.id)}
+                    >
+                      <span
+                        className="swatch-dot"
+                        style={{ background: `linear-gradient(135deg, ${t.dot[0]}, ${t.dot[1]})` }}
+                        aria-hidden="true"
+                      />
+                      <span className="swatch-name">{t.name}</span>
+                      {liveTheme === t.id && <Check size={12} className="ctx-check" aria-hidden="true" />}
+                    </button>
+                  ))}
+                </div>
+                <SavedFlash seq={savedSeq.theme_id} />
+              </div>
+
+              {/* ── BACKGROUND ────────────────────────────────────────── */}
+              <h3 className="section-title">Background</h3>
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={gradient.enabled}
+                  aria-label="Custom background gradient"
+                  onChange={(e) => saveGradient({ enabled: e.target.checked })}
+                />
+                <span className="toggle-track" aria-hidden="true">
+                  <span className="toggle-thumb" />
+                </span>
+                <span className="toggle-text">Custom background gradient</span>
+                <SavedFlash seq={savedSeq.custom_gradient} />
+              </label>
+              {/* Live source readout: which gradient the shell is actually
+                  wearing right now. Prominent while the custom override is
+                  OFF (the controls below are locked to the theme); subdued
+                  once the override takes over. */}
+              <p className={`gradient-src${gradient.enabled ? '' : ' locked'}`} role="note">
+                {gradient.enabled
+                  ? 'Custom override'
+                  : `Following theme: ${
+                      THEME_META.find((t) => t.id === liveTheme)?.name ?? liveTheme
+                    }`}
+              </p>
+
+              {/* Everything below rides on the custom override: locked (dim +
+                  inert) until "Custom background gradient" is ON. aria-disabled
+                  marks each control for AT; handlers double-guard because
+                  keyboard activation ignores pointer-events. */}
+              <div className={`gradient-controls${gradient.enabled ? '' : ' locked'}`}>
+                {/* Gradient SHAPE — auto-saves. */}
+                <div className="field">
+                  <span className="field-label" id="gradient-style-label">Gradient style</span>
+                  <div className="segmented" role="group" aria-labelledby="gradient-style-label">
+                    {GRADIENT_STYLE_OPTIONS.map((style) => (
+                      <button
+                        key={style.id}
+                        type="button"
+                        className={`seg${liveGradientStyle === style.id ? ' active' : ''}`}
+                        aria-pressed={liveGradientStyle === style.id}
+                        aria-disabled={!gradient.enabled || undefined}
+                        title={style.id === 'radial' ? 'Radial ignores the angle slider' : undefined}
+                        onClick={() => {
+                          if (!gradient.enabled) return
+                          saveLive('gradient_style', style.id)
+                          // Custom mode: the slider angle would otherwise mask
+                          // every linear style — the click re-owns the style's
+                          // fixed angle so the change is always visible.
+                          const patch = styleGradientPatch(liveGradientCfg, style.id)
+                          if (patch) saveLive('custom_gradient', patch)
+                        }}
+                      >
+                        {style.label}
+                      </button>
+                    ))}
+                  </div>
+                  <SavedFlash seq={savedSeq.gradient_style} />
+                </div>
+
+                <div className="gradient-row">
+                  <div className="field">
+                    <label htmlFor="grad-from">From</label>
+                    <input
+                      id="grad-from"
+                      type="color"
+                      value={gradient.from}
+                      aria-label="Gradient start color"
+                      aria-disabled={!gradient.enabled || undefined}
+                      tabIndex={gradient.enabled ? undefined : -1}
+                      onChange={(e) => gradient.enabled && saveGradient({ from: e.target.value })}
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="grad-to">To</label>
+                    <input
+                      id="grad-to"
+                      type="color"
+                      value={gradient.to}
+                      aria-label="Gradient end color"
+                      aria-disabled={!gradient.enabled || undefined}
+                      tabIndex={gradient.enabled ? undefined : -1}
+                      onChange={(e) => gradient.enabled && saveGradient({ to: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="field">
+                  <label htmlFor="grad-angle-slider">
+                    Angle{liveGradientStyle === 'radial' ? ' (ignored for Radial)' : ''}
+                  </label>
+                  <div className="limit-row">
+                    <input
+                      id="grad-angle-slider"
+                      type="range"
+                      min={0}
+                      max={360}
+                      step={1}
+                      value={gradient.angle}
+                      aria-valuetext={`${gradient.angle} degrees`}
+                      aria-disabled={!gradient.enabled || undefined}
+                      tabIndex={gradient.enabled ? undefined : -1}
+                      onChange={(e) => gradient.enabled && saveGradient({ angle: Number(e.target.value) })}
+                    />
+                    <output id="grad-angle-value" className="limit-value" htmlFor="grad-angle-slider">
+                      {gradient.angle}°
+                    </output>
+                  </div>
+                  <SavedFlash seq={savedSeq.custom_gradient} />
+                </div>
+
+                <div className="field">
+                  <span className="field-label">Presets</span>
+                  <div className="preset-grid" role="group" aria-label="Gradient presets">
+                    {GRADIENT_PRESETS.map((preset) => (
+                      <button
+                        key={preset.name}
+                        type="button"
+                        className={
+                          'preset-swatch' +
+                          (gradient.from === preset.from && gradient.to === preset.to ? ' active' : '')
+                        }
+                        style={{ background: `linear-gradient(135deg, ${preset.from}, ${preset.to})` }}
+                        title={preset.name}
+                        aria-label={`${preset.name} gradient preset`}
+                        aria-disabled={!gradient.enabled || undefined}
+                        tabIndex={gradient.enabled ? undefined : -1}
+                        onClick={() =>
+                          gradient.enabled &&
+                          saveLive('custom_gradient', {
+                            ...gradient,
+                            enabled: true,
+                            from: preset.from,
+                            to: preset.to
+                          })
+                        }
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* ── EFFECTS ───────────────────────────────────────────── */}
+              <h3 className="section-title">Effects</h3>
+              <div className="field">
+                <span className="field-label">Particle effect</span>
+                <div className="particle-chip-grid" role="group" aria-label="Particle effect">
+                  {PARTICLE_THEME_META.map((theme) => (
+                    <button
+                      key={theme.id}
+                      type="button"
+                      className={'particle-chip' + (liveParticleTheme === theme.id ? ' active' : '')}
+                      aria-pressed={liveParticleTheme === theme.id}
+                      onClick={() => saveLive('particle_theme', theme.id)}
+                    >
+                      {theme.label}
+                    </button>
+                  ))}
+                </div>
+                <SavedFlash seq={savedSeq.particle_theme} />
+              </div>
+
+              <div className="field">
+                <span className="field-label">Animation speed</span>
+                <div className="limit-row">
+                  <input
+                    id="anim-speed-slider"
+                    type="range"
+                    min={ANIMATION_SPEED_MIN}
+                    max={ANIMATION_SPEED_MAX}
+                    step={ANIMATION_SPEED_STEP}
+                    value={liveAnimationSpeed}
+                    aria-valuetext={`${liveAnimationSpeed} times`}
+                    aria-label="Ambient animation speed"
+                    onChange={(e) => saveLive('animation_speed', Number(e.target.value))}
+                  />
+                  <output id="anim-speed-value" className="limit-value" htmlFor="anim-speed-slider">
+                    {liveAnimationSpeed}×
+                  </output>
+                </div>
+                <SavedFlash seq={savedSeq.animation_speed} />
+              </div>
+
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={liveAmbientEffects}
+                  onChange={(e) => saveLive('ambient_effects', e.target.checked)}
+                />
+                <span className="toggle-track" aria-hidden="true">
+                  <span className="toggle-thumb" />
+                </span>
+                <span className="toggle-text">Ambient effects</span>
+                <SavedFlash seq={savedSeq.ambient_effects} />
+              </label>
+
+              {/* ── BEHAVIOR ──────────────────────────────────────────── */}
+              <h3 className="section-title">Behavior</h3>
               <div className="field">
                 <span className="field-label" id="brain-mode-label">Brain mode</span>
                 <div className="segmented" role="group" aria-labelledby="brain-mode-label">
@@ -440,14 +667,14 @@ export default function SettingsOverlay() {
                 <input
                   type="checkbox"
                   role="switch"
-                  checked={liveHeartsVisible}
-                  onChange={(e) => saveLive('hearts_visible', e.target.checked)}
+                  checked={liveUiSounds}
+                  onChange={(e) => saveLive('ui_sounds', e.target.checked)}
                 />
                 <span className="toggle-track" aria-hidden="true">
                   <span className="toggle-thumb" />
                 </span>
-                <span className="toggle-text">Show affection hearts</span>
-                <SavedFlash seq={savedSeq.hearts_visible} />
+                <span className="toggle-text">UI sounds</span>
+                <SavedFlash seq={savedSeq.ui_sounds} />
               </label>
 
               <label className="toggle-row">
@@ -482,20 +709,6 @@ export default function SettingsOverlay() {
                 <input
                   type="checkbox"
                   role="switch"
-                  checked={liveUiSounds}
-                  onChange={(e) => saveLive('ui_sounds', e.target.checked)}
-                />
-                <span className="toggle-track" aria-hidden="true">
-                  <span className="toggle-thumb" />
-                </span>
-                <span className="toggle-text">UI sounds</span>
-                <SavedFlash seq={savedSeq.ui_sounds} />
-              </label>
-
-              <label className="toggle-row">
-                <input
-                  type="checkbox"
-                  role="switch"
                   checked={liveIdleChat}
                   onChange={(e) => saveLive('idle_chat', e.target.checked)}
                 />
@@ -504,20 +717,6 @@ export default function SettingsOverlay() {
                 </span>
                 <span className="toggle-text">Idle chatter</span>
                 <SavedFlash seq={savedSeq.idle_chat} />
-              </label>
-
-              <label className="toggle-row">
-                <input
-                  type="checkbox"
-                  role="switch"
-                  checked={liveAmbientEffects}
-                  onChange={(e) => saveLive('ambient_effects', e.target.checked)}
-                />
-                <span className="toggle-track" aria-hidden="true">
-                  <span className="toggle-thumb" />
-                </span>
-                <span className="toggle-text">Ambient effects</span>
-                <SavedFlash seq={savedSeq.ambient_effects} />
               </label>
 
               <div className="field">
@@ -540,193 +739,21 @@ export default function SettingsOverlay() {
                 <SavedFlash seq={savedSeq.font_scale} />
               </div>
 
-              <div className="field">
-                <span className="field-label">Theme</span>
-                <div className="theme-grid">
-                  {THEME_META.map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      className={`swatch-cell${liveTheme === t.id ? ' active' : ''}`}
-                      aria-pressed={liveTheme === t.id}
-                      onClick={() => saveLive('theme_id', t.id)}
-                    >
-                      <span
-                        className="swatch-dot"
-                        style={{ background: `linear-gradient(135deg, ${t.dot[0]}, ${t.dot[1]})` }}
-                        aria-hidden="true"
-                      />
-                      <span className="swatch-name">{t.name}</span>
-                      {liveTheme === t.id && <Check size={12} className="ctx-check" aria-hidden="true" />}
-                    </button>
-                  ))}
-                </div>
-                <SavedFlash seq={savedSeq.theme_id} />
-              </div>
-
-              <h3 className="section-title">Background</h3>
               <label className="toggle-row">
                 <input
                   type="checkbox"
                   role="switch"
-                  checked={gradient.enabled}
-                  aria-label="Custom background gradient"
-                  onChange={(e) => saveGradient({ enabled: e.target.checked })}
+                  checked={liveHeartsVisible}
+                  onChange={(e) => saveLive('hearts_visible', e.target.checked)}
                 />
                 <span className="toggle-track" aria-hidden="true">
                   <span className="toggle-thumb" />
                 </span>
-                <span className="toggle-text">Custom background gradient</span>
-                <SavedFlash seq={savedSeq.custom_gradient} />
+                <span className="toggle-text">Show affection hearts</span>
+                <SavedFlash seq={savedSeq.hearts_visible} />
               </label>
-              {/* Live source readout: which gradient the shell is actually
-                  wearing right now (theme-built-in vs custom override). */}
-              <p className="gradient-src" role="note">
-                {gradient.enabled
-                  ? 'Custom override'
-                  : `Following theme: ${
-                      THEME_META.find((t) => t.id === liveTheme)?.name ?? liveTheme
-                    }`}
-              </p>
 
-              {/* Gradient SHAPE — applies to both theme gradients and the
-                  custom override. Auto-saves. */}
-              <div className="field">
-                <span className="field-label" id="gradient-style-label">Gradient style</span>
-                <div className="segmented" role="group" aria-labelledby="gradient-style-label">
-                  {GRADIENT_STYLE_OPTIONS.map((style) => (
-                    <button
-                      key={style.id}
-                      type="button"
-                      className={`seg${liveGradientStyle === style.id ? ' active' : ''}`}
-                      aria-pressed={liveGradientStyle === style.id}
-                      title={style.id === 'radial' ? 'Radial ignores the angle slider' : undefined}
-                      onClick={() => {
-                        saveLive('gradient_style', style.id)
-                        // Custom mode: the slider angle would otherwise mask
-                        // every linear style — the click re-owns the style's
-                        // fixed angle so the change is always visible.
-                        const patch = styleGradientPatch(liveGradientCfg, style.id)
-                        if (patch) saveLive('custom_gradient', patch)
-                      }}
-                    >
-                      {style.label}
-                    </button>
-                  ))}
-                </div>
-                <SavedFlash seq={savedSeq.gradient_style} />
-              </div>
-
-              <div className="gradient-row">
-                <div className="field">
-                  <label htmlFor="grad-from">From</label>
-                  <input
-                    id="grad-from"
-                    type="color"
-                    value={gradient.from}
-                    aria-label="Gradient start color"
-                    onChange={(e) => saveGradient({ from: e.target.value })}
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="grad-to">To</label>
-                  <input
-                    id="grad-to"
-                    type="color"
-                    value={gradient.to}
-                    aria-label="Gradient end color"
-                    onChange={(e) => saveGradient({ to: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="field">
-                <label htmlFor="grad-angle-slider">
-                  Angle{liveGradientStyle === 'radial' ? ' (ignored for Radial)' : ''}
-                </label>
-                <div className="limit-row">
-                  <input
-                    id="grad-angle-slider"
-                    type="range"
-                    min={0}
-                    max={360}
-                    step={1}
-                    value={gradient.angle}
-                    aria-valuetext={`${gradient.angle} degrees`}
-                    onChange={(e) => saveGradient({ angle: Number(e.target.value) })}
-                  />
-                  <output id="grad-angle-value" className="limit-value" htmlFor="grad-angle-slider">
-                    {gradient.angle}°
-                  </output>
-                </div>
-              </div>
-
-              <div className="field">
-                <span className="field-label">Presets</span>
-                <div className="preset-grid" role="group" aria-label="Gradient presets">
-                  {GRADIENT_PRESETS.map((preset) => (
-                    <button
-                      key={preset.name}
-                      type="button"
-                      className={
-                        'preset-swatch' +
-                        (gradient.from === preset.from && gradient.to === preset.to ? ' active' : '')
-                      }
-                      style={{ background: `linear-gradient(135deg, ${preset.from}, ${preset.to})` }}
-                      title={preset.name}
-                      aria-label={`${preset.name} gradient preset`}
-                      onClick={() =>
-                        saveLive('custom_gradient', {
-                          ...gradient,
-                          enabled: true,
-                          from: preset.from,
-                          to: preset.to
-                        })
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="field">
-                <span className="field-label">Animation speed</span>
-                <div className="limit-row">
-                  <input
-                    id="anim-speed-slider"
-                    type="range"
-                    min={ANIMATION_SPEED_MIN}
-                    max={ANIMATION_SPEED_MAX}
-                    step={ANIMATION_SPEED_STEP}
-                    value={liveAnimationSpeed}
-                    aria-valuetext={`${liveAnimationSpeed} times`}
-                    aria-label="Ambient animation speed"
-                    onChange={(e) => saveLive('animation_speed', Number(e.target.value))}
-                  />
-                  <output id="anim-speed-value" className="limit-value" htmlFor="anim-speed-slider">
-                    {liveAnimationSpeed}×
-                  </output>
-                </div>
-                <SavedFlash seq={savedSeq.animation_speed} />
-              </div>
-
-              <div className="field">
-                <span className="field-label">Particle effect</span>
-                <div className="particle-chip-grid" role="group" aria-labelledby="particle-theme-label">
-                  {PARTICLE_THEME_META.map((theme) => (
-                    <button
-                      key={theme.id}
-                      type="button"
-                      className={'particle-chip' + (liveParticleTheme === theme.id ? ' active' : '')}
-                      aria-pressed={liveParticleTheme === theme.id}
-                      onClick={() => saveLive('particle_theme', theme.id)}
-                    >
-                      {theme.label}
-                    </button>
-                  ))}
-                </div>
-                <SavedFlash seq={savedSeq.particle_theme} />
-              </div>
-
+              {/* ── DANGER ZONE ───────────────────────────────────────── */}
               <h3 className="section-title danger-title">Danger zone</h3>
               <div className="danger-zone">
                 <ConfirmButton
