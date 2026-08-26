@@ -173,8 +173,8 @@ describe('particle theme registry', () => {
     // Dots drift (positions genuinely change)…
     expect(node.x).not.toBe(xNode)
     expect(node.y).not.toBe(yNode)
-    // …slowly: max speed 6px/s per axis ⇒ a single 0.5s tick moves ≤ ~4.3px.
-    expect(Math.hypot(node.x - xNode, node.y - yNode)).toBeLessThan(4.5)
+    // …slowly: max speed 12px/s per axis ⇒ a single 0.5s tick moves ≤ ~8.5px.
+    expect(Math.hypot(node.x - xNode, node.y - yNode)).toBeLessThan(9)
   })
 })
 
