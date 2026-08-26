@@ -16,10 +16,12 @@ export default function AmbientBackground() {
   // start/stop handles published by the animation effect below, so the
   // uiBlocking effect can pause/resume the particle rAF loop.
   const controlsRef = useRef(null)
-  // While any overlay/menu is open the ambient animation pauses entirely:
-  // glass backdrop-filter would otherwise re-composite its blur every frame
-  // against a moving background (expensive, and pointless while covered).
-  const uiBlocked = useStore((s) => s.settingsOpen || s.statsOpen || s.contextMenuOpen)
+  // While settings/stats overlays are open the ambient animation pauses
+  // entirely: glass backdrop-filter would otherwise re-composite its blur
+  // every frame against a moving background (expensive, and pointless while
+  // covered). The context menu deliberately does NOT block — it is opaque,
+  // DOM-only chrome, and the world stays alive behind it.
+  const uiBlocked = useStore((s) => s.settingsOpen || s.statsOpen)
   // Selected in Settings → General → Background; persisted via draft→Save,
   // delivered here through config pushes. Unknown/garbage falls back to stars.
   const particleTheme = sanitizeParticleTheme(useStore((s) => s.config?.particle_theme))
@@ -153,8 +155,8 @@ export default function AmbientBackground() {
     document.addEventListener('visibilitychange', onVisibility)
     controlsRef.current = { start, stop }
     // A theme switch landing while an overlay covers the shell (settings/
-    // stats/context menu open) must NOT kick the loop — the unblock path
-    // resumes it via controls.start() when the last blocker closes.
+    // stats open) must NOT kick the loop — the unblock path resumes it via
+    // controls.start() when the last blocker closes.
     if (!blockedRef.current && !document.hidden) start()
 
     const ro = new ResizeObserver(() => {
