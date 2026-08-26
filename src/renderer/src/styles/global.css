@@ -11,7 +11,7 @@ html, body, #root { height: 100%; background: transparent; overflow: hidden;
   /* Shell background (single authority): features/settings/background.js
      always sets --shell-grad-image inline on <html> — a full gradient built
      from the active theme (or custom override) plus the selected gradient
-     STYLE (diagonal/vertical/horizontal/diagonal-alt/radial). The legacy
+     STYLE (diagonal/vertical/horizontal/radial). The legacy
      --shell-grad-from/to/angle vars remain published and power the fallback
      below as a pre-boot safety net. */
   background: var(--shell-grad-image, linear-gradient(var(--shell-grad-angle, 135deg),

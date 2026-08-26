@@ -16,14 +16,18 @@ import { buildSnapshot, diffPatch } from '../src/renderer/src/features/settings/
 import { createConfigService } from '../src/main/services/config.service.js'
 
 describe('gradient style registry', () => {
-  it('offers the five documented shapes with their fixed linear angles', () => {
+  it('offers the four documented shapes with their fixed linear angles', () => {
     expect(GRADIENT_STYLE_OPTIONS.map((s) => s.id)).toEqual([
-      'diagonal', 'vertical', 'horizontal', 'diagonal-alt', 'radial'
+      'diagonal', 'vertical', 'horizontal', 'radial'
     ])
     const angles = Object.fromEntries(GRADIENT_STYLE_OPTIONS.map((s) => [s.id, s.angle]))
-    expect(angles).toEqual({ diagonal: 135, vertical: 180, horizontal: 90, 'diagonal-alt': 45, radial: undefined })
+    expect(angles).toEqual({ diagonal: 135, vertical: 180, horizontal: 90, radial: undefined })
     expect(DEFAULTS.gradient_style).toBe('diagonal')
     expect(SETTINGS_KEYS).toContain('gradient_style')
+  })
+
+  it("no 'Diagonal Alt' — removed in fixwave M (user request)", () => {
+    expect(GRADIENT_STYLE_OPTIONS.some((s) => s.id.includes('alt'))).toBe(false)
   })
 
   it('labels are plain text — no emoji, arrows or symbols (user request)', () => {
@@ -32,13 +36,15 @@ describe('gradient style registry', () => {
       expect(s.label, s.id).not.toMatch(/[\u2190-\u21FF\u{1F000}-\u{1FAFF}\u2600-\u27BF]/u)
     }
     expect(GRADIENT_STYLE_OPTIONS.map((s) => s.label)).toEqual([
-      'Diagonal', 'Vertical', 'Horizontal', 'Diagonal Alt', 'Radial'
+      'Diagonal', 'Vertical', 'Horizontal', 'Radial'
     ])
   })
 
-  it('sanitizes unknown styles back to diagonal', () => {
+  it('sanitizes unknown and LEGACY styles back to diagonal', () => {
     expect(sanitizeGradientStyle('radial')).toBe('radial')
     expect(sanitizeGradientStyle('vertical')).toBe('vertical')
+    // Pre-fixwave-M configs may still store 'diagonal-alt'.
+    expect(sanitizeGradientStyle('diagonal-alt')).toBe('diagonal')
     expect(sanitizeGradientStyle('junk')).toBe('diagonal')
     expect(sanitizeGradientStyle(undefined)).toBe('diagonal')
   })
@@ -51,7 +57,6 @@ describe('style → CSS mapping', () => {
     expect(buildGradientCss({ ...g, style: 'diagonal' })).toBe('linear-gradient(135deg, #112233, #445566)')
     expect(buildGradientCss({ ...g, style: 'vertical' })).toBe('linear-gradient(180deg, #112233, #445566)')
     expect(buildGradientCss({ ...g, style: 'horizontal' })).toBe('linear-gradient(90deg, #112233, #445566)')
-    expect(buildGradientCss({ ...g, style: 'diagonal-alt' })).toBe('linear-gradient(45deg, #112233, #445566)')
   })
 
   it('custom angle overrides the style default for linear shapes', () => {
@@ -127,7 +132,8 @@ describe('style click re-owns its angle in custom mode (fixwave L)', () => {
       enabled: true, from: '#ff2d55', to: '#160a0e', angle: 180
     })
     expect(styleGradientPatch(custom, 'horizontal')?.angle).toBe(90)
-    expect(styleGradientPatch(custom, 'diagonal-alt')?.angle).toBe(45)
+    // Legacy stored style: sanitizes to diagonal, so the patch re-owns 135°.
+    expect(styleGradientPatch(custom, 'diagonal-alt')).toEqual({ ...custom, angle: 135 })
   })
 
   it('returns null when nothing beyond gradient_style needs saving', () => {

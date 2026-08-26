@@ -118,26 +118,63 @@
   color: var(--txt2);
 }
 
-/* Background section: live source label under the custom-gradient toggle
-   ("Following theme: X" vs "Custom override"). */
+/* Background section: live source label under the custom-gradient toggle.
+   Locked (custom off) it turns PROMINENT — it is the only live information
+   while the gradient controls below are dimmed; unlocked it says
+   "Custom override" and steps back. */
 .gradient-src {
-  margin: -4px 0 10px;
+  margin: -4px 0 0;
   font-size: 0.7188rem;
   font-style: italic;
   color: var(--txt2);
+}
+.gradient-src.locked {
+  font-style: normal;
+  font-weight: 700;
+  font-size: 0.7813rem;
+  color: var(--txt1);
+}
+
+/* Custom-gradient control block (style / colors / angle / presets): locked
+   until the custom-gradient toggle is ON. Dim + inert to pointers; the
+   ::after overlay exists purely so hit-testing stays INSIDE the block to
+   show the not-allowed cursor (pointer-events:none alone would let the
+   cursor fall through to whatever sits underneath). Controls also carry
+   aria-disabled + guarded handlers for keyboard users. */
+.gradient-controls {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+.gradient-controls.locked { opacity: .45; }
+.gradient-controls.locked > * { pointer-events: none; }
+.gradient-controls.locked::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  cursor: not-allowed;
 }
 
 .secret-field { position: relative; display: flex; align-items: center; }
 .secret-field input { width: 100%; padding-right: 38px; }
 .reveal-btn { position: absolute; right: 6px; color: var(--txt2); }
 
+/* Section headers (all tabs, one consistent voice): small uppercase
+   letter-spaced label with an accent bar; the danger variant re-colors both
+   text and bar via currentColor. */
 .section-title {
-  font-family: 'Fredoka', sans-serif;
-  font-size: 0.8438rem;
-  font-weight: 600;
-  color: var(--acc1);
-  margin-top: 2px;
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--txt2);
+  border-left: 3px solid var(--acc1);
+  padding-left: 8px;
+  margin-top: 6px;
 }
+.settings-body .section-title:first-of-type { margin-top: 0; }
 
 .mem-io-row {
   display: flex;
@@ -368,7 +405,7 @@
 .btn.small { padding: 6px 14px; font-size: 0.75rem; border-radius: 9px; }
 
 /* ── Danger zone (General tab) ─────────────────────────────────────────────── */
-.danger-title { color: #ff6b6b; }
+.danger-title { color: #ff6b6b; border-left-color: currentColor; }
 .danger-zone {
   display: flex;
   flex-direction: column;

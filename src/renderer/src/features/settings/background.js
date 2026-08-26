@@ -14,12 +14,12 @@ export const DEFAULT_GRADIENT = { enabled: false, from: '#1a1025', to: '#0d0816'
 
 // Gradient SHAPES (Settings → General → Background): linear presets carry a
 // fixed angle; radial ignores angles entirely. Works for both theme-built-in
-// gradients and the custom override.
+// gradients and the custom override. Fixwave M: 'diagonal-alt' removed — a
+// stored legacy value sanitizes back to 'diagonal'.
 export const GRADIENT_STYLE_OPTIONS = [
   { id: 'diagonal', label: 'Diagonal', angle: 135 },
   { id: 'vertical', label: 'Vertical', angle: 180 },
   { id: 'horizontal', label: 'Horizontal', angle: 90 },
-  { id: 'diagonal-alt', label: 'Diagonal Alt', angle: 45 },
   { id: 'radial', label: 'Radial' }
 ]
 
