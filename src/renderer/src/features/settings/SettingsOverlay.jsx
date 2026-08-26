@@ -261,6 +261,7 @@ export default function SettingsOverlay() {
   const liveTrayEnabled = useStore((s) => s.config?.tray_enabled !== false)
   const liveIdleChat = useStore((s) => s.config?.idle_chat !== false)
   const liveAmbientEffects = useStore((s) => s.config?.ambient_effects !== false)
+  const liveReduceTransparency = useStore((s) => s.config?.reduce_transparency === true)
   const liveAnimationSpeed = useStore((s) => sanitizeAnimationSpeed(s.config?.animation_speed))
   const liveParticleTheme = useStore((s) => sanitizeParticleTheme(s.config?.particle_theme))
   const liveGradientCfg = useStore((s) => s.config?.custom_gradient)
@@ -642,6 +643,20 @@ export default function SettingsOverlay() {
                 </span>
                 <span className="toggle-text">Ambient effects</span>
                 <SavedFlash seq={savedSeq.ambient_effects} />
+              </label>
+
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={liveReduceTransparency}
+                  onChange={(e) => saveLive('reduce_transparency', e.target.checked)}
+                />
+                <span className="toggle-track" aria-hidden="true">
+                  <span className="toggle-thumb" />
+                </span>
+                <span className="toggle-text">Reduce transparency</span>
+                <SavedFlash seq={savedSeq.reduce_transparency} />
               </label>
 
               {/* ── BEHAVIOR ──────────────────────────────────────────── */}

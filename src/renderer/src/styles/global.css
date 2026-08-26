@@ -111,3 +111,15 @@ input[type='range']:focus-visible::-webkit-slider-thumb {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* ── Reduce-transparency mode (Settings → General → Effects) ──────────────
+   Accessibility override: solid panels, zero blur. Applied by toggling the
+   class on <html> (features/settings/transparency.js). The blanket
+   !important is deliberate — this mode must beat any decorative
+   backdrop-filter added later. */
+html.reduce-transparency * { backdrop-filter: none !important; }
+html.reduce-transparency .glass { background: var(--bg3); }
+html.reduce-transparency .settings-overlay,
+html.reduce-transparency .stats-overlay {
+  background: color-mix(in srgb, var(--bg1) 92%, black);
+}

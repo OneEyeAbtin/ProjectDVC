@@ -14,6 +14,7 @@ export const AUTO_SAVE_KEYS = [
   'particle_theme',
   'custom_gradient',
   'gradient_style',
+  'reduce_transparency',
   'ui_sounds',
   'always_on_top',
   'tray_enabled',

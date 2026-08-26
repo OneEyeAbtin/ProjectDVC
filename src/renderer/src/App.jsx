@@ -8,6 +8,7 @@ import ContextMenu from './features/menu/ContextMenu.jsx'
 import SettingsOverlay from './features/settings/SettingsOverlay.jsx'
 import StatsDialog from './features/stats/StatsDialog.jsx'
 import { useVoice } from './features/voice/useVoice.js'
+import { applyTransparencyPreference } from './features/settings/transparency.js'
 
 export default function App() {
   useBoot()
@@ -18,6 +19,8 @@ export default function App() {
   // Ambient effects gate (config-backed, default on). When off, both layers
   // unmount — the canvas rAF loop dies with the component.
   const ambientEffects = useStore((s) => s.config?.ambient_effects !== false)
+  // Accessibility mode (config-backed, default off): solid panels, no blur.
+  const reduceTransparency = useStore((s) => s.config?.reduce_transparency === true)
   const bootError = useStore((s) => (s.error?.scope === 'boot' ? s.error : null))
 
   useEffect(() => {
@@ -27,6 +30,10 @@ export default function App() {
   useEffect(() => {
     document.documentElement.style.setProperty('--font-scale', String(fontScale))
   }, [fontScale])
+
+  useEffect(() => {
+    applyTransparencyPreference(document.documentElement, reduceTransparency)
+  }, [reduceTransparency])
 
   // UI sound events (reply notify, stat up/down, error); unsubscribes on unmount.
   useEffect(() => wireSfxEvents(), [])
