@@ -93,7 +93,9 @@ app.whenReady().then(() => {
   registerMediaProtocol({
     getRoots: () => [
       { mount: 'tts-cache', root: path.join(rootDir, 'data', 'tts-cache') },
-      { root: path.join(rootDir, 'assets') }
+      // Bare string per resolveMediaPath's contract — a plain `{ root }` object
+      // is treated as a mount entry and silently skipped (empty mount name).
+      path.join(rootDir, 'assets')
     ]
   })
 

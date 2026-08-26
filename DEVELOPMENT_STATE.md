@@ -1,7 +1,8 @@
 # ProjectDVC 2.0 — Development State
 
 > **Catch-up file for any AI session.** Read this top-to-bottom and you know
-> exactly where the project stands. Last updated: 2026-08-25.
+> exactly where the project stands. Last updated: 2026-08-26 (release
+> verification of main @ 4532077).
 
 ---
 
@@ -9,9 +10,10 @@
 
 **ProjectDVC** — a desktop virtual AI companion (anime-style character that
 lives on your desktop, chats with you, changes emotion sprites, remembers you,
-and speaks with TTS). Originally built in Python/PyQt6 by Abtin; **now being
-rebuilt as an Electron + React app.** Minecraft drone integration is planned
-but deferred (the old Mineflayer bot is kept, untouched, in `drone/`).
+and speaks with TTS). Originally built in Python/PyQt6 by Abtin; **now rebuilt
+as an Electron + React app.** The Minecraft drone (Mineflayer bot in `drone/`)
+is reattached via Plan 4 — one-click connect from the app, with Console /
+Radar / Inventory panels.
 
 - Author/owner: **Abtin** (github.com/OneEyeAbtin). All feature decisions are his.
 - Working style: Abtin **vibe codes** — he describes, AI implements. Keep
@@ -20,18 +22,17 @@ but deferred (the old Mineflayer bot is kept, untouched, in `drone/`).
 
 ## 2. Where we are in the rebuild
 
-**Plans 1, 2 and 3 are COMPLETE and reviewed.** Branch:
-`electron-rebuild` (40+ commits ahead of `main`). Main still holds the
-pre-rebuild checkpoint commit `e812075`.
+**Plans 1–4 are COMPLETE, merged to `main`, and pushed.** HEAD:
+`4532077` (docs: README with features + install guide).
 
 | Phase | Status | Contents |
 |---|---|---|
-| Plan 1 ✅ | **done, on branch** | Scaffold, themes, config+migration, memory, characters, brain, IPC, wizard, companion UI, context menu, settings shell |
-| Plan 2 ✅ | **done, on branch** | Voice: TTS chain (ElevenLabs→edge-tts→Piper) + arbitration + auto-speak, lip-sync state machine, voice settings tab, mic STT via Groq Whisper + VU meter + auto-send. Commit range: `5a2da0a..14fa94c`. Local Whisper STT **deferred** (Groq-only for now). |
-| Plan 3 ✅ | **done, on branch** | Depth+QoL: stats dialog, memory viewer + wipes + msg-limit, history channels, regenerate, tray/window persistence/always-on-top, WebAudio sounds, regenerate/copy buttons, shortcuts, font scale, redo-setup + factory reset. Commit range: `32017e0..3f7d315` |
-| Audit ✅ | **done, on branch** | Deep logic audit (1 Critical/3 Important/8 Minor — all fixed) + QoL wave. Commit range: `60df194..0a1454b`. 148/148 tests |
-| Polish C ✅ | **done, on branch** | Session-summary boot greeting, idle chatter (toggle `idle_chat`), memory export/import, bubble text select, shared emotions module, defensive patches. Commit range: `0a1454b..3e41d58`. 170/170 tests |
-| Plan 4 ⬜ | **next** | Minecraft reattach via `minecraft_v2` slot (drone/ untouched, waiting) |
+| Plan 1 ✅ | **done** | Scaffold, themes, config+migration, memory, characters, brain, IPC, wizard, companion UI, context menu, settings shell |
+| Plan 2 ✅ | **done** | Voice: TTS chain (ElevenLabs→edge-tts→Piper) + arbitration + auto-speak, lip-sync state machine, voice settings tab, mic STT via Groq Whisper + VU meter + auto-send. Local Whisper STT **deferred** (Groq-only for now). |
+| Plan 3 ✅ | **done** | Depth+QoL: stats dialog, memory viewer + wipes + msg-limit, history channels, regenerate, tray/window persistence/always-on-top, WebAudio sounds, regenerate/copy buttons, shortcuts, font scale, redo-setup + factory reset |
+| Audit ✅ | **done** | Deep logic audit (all findings fixed) + QoL wave |
+| Polish C ✅ | **done** | Session-summary boot greeting, idle chatter (toggle `idle_chat`), memory export/import, bubble text select, shared emotions module, defensive patches |
+| Plan 4 ✅ | **done, on main** | Minecraft reattach via `minecraft_v2` slot: drone spawn + WS bridge, event router, MC brain (#chat), Console/Radar/Inventory tabs, weighted emotion detection, emotion resolution on every say-path |
 
 **Spec:** `docs/superpowers/specs/2026-08-23-electron-rebuild-design.md`
 **Plan 1:** `docs/superpowers/plans/2026-08-23-plan1-scaffold-core-companion.md`
@@ -132,8 +133,8 @@ src/main/            Electron main = the brain (plain Node, no Python anywhere)
                          offline fallback mode, session-summary compression
   data/ (in src/main/data/)
     defaults.js          ported _DEFAULTS + SETTINGS_KEYS/SAVE_KEYS
-    personas.js          24 personas, greetings, DEAD_MSGS, DEEP_MAP, EMO_REMAP,
-                         OFFLINE_FALLBACKS, GREETING_TEMPLATES
+    personas.js          21 personas, greetings, DEAD_MSGS, DEEP_MAP, EMO_REMAP,
+                         OFFLINE_FALLBACKS, GREETING_TEMPLATES, IDLE_LINES
     themes.js            THEME_LIST (12 ids) + THEMES_NAME_TO_ID
   providers/llm.js       OpenAI-compatible fetch caller
 src/preload/api.js   window.dvc bridge — channel ALLOWLIST (security)
@@ -143,17 +144,21 @@ src/renderer/        React (zustand store, features/{setup,companion,menu,settin
   lib/sfx.js           WebAudio synth sounds (blip/notify/statUp/statDown/error)
   styles/themes.css    12 themes as [data-theme] CSS variable blocks
 legacy/              entire old Python app (reference only, never delete)
-drone/               old Mineflayer bot — UNTOUCHED, waits for Plan 4
+drone/               Mineflayer bot (Node, independent) — spawned by
+                     minecraft.service.js over a local WS bridge
 assets/outfits/      character sprites [Prefix][Emotion].png — untouched
 ```
 
-**IPC contract** (preload allowlist, enforced + parity-tested):
-invoke: `app:init, setup:complete, msg:send, msg:regenerate, profile:save,
-profile:factory-reset, setup:redo, stats:adjust, memory:delete-trait,
-memory:wipe-traits, memory:delete-permanent, memory:wipe-permanent,
-memory:clear-summary, history:get, history:clear, outfit:switch, cheat:try,
-voice:speak, voice:stop, voice:stt-transcribe` · push: `reply, emotion, stats,
-traits, memory, error, tts, profile, outfits`
+**IPC contract** (preload allowlist, enforced + parity-tested — see
+tests/ipc.test.js): invoke: `app:init, setup:complete, msg:send,
+msg:regenerate, profile:save, profile:factory-reset, setup:redo, stats:adjust,
+memory:delete-trait, memory:wipe-traits, memory:delete-permanent,
+memory:wipe-permanent, memory:clear-summary, memory:export, memory:import,
+history:get, history:clear, outfit:switch, characters:rescan, cheat:try,
+voice:speak, voice:stop, voice:stt-transcribe, win:hide, mc:connect,
+mc:disconnect, mc:send-raw, mc:send-cmd` · push: `reply, emotion, stats,
+traits, memory, error, tts, profile, outfits, mc-log, mc-status, mc-say,
+mc-radar, mc-inventory, mc-bot-status, mc-task`
 
 ## 5. Data migration (already works against real data)
 
@@ -169,7 +174,9 @@ keys). `data/config.json`, `data/save.json`, `data/memory/` also gitignored.**
 
 ## 6. Decisions & rulings (do not silently reverse)
 
-1. 24 personas (README said 23 — miscount; "Overly Dramatic Vampire" restored).
+1. 21 personas (dere types removed, Friend added — Abtin ruling 2026-08-25;
+   "Overly Dramatic Vampire" stays in PERSONAS for descriptions but is not
+   listed in PERSONA_GROUPS).
 2. Only 9 palettes existed in legacy; **Neon City / Amber Terminal / Gold were
    authored new** — Abtin should review colors in `themes.css`.
 3. Dedup keeps the LONGER string (legacy difflib semantics).
@@ -192,6 +199,9 @@ keys). `data/config.json`, `data/save.json`, `data/memory/` also gitignored.**
 - `copySprites` doesn't prune stale files; wizard setTimeout not cleared on unmount
 - MEM counter counts replies not turns
 - Interact menu items go through full LLM round-trip (legacy did too via AI)
+- `mc-task` push channel is forwarded by main (task labels) but no renderer
+  panel consumes it yet; task state still reaches the user via mc-say/mc-log.
+  Consume or drop in a future QoL wave.
 
 ## 8. What Abtin should check in the running app (visual QA)
 
@@ -201,8 +211,8 @@ keys). `data/config.json`, `data/save.json`, `data/memory/` also gitignored.**
 4. If fresh: 20-question wizard → greeting with persona-specific line
 5. Type a message (offline mode works keyless) → *thinking…* → typewriter
    bubble → **sprite changes** to the tagged emotion
-6. Right-click → outfits / personas / themes / interact menus all function;
-   theme switch is instant
+6. Right-click → outfits / personas / interact menus all function (themes live
+   in Settings → General); theme switch is instant
 7. Gear icon → settings overlay; change names/brain mode/API keys → Save → restart persists
 8. Cheat codes: `rosebud` (max affection, hearts pulse), `forcehappy`, `iddqd`
 9. Restart → persona/outfit/theme/emotion all restored
@@ -210,9 +220,8 @@ keys). `data/config.json`, `data/save.json`, `data/memory/` also gitignored.**
 
 ## 9. Immediate next steps
 
-1. Abtin runs visual QA (§8) on his machine, reports issues — **incl. Plan 2
-   voice**: speak a reply (edge engine works keyless), lip-sync toggle, mic
-   button → VU meter → transcript auto-sends (needs `online_api_key`)
-2. Write Plan 4 (Minecraft reattach via `minecraft_v2` slot in drone/) →
-   execute same subagent-driven flow
-3. Merge `electron-rebuild` → `main` when Plans 2–4 are done and Abtin is happy
+1. Abtin runs visual QA (§8) on his machine, reports issues — **incl. Plan 4
+   Minecraft**: ⛏ button → drone connects, Console accepts % commands, Radar /
+   Inventory update while connected, in-game `#chat <question>` gets an
+   in-character reply (needs MC Settings → Brain API key)
+2. Release distribution (electron-builder / installers) — unstarted
