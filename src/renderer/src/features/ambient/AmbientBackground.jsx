@@ -22,8 +22,9 @@ export default function AmbientBackground() {
   // Selected in Settings → General → Background; persisted via draft→Save,
   // delivered here through config pushes. Unknown/garbage falls back to stars.
   const particleTheme = sanitizeParticleTheme(useStore((s) => s.config?.particle_theme))
-  // Ambient motion multiplier (0.25×–3×): scales particle sim dt per tick and
-  // drives the aurora orbs' CSS duration via the --ambient-speed var below.
+  // Ambient motion multiplier (0.25×–3×): scales particle sim dt per tick
+  // (velocity AND every accumulated pulse phase — nothing reads absolute
+  // time) and drives the aurora orbs' CSS duration via --ambient-speed.
   const animSpeed = sanitizeAnimationSpeed(useStore((s) => s.config?.animation_speed))
   // Latest speed for the animation effect below: a slider change must apply
   // per tick WITHOUT restarting the rAF loop (same pattern as blockedRef).
