@@ -32,6 +32,35 @@ describe('parseTags', () => {
     expect(parseTags('plain text', { stats }).emotion).toBe('neutral')
   })
 
+  it('REGRESSION (bug B): tagless smirk keyword resolves to smirk, not stale happy', () => {
+    // User report: "say hello to audiences" → "( with a smirk ............. )"
+    // showed a HAPPY face. With no tag present, the deep scan must decide.
+    const r = parseTags('( with a smirk ............. )', { stats })
+    expect(r.emotion).toBe('smirk')
+    expect(r.clean).toContain('smirk')
+  })
+
+  it('REGRESSION (bug B): the last emotional cue in the text wins over an earlier one', () => {
+    // The old deepScan returned the first DEEP_MAP key hit in fixed map order,
+    // so 'haha'/'lol' (happy) outranked a later "( with a smirk ..... )" even
+    // though the smirk was the sentence's closing tone. Recency must win.
+    expect(parseTags('Haha okay okay~ ( with a smirk ............. )', { stats }).emotion).toBe('smirk')
+    expect(parseTags('*smirks* ...ugh, fine, whatever.', { stats }).emotion).toBe('bored')
+    // And a closing laugh still beats an earlier smirk — direction-agnostic.
+    expect(parseTags('( with a smirk ............. ) haha lol', { stats }).emotion).toBe('happy')
+  })
+
+  it('REGRESSION (bug B): full send path resolves emotion when the model ships no tag', async () => {
+    const brain = createBrain({
+      config: fakeConfig(),
+      memory: fakeMemory(),
+      callLLM: vi.fn(async () => '( with a smirk ............. )')
+    })
+    const out = await brain.send('say hello to audiences')
+    expect(out.text).toBe('( with a smirk ............. )')
+    expect(out.emotion).toBe('smirk')
+  })
+
   it('collects traits', () => {
     const r = parseTags('[TRAIT: user likes tea] ok!', { stats })
     expect(r.traits).toEqual(['user likes tea'])
