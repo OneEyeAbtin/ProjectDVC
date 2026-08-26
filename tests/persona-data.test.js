@@ -13,10 +13,27 @@ const VALID_EMOTIONS = new Set([
   'smirk', 'shocked', 'disgusted'
 ])
 
+const DERES = ['Tsundere', 'Yandere', 'Kuudere', 'Dandere']
+
 describe('persona data integrity', () => {
-  it('has 24 personas with descriptions', () => {
-    expect(Object.keys(PERSONAS).length).toBe(24)
+  it('has 21 personas with descriptions', () => {
+    expect(Object.keys(PERSONAS).length).toBe(21)
     for (const d of Object.values(PERSONAS)) expect(d.length).toBeGreaterThan(30)
+  })
+  it('dere personas are fully retired from every map and group', () => {
+    for (const dere of DERES) {
+      expect(PERSONAS[dere]).toBeUndefined()
+      expect(GREETING_TEMPLATES[dere]).toBeUndefined()
+      expect(PERSONA_TRANSFORM[dere]).toBeUndefined()
+      for (const members of Object.values(PERSONA_GROUPS)) {
+        expect(members, `${dere} must not appear in a persona group`).not.toContain(dere)
+      }
+    }
+  })
+  it('ships the Friend persona in the Relationship group', () => {
+    expect(PERSONAS.Friend).toBeDefined()
+    expect(PERSONA_GROUPS['💝 Relationship']).toContain('Friend')
+    expect(Object.keys(PERSONA_GROUPS)).not.toContain('💕 Dere Types')
   })
   it('grouped personas all exist', () => {
     for (const members of Object.values(PERSONA_GROUPS))
@@ -30,7 +47,7 @@ describe('persona data integrity', () => {
 
 describe('greeting templates', () => {
   it('cover every persona key', () => {
-    expect(Object.keys(GREETING_TEMPLATES).length).toBe(24)
+    expect(Object.keys(GREETING_TEMPLATES).length).toBe(21)
     for (const persona of Object.keys(PERSONAS)) {
       expect(typeof GREETING_TEMPLATES[persona]).toBe('string')
     }
@@ -46,7 +63,7 @@ describe('greeting templates', () => {
     }
   })
   it('keeps name placeholders only where the legacy greeting used the name', () => {
-    expect(GREETING_TEMPLATES.Tsundere).toContain('{name}')
+    expect(GREETING_TEMPLATES.Friend).toContain('{name}')
     expect(GREETING_TEMPLATES.Gremlin).toContain('{name}')
     expect(GREETING_TEMPLATES.Catgirl).toContain('{name}')
     expect(GREETING_TEMPLATES.Gothic).not.toContain('{name}')
@@ -55,7 +72,7 @@ describe('greeting templates', () => {
 
 describe('persona transforms', () => {
   it('cover every persona key', () => {
-    expect(Object.keys(PERSONA_TRANSFORM).length).toBe(24)
+    expect(Object.keys(PERSONA_TRANSFORM).length).toBe(21)
     for (const persona of Object.keys(PERSONAS)) {
       expect(typeof PERSONA_TRANSFORM[persona]).toBe('string')
     }

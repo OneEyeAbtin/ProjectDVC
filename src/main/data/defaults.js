@@ -93,7 +93,7 @@ export const DEFAULTS = {
 
   user_name: 'User',
   pet_name: 'Companion',
-  persona: 'Tsundere',
+  persona: 'Friend',
   outfit: 'Base',
   brain_mode: 'online',
 
