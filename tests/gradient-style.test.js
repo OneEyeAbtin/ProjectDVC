@@ -7,7 +7,8 @@ import {
   buildGradientCss,
   sanitizeGradientStyle,
   applyBackground,
-  resolveBackground
+  resolveBackground,
+  styleGradientPatch
 } from '../src/renderer/src/features/settings/background.js'
 import { DEFAULTS, SETTINGS_KEYS } from '../src/main/data/defaults.js'
 import { AUTO_SAVE_KEYS } from '../src/renderer/src/features/settings/liveSettings.js'
@@ -23,6 +24,16 @@ describe('gradient style registry', () => {
     expect(angles).toEqual({ diagonal: 135, vertical: 180, horizontal: 90, 'diagonal-alt': 45, radial: undefined })
     expect(DEFAULTS.gradient_style).toBe('diagonal')
     expect(SETTINGS_KEYS).toContain('gradient_style')
+  })
+
+  it('labels are plain text — no emoji, arrows or symbols (user request)', () => {
+    for (const s of GRADIENT_STYLE_OPTIONS) {
+      expect(s.label, s.id).toMatch(/^[\w ]+$/)
+      expect(s.label, s.id).not.toMatch(/[\u2190-\u21FF\u{1F000}-\u{1FAFF}\u2600-\u27BF]/u)
+    }
+    expect(GRADIENT_STYLE_OPTIONS.map((s) => s.label)).toEqual([
+      'Diagonal', 'Vertical', 'Horizontal', 'Diagonal Alt', 'Radial'
+    ])
   })
 
   it('sanitizes unknown styles back to diagonal', () => {
@@ -102,6 +113,38 @@ describe('applyBackground publishes the full image var', () => {
 
     applyBackground({ themeId: 'matrix', gradientStyle: 'horizontal' })
     expect(cssVars['--shell-grad-image']).toMatch(/^linear-gradient\(90deg, /)
+  })
+})
+
+describe('style click re-owns its angle in custom mode (fixwave L)', () => {
+  // Regression: with a custom gradient enabled, resolveBackground renders the
+  // slider angle, so a dragged value (e.g. 220°) made every linear style look
+  // identical — the selector appeared broken. Clicking a linear style must
+  // write that style's fixed angle INTO the custom gradient.
+  it('returns a full replacement gradient carrying the style angle', () => {
+    const custom = { enabled: true, from: '#ff2d55', to: '#160a0e', angle: 220 }
+    expect(styleGradientPatch(custom, 'vertical')).toEqual({
+      enabled: true, from: '#ff2d55', to: '#160a0e', angle: 180
+    })
+    expect(styleGradientPatch(custom, 'horizontal')?.angle).toBe(90)
+    expect(styleGradientPatch(custom, 'diagonal-alt')?.angle).toBe(45)
+  })
+
+  it('returns null when nothing beyond gradient_style needs saving', () => {
+    const custom = { enabled: true, from: '#ff2d55', to: '#160a0e', angle: 220 }
+    expect(styleGradientPatch(custom, 'radial')).toBeNull() // radial is angle-free
+    expect(styleGradientPatch(custom, 'diagonal')).toEqual({ ...custom, angle: 135 }) // 220 → 135
+    expect(styleGradientPatch({ ...custom, angle: 135 }, 'diagonal')).toBeNull() // already synced
+    // Custom OFF (theme mode): theme gradients already take the style angle.
+    expect(styleGradientPatch({ ...custom, enabled: false }, 'vertical')).toBeNull()
+    expect(styleGradientPatch(undefined, 'vertical')).toBeNull()
+    expect(styleGradientPatch({}, 'junk-style')).toBeNull()
+  })
+
+  it('patch survives sanitization and renders through buildGradientCss', () => {
+    const custom = { enabled: true, from: '#ff2d55', to: '#160a0e', angle: 220 }
+    const patch = styleGradientPatch(custom, 'vertical')
+    expect(buildGradientCss(patch)).toBe('linear-gradient(180deg, #ff2d55, #160a0e)')
   })
 })
 

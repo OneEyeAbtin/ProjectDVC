@@ -19,7 +19,7 @@ export const GRADIENT_STYLE_OPTIONS = [
   { id: 'diagonal', label: 'Diagonal', angle: 135 },
   { id: 'vertical', label: 'Vertical', angle: 180 },
   { id: 'horizontal', label: 'Horizontal', angle: 90 },
-  { id: 'diagonal-alt', label: 'Diagonal ↗', angle: 45 },
+  { id: 'diagonal-alt', label: 'Diagonal Alt', angle: 45 },
   { id: 'radial', label: 'Radial' }
 ]
 
@@ -101,4 +101,19 @@ export function applyBackground(options) {
   root.style.setProperty('--shell-grad-to', g.to)
   root.style.setProperty('--shell-grad-angle', `${g.angle}deg`)
   root.style.setProperty('--shell-grad-image', buildGradientCss(g))
+}
+
+// Fixwave L — style clicks must stay VISIBLE in custom-gradient mode. While
+// the override is enabled, resolveBackground renders the slider's angle, so a
+// previously-dragged value (e.g. 220°) masks every linear style and the
+// selector looks dead. Selecting a linear style therefore re-owns its fixed
+// angle INTO the custom gradient; radial is angle-free and touches nothing.
+// Returns the full replacement gradient to persist, or null when only
+// gradient_style needs saving (custom off, radial, or angle already synced).
+export function styleGradientPatch(customGradient, styleId) {
+  const opt = GRADIENT_STYLE_OPTIONS.find((s) => s.id === sanitizeGradientStyle(styleId))
+  if (!opt || opt.angle === undefined) return null
+  const g = sanitizeGradient(customGradient)
+  if (!g.enabled || g.angle === opt.angle) return null
+  return { ...g, angle: opt.angle }
 }

@@ -11,7 +11,13 @@ import {
   TTS_ENGINES
 } from './settingsDraft.js'
 import './settings.css'
-import { GRADIENT_PRESETS, GRADIENT_STYLE_OPTIONS, sanitizeGradient, sanitizeGradientStyle } from './background.js'
+import {
+  GRADIENT_PRESETS,
+  GRADIENT_STYLE_OPTIONS,
+  sanitizeGradient,
+  sanitizeGradientStyle,
+  styleGradientPatch
+} from './background.js'
 import { PARTICLE_THEME_META, sanitizeParticleTheme } from '../ambient/particleThemes.js'
 import {
   ANIMATION_SPEED_MAX,
@@ -595,7 +601,14 @@ export default function SettingsOverlay() {
                       className={`seg${liveGradientStyle === style.id ? ' active' : ''}`}
                       aria-pressed={liveGradientStyle === style.id}
                       title={style.id === 'radial' ? 'Radial ignores the angle slider' : undefined}
-                      onClick={() => saveLive('gradient_style', style.id)}
+                      onClick={() => {
+                        saveLive('gradient_style', style.id)
+                        // Custom mode: the slider angle would otherwise mask
+                        // every linear style — the click re-owns the style's
+                        // fixed angle so the change is always visible.
+                        const patch = styleGradientPatch(liveGradientCfg, style.id)
+                        if (patch) saveLive('custom_gradient', patch)
+                      }}
                     >
                       {style.label}
                     </button>
