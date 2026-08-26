@@ -59,6 +59,25 @@ describe('speed multiplier scales per-frame motion', () => {
     expect(burst.age).toBeCloseTo(0.8, 9) // aged 0.8s in 0.4 real seconds
   })
 
+  // Regression (fixwave M report): constellation dot velocities must obey the
+  // animation-speed slider exactly like every other theme. Pure function —
+  // identical seeds stepped at 1× vs N× travel N× as far.
+  it('constellation positions scale with speed (pure fn)', () => {
+    for (const speed of [0.25, 1, 2, 3]) {
+      const slow = { x: 200, y: 200, vx: 9, vy: -6 }
+      const fast = { ...slow }
+      const dt = 1
+      PARTICLE_THEMES.constellation.step(slow, applySpeed(dt, 1), 800, 600)
+      PARTICLE_THEMES.constellation.step(fast, applySpeed(dt, speed), 800, 600)
+      expect(fast.x - 200).toBeCloseTo((slow.x - 200) * speed, 9)
+      expect(fast.y - 200).toBeCloseTo((slow.y - 200) * speed, 9)
+    }
+    // Sanity: the sim actually moved.
+    const probe = { x: 200, y: 200, vx: 9, vy: -6 }
+    PARTICLE_THEMES.constellation.step(probe, applySpeed(1, 1), 800, 600)
+    expect(probe.x).not.toBe(200)
+  })
+
   // Regression (fixwave L): stars/embers/fireflies/sparkles used to compute
   // pulse/twinkle alpha from ABSOLUTE time in draw(), so the slider scaled
   // movement but never the pulsing. Every pulse phase must accumulate
