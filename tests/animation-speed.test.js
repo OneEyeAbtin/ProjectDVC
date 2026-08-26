@@ -58,6 +58,34 @@ describe('speed multiplier scales per-frame motion', () => {
     PARTICLE_THEMES.fireworks.step(burst, applySpeed(0.4, 2), 400, 600)
     expect(burst.age).toBeCloseTo(0.8, 9) // aged 0.8s in 0.4 real seconds
   })
+
+  // Regression (fixwave L): stars/embers/fireflies/sparkles used to compute
+  // pulse/twinkle alpha from ABSOLUTE time in draw(), so the slider scaled
+  // movement but never the pulsing. Every pulse phase must accumulate
+  // through step()'s dt path so speed scales the whole visual.
+  it('pulse phases accumulate via dt, not absolute draw time', () => {
+    const cases = [
+      ['stars', 'twPhase', 'twinkleSpeed'],
+      ['embers', 'flickPhase', 'flickerSpeed'],
+      ['fireflies', 'pulsePhase', 'pulseSpeed'],
+      ['sparkles', 'twPhase', 'twinkleSpeed']
+    ]
+    for (const [id, phaseField, rateField] of cases) {
+      const def = PARTICLE_THEMES[id]
+      const a = def.spawn(400, 600)
+      const b = { ...a }
+      const before = a[phaseField]
+      const dt = 0.5
+      def.step(a, applySpeed(dt, 1), 400, 600)
+      expect(a[phaseField], `${id} advances`).toBeCloseTo(before + a[rateField] * dt * Math.PI * 2, 9)
+
+      const beforeB = b[phaseField]
+      def.step(b, applySpeed(dt, 3), 400, 600)
+      const slow = a[phaseField] - before
+      const fast = b[phaseField] - beforeB
+      expect(fast, `${id} 3× scaling`).toBeCloseTo(slow * 3, 9)
+    }
+  })
 })
 
 describe('setting persistence', () => {

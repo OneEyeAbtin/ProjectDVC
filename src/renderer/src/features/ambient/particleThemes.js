@@ -66,6 +66,8 @@ function fillCircle(ctx, x, y, r) {
 }
 
 // ── stars ─ current behavior: slow rise, gentle wobble, twinkle, white/accent
+// Pulse/twinkle phases are ACCUMULATED in step() (never read from absolute
+// time) so the animation-speed slider scales the whole visual live.
 export const STARS = {
   count: 28,
   spawn(w, h) {
@@ -78,17 +80,18 @@ export const STARS = {
       phase: Math.random() * TAU,
       phaseSpeed: rand(0.4, 1.2),
       twinkleSpeed: rand(0.6, 2),
-      twinklePhase: Math.random() * TAU
+      twPhase: Math.random() * TAU
     }
   },
   step(p, dt, w, h) {
     p.y -= p.vy * dt
     p.phase += p.phaseSpeed * dt * TAU
+    p.twPhase += p.twinkleSpeed * dt * TAU
     wrapUp(p, w, h)
   },
   draw(ctx, p, t, animate, accent, isAccent) {
     ctx.globalAlpha = animate
-      ? 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(t * p.twinkleSpeed * TAU + p.twinklePhase))
+      ? 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(p.twPhase))
       : 0.55
     ctx.fillStyle = isAccent ? accent : '#ffffff'
     fillCircle(ctx, p.x + Math.sin(p.phase) * p.swayAmp, p.y, p.r)
@@ -108,18 +111,19 @@ export const EMBERS = {
       phase: Math.random() * TAU,
       phaseSpeed: rand(0.6, 1.6),
       flickerSpeed: rand(1.5, 3.2),
-      flickerPhase: Math.random() * TAU,
+      flickPhase: Math.random() * TAU,
       color: pickColor(['#ff6b35', '#ffd60a'])
     }
   },
   step(p, dt, w, h) {
     p.y -= p.vy * dt
     p.phase += p.phaseSpeed * dt * TAU
+    p.flickPhase += p.flickerSpeed * dt * TAU
     wrapUp(p, w, h)
   },
   draw(ctx, p, t, animate) {
     const flicker = animate
-      ? 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * p.flickerSpeed * TAU + p.flickerPhase))
+      ? 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(p.flickPhase))
       : 0.7
     ctx.globalAlpha = 0.85 * flicker
     ctx.fillStyle = p.color
@@ -245,10 +249,11 @@ export const FIREFLIES = {
     p.heading += (Math.random() - 0.5) * 2 * p.turnJitter * dt
     p.x = (p.x + Math.cos(p.heading) * p.speed * dt + w) % w
     p.y = (p.y + Math.sin(p.heading) * p.speed * dt + h) % h
+    p.pulsePhase += p.pulseSpeed * dt * TAU
   },
   draw(ctx, p, t, animate) {
     const pulse = animate
-      ? 0.5 + 0.5 * Math.sin(t * p.pulseSpeed * TAU + p.pulsePhase)
+      ? 0.5 + 0.5 * Math.sin(p.pulsePhase)
       : 0.5
     // Halo first (soft glow), then the bright core.
     ctx.globalAlpha = 0.08 + 0.3 * pulse
@@ -442,17 +447,18 @@ export const SPARKLES = {
       y: Math.random() * h,
       r: rand(1.5, 3.2),
       twinkleSpeed: rand(0.8, 2.2),
-      twinklePhase: Math.random() * TAU,
+      twPhase: Math.random() * TAU,
       rot: Math.random() * TAU,
       rotSpeed: rand(-0.5, 0.5)
     }
   },
   step(p, dt) {
     p.rot += p.rotSpeed * dt
+    p.twPhase += p.twinkleSpeed * dt * TAU
   },
   draw(ctx, p, t, animate, accent, isAccent) {
     const pulse = animate
-      ? 0.25 + 0.75 * (0.5 + 0.5 * Math.sin(t * p.twinkleSpeed * TAU + p.twinklePhase))
+      ? 0.25 + 0.75 * (0.5 + 0.5 * Math.sin(p.twPhase))
       : 0.6
     ctx.globalAlpha = pulse
     ctx.fillStyle = isAccent ? accent : '#ffffff'
